@@ -15,6 +15,7 @@ app.get('/api/me', h(r => { const u = auth(r); return { ...u, bets: C.myBets(u.i
 app.get('/api/lines', h(r => { auth(r); return C.lines(['open', 'closed']); }));
 app.get('/api/leaderboard', h(r => { auth(r); return C.leaderboard(); }));
 app.post('/api/bet', h(r => { const u = auth(r); C.placeBet(u.id, r.body.optionId, r.body.stake); }));
+app.post('/api/profile', h(r => { const u = auth(r); return C.setProfile(u.id, r.body.avatar, r.body.display_name); }));
 app.post('/api/parlay', h(r => { const u = auth(r); return { id: C.placeParlay(u.id, r.body.optionIds, r.body.stake) }; }));
 app.get('/api/real', h(async r => { auth(r); return odds.upcoming(r.query.sport || 'upcoming'); }));
 app.post('/api/admin/import', h(async r => { admin(r); const d = await odds.upcoming(r.body.sport || 'upcoming'); if (d.error) return d;

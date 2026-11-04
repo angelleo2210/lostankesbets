@@ -26,6 +26,9 @@ function open(file = 'data.db') {
   CREATE TABLE IF NOT EXISTS bets(id INTEGER PRIMARY KEY, user_id INTEGER, line_id INTEGER, option_id INTEGER, stake INTEGER, odds INTEGER, status TEXT DEFAULT 'open', payout INTEGER DEFAULT 0, created TEXT DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE IF NOT EXISTS parlays(id INTEGER PRIMARY KEY, user_id INTEGER, stake INTEGER, status TEXT DEFAULT 'open', payout INTEGER DEFAULT 0, created TEXT DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE IF NOT EXISTS parlay_legs(id INTEGER PRIMARY KEY, parlay_id INTEGER, line_id INTEGER, option_id INTEGER, odds INTEGER, status TEXT DEFAULT 'open');`);
+  const ucols = db.prepare('PRAGMA table_info(users)').all().map(c => c.name);
+  if (!ucols.includes('avatar')) db.exec('ALTER TABLE users ADD COLUMN avatar TEXT');
+  if (!ucols.includes('display_name')) db.exec('ALTER TABLE users ADD COLUMN display_name TEXT');
   const tx = fn => { db.exec('BEGIN'); try { const r = fn(); db.exec('COMMIT'); return r; } catch (e) { db.exec('ROLLBACK'); throw e; } };
   const err = m => { const e = new Error(m); e.user = true; throw e; };
   const api = {
@@ -41,7 +44,7 @@ function open(file = 'data.db') {
     },
     setupAdmin(username, pin) { if (api.hasAdmin()) err('El administrador ya existe'); return api.createUser(username, pin, true); },
     newInvite() { const c = crypto.randomBytes(4).toString('hex'); db.prepare('INSERT INTO invites(code) VALUES(?)').run(c); return c; },
-    listInvites: () => db.prepare('SELECT i.code, u.username used_by FROM invites i LEFT JOIN users u ON u.id=i.used_by ORDER BY i.rowid DESC').all(),
+    listInvites: () => db.prepare('SELECT i.code, u.username used_by, u.avatar, u.display_name FROM invites i LEFT JOIN users u ON u.id=i.used_by ORDER BY i.rowid DESC').all(),
     register(code, username, pin) {
       return tx(() => {
         const inv = db.prepare('SELECT * FROM invites WHERE code=?').get(String(code || ''));
@@ -54,7 +57,7 @@ function open(file = 'data.db') {
       if (!u || !crypto.timingSafeEqual(Buffer.from(hash(pin, u.salt).hash, 'hex'), Buffer.from(u.pin_hash, 'hex'))) err('Usuario o PIN incorrecto');
       const t = crypto.randomBytes(24).toString('hex'); db.prepare('INSERT INTO sessions VALUES(?,?)').run(t, u.id); return t;
     },
-    userByToken: t => t && db.prepare('SELECT u.id,u.username,u.coins,u.is_admin FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?').get(t),
+    userByToken: t => t && db.prepare('SELECT u.id,u.username,u.coins,u.is_admin,u.avatar,u.display_name FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?').get(t),
     createLine(title, opts, extra = {}) {
       title = String(title || '').trim(); if (!title) err('Falta el título');
       if (!Array.isArray(opts) || opts.length < 2) err('Se necesitan al menos 2 opciones');
@@ -154,7 +157,18 @@ function open(file = 'data.db') {
       });
     },
     myBets: uid => db.prepare('SELECT b.*, l.title, l.kind, o.label FROM bets b JOIN lines l ON l.id=b.line_id JOIN options o ON o.id=b.option_id WHERE b.user_id=? ORDER BY b.id DESC').all(uid),
-    leaderboard: () => db.prepare('SELECT username, coins FROM users ORDER BY coins DESC, username').all(),
+    setProfile(uid, avatar, displayName) {
+      avatar = String(avatar ?? '').trim(); displayName = String(displayName ?? '').trim().replace(/\s+/g, ' ');
+      if (avatar) {
+        const g = [...new Intl.Segmenter('es', { granularity: 'grapheme' }).segment(avatar)];
+        if (avatar.length > 16 || g.length !== 1 || !/\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(avatar)) err('El avatar debe ser un solo emoji');
+      }
+      if ([...displayName].length > 20) err('El nombre debe tener máximo 20 caracteres');
+      if (/[\u0000-\u001f\u007f<>]/.test(displayName)) err('El nombre tiene caracteres no permitidos');
+      db.prepare('UPDATE users SET avatar=?, display_name=? WHERE id=?').run(avatar || null, displayName || null, uid);
+      return { avatar: avatar || null, display_name: displayName || null };
+    },
+    leaderboard: () => db.prepare('SELECT username, avatar, display_name, coins FROM users ORDER BY coins DESC, username').all(),
   };
   return api;
 }
