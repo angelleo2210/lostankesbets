@@ -83,7 +83,7 @@ function open(file = 'data.db') {
     },
     placeParlay(userId, optionIds, stake) {
       stake = Number(stake);
-      if (!Array.isArray(optionIds) || optionIds.length < 3 || optionIds.length > 4) err('El parlay debe tener 3 o 4 selecciones');
+      if (!Array.isArray(optionIds) || optionIds.length < 2 || optionIds.length > 15) err('El parlay debe tener de 2 a 15 selecciones');
       const ids = optionIds.map(Number);
       if (new Set(ids).size !== ids.length) err('Selecciones repetidas');
       if (!Number.isInteger(stake) || stake <= 0) err('La apuesta debe ser un número entero mayor que 0');
