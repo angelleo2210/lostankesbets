@@ -40,6 +40,13 @@ t('parlay 15 ok, 16 rechazado', () => {
   assert.throws(() => Q.placeParlay(q, ids, 1), /2 a 15/); assert.ok(Q.placeParlay(q, ids.slice(0, 15), 1)); assert.equal(Q.myParlays(q)[0].legs.length, 15);
   for (const k of [2, 5, 6, 10]) { assert.ok(Q.placeParlay(q, ids.slice(0, k), 1)); assert.equal(Q.myParlays(q)[0].legs.length, k); }
 });
+t('parlay multiplica: +100 y +200 => 6.0 (+500)', () => {
+  const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const q = Q.register(Q.newInvite(), 'yy', '1111');
+  const a1 = Q.createLine('A', [{ label: 'S', odds: 100 }, { label: 'N', odds: -110 }]), a2 = Q.createLine('B', [{ label: 'S', odds: 200 }, { label: 'N', odds: -110 }]);
+  const o = id => Q.lines().find(l => l.id === id).options[0].id; Q.placeParlay(q, [o(a1), o(a2)], 100);
+  const pp = Q.myParlays(q)[0]; assert.equal(pp.odds, 500); assert.equal(pp.potential, 600);
+  Q.settleLine(a1, o(a1)); Q.settleLine(a2, o(a2)); assert.equal(Q.myParlays(q)[0].payout, 600); assert.equal(Q.db.prepare('SELECT coins FROM users WHERE id=?').get(q).coins, 50500);
+});
 t('parlay gana todas (+100,+100,-200 => x6)', () => {
   P.placeParlay(u, [ls[0].options[0].id, ls[1].options[0].id, ls[2].options[1].id], 100); assert.equal(pc(u), 49900);
   P.settleLine(ls[0].id, ls[0].options[0].id); P.settleLine(ls[1].id, ls[1].options[0].id); assert.equal(pc(u), 49900);
