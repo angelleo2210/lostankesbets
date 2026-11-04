@@ -6,7 +6,9 @@ const fmt = n => Number(n).toLocaleString('es-US'); const od = o => (o > 0 ? '+'
 const profit = (s, o) => Math.floor(o > 0 ? s * o / 100 : s * 100 / -o);
 async function api(p, body) { const r = await fetch('/api' + p, { method: body ? 'POST' : 'GET', headers: { 'content-type': 'application/json', 'x-token': token || '' }, body: body && JSON.stringify(body) });
   const d = await r.json(); if (d.error && r.status >= 400) throw new Error(d.error); return d; }
-const who = u => `${u.avatar ? esc(u.avatar) + ' ' : ''}${esc(u.display_name || u.username)}`;
+const FH = { ninguno: ['Ninguno', ''], bigote: ['Bigote', '〰'], barba_corta: ['Barba corta', '▁'], barba_larga: ['Barba larga', '▼'], candado: ['Candado', '◡'], perilla: ['Perilla', '▾'], patillas: ['Patillas', '‖'] };
+const fhChip = f => f && FH[f.style] ? `<span title="${FH[f.style][0]}" style="display:inline-block;font-size:11px;padding:0 4px;border-radius:6px;background:#334155;color:${/^#[0-9a-f]{6}$/.test(f.color || '') ? f.color : '#e2e8f0'}">${FH[f.style][1]} ${FH[f.style][0]}</span> ` : '';
+const who = u => `${u.avatar ? esc(u.avatar) + ' ' : ''}${fhChip(u.facialHair)}${esc(u.display_name || u.username)}`;
 const EMOJIS = '😎🦁🐯🐺🦅🔥⚡💪🍀🎲🏆⚽🏀🏈⚾🥊🍝🍺🤑👑🚀🐐🦈💀'.match(/\p{Extended_Pictographic}/gu);
 const flash = m => { const e = $('#msg'); if (e) e.textContent = m; else alert(m); };
 async function start() {
@@ -43,12 +45,18 @@ async function render() {
     const pst = { ...st, open: 'Abierto' , won: 'Ganado', lost: 'Perdido', refunded: 'Devuelto' }, gst = { open: '⏳', won: '✅', lost: '❌', cancelled: '🚫' };
     B.innerHTML = (me.parlays || []).map(p => `<div class="card"><b>🎟️ Parlay de ${p.legs.length}</b> ${p.odds ? od(p.odds) : ''} · apostado ${fmt(p.stake)}${p.legs.map(g => `<div class="small">${gst[g.status] || ''} ${esc(g.title)}: ${esc(g.label)} ${od(g.odds)}</div>`).join('')}<div class="small">${pst[p.status]}${p.status === 'open' ? ' · gana ' + fmt(p.potential) : p.payout ? ' · cobrado ' + fmt(p.payout) : ''}</div></div>`).join('') + B.innerHTML; }
   if (tab === 'tabla') { const t = await api('/leaderboard'); B.innerHTML = `<div class="card">${t.map((u, i) => `<div class="opt"><span>${i + 1}. ${who(u)}${u.display_name ? ` <span class="small">@${esc(u.username)}</span>` : ''}</span><b>🪙 ${fmt(u.coins)}</b></div>`).join('')}</div>`; }
-  if (tab === 'perfil') { let av = me.avatar || '';
+  if (tab === 'perfil') { let av = me.avatar || '', fs = me.facialHair?.style || 'ninguno';
     B.innerHTML = `<div class="card"><h2>Mi perfil</h2><div class="small">Usuario: @${esc(me.username)}</div>
     <div style="display:flex;flex-wrap:wrap;gap:4px;margin:8px 0">${EMOJIS.map(e => `<button class="${e === av ? '' : 'alt'}" style="width:44px;padding:6px" data-em="${e}">${e}</button>`).join('')}<button class="alt" style="width:auto;padding:6px" data-em="">Sin avatar</button></div>
+    <h2>Vello facial</h2><select id="fh">${Object.entries(FH).map(([k, v]) => `<option value="${k}" ${k === fs ? 'selected' : ''}>${v[0]}</option>`).join('')}</select>
+    <div class="row"><label class="small"><input type="checkbox" id="fcu" style="width:auto" ${me.facialHair?.color ? 'checked' : ''}> Color</label><input type="color" id="fc" value="${esc(me.facialHair?.color || '#5b3a1e')}" style="height:42px"></div>
+    <div class="card">Vista previa: <span id="pv"></span></div>
     <input id="dn" maxlength="20" placeholder="Nombre para mostrar (opcional)" value="${esc(me.display_name || '')}"><button id="sv">Guardar</button></div>`;
-    B.querySelectorAll('[data-em]').forEach(b => b.onclick = () => { av = b.dataset.em; B.querySelectorAll('[data-em]').forEach(x => x.className = x.dataset.em === av && av ? '' : 'alt'); });
-    $('#sv').onclick = async () => { try { await api('/profile', { avatar: av, display_name: $('#dn').value }); render(); } catch (e) { flash(e.message); } }; }
+    const fhv = () => $('#fh').value === 'ninguno' ? null : { style: $('#fh').value, color: $('#fcu').checked ? $('#fc').value : null };
+    const pv = () => $('#pv').innerHTML = who({ username: me.username, avatar: av, display_name: $('#dn').value.trim(), facialHair: fhv() }); pv();
+    ['#fh', '#fc', '#fcu', '#dn'].forEach(sel => $(sel).oninput = $(sel).onchange = pv);
+    B.querySelectorAll('[data-em]').forEach(b => b.onclick = () => { av = b.dataset.em; B.querySelectorAll('[data-em]').forEach(x => x.className = x.dataset.em === av && av ? '' : 'alt'); pv(); });
+    $('#sv').onclick = async () => { try { await api('/profile', { avatar: av, display_name: $('#dn').value, facialHair: fhv() || 'ninguno' }); render(); } catch (e) { flash(e.message); } }; }
   if (tab === 'admin') await adminView(B);
   } catch (e) { flash(e.message); }
 }

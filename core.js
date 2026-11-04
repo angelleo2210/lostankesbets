@@ -11,6 +11,8 @@ function profit(stake, odds) {
 const dec = o => (o > 0 ? 1 + o / 100 : 1 + 100 / -o);
 function toAmerican(d) { return d >= 2 ? Math.round((d - 1) * 100) : Math.round(-100 / (d - 1)); }
 
+const FACIAL = ['ninguno', 'bigote', 'barba_corta', 'barba_larga', 'candado', 'perilla', 'patillas'];
+const fhOut = r => { if (!r) return r; const { facial_hair, ...o } = r; let f = null; try { f = facial_hair ? JSON.parse(facial_hair) : null; } catch {} return { ...o, facialHair: f }; };
 function hash(pin, salt = crypto.randomBytes(16).toString('hex')) {
   return { salt, hash: crypto.scryptSync(String(pin), salt, 32).toString('hex') };
 }
@@ -29,6 +31,7 @@ function open(file = 'data.db') {
   const ucols = db.prepare('PRAGMA table_info(users)').all().map(c => c.name);
   if (!ucols.includes('avatar')) db.exec('ALTER TABLE users ADD COLUMN avatar TEXT');
   if (!ucols.includes('display_name')) db.exec('ALTER TABLE users ADD COLUMN display_name TEXT');
+  if (!ucols.includes('facial_hair')) db.exec('ALTER TABLE users ADD COLUMN facial_hair TEXT');
   const tx = fn => { db.exec('BEGIN'); try { const r = fn(); db.exec('COMMIT'); return r; } catch (e) { db.exec('ROLLBACK'); throw e; } };
   const err = m => { const e = new Error(m); e.user = true; throw e; };
   const api = {
@@ -44,7 +47,7 @@ function open(file = 'data.db') {
     },
     setupAdmin(username, pin) { if (api.hasAdmin()) err('El administrador ya existe'); return api.createUser(username, pin, true); },
     newInvite() { const c = crypto.randomBytes(4).toString('hex'); db.prepare('INSERT INTO invites(code) VALUES(?)').run(c); return c; },
-    listInvites: () => db.prepare('SELECT i.code, u.username used_by, u.avatar, u.display_name FROM invites i LEFT JOIN users u ON u.id=i.used_by ORDER BY i.rowid DESC').all(),
+    listInvites: () => db.prepare('SELECT i.code, u.username used_by, u.avatar, u.display_name, u.facial_hair FROM invites i LEFT JOIN users u ON u.id=i.used_by ORDER BY i.rowid DESC').all().map(fhOut),
     register(code, username, pin) {
       return tx(() => {
         const inv = db.prepare('SELECT * FROM invites WHERE code=?').get(String(code || ''));
@@ -57,7 +60,7 @@ function open(file = 'data.db') {
       if (!u || !crypto.timingSafeEqual(Buffer.from(hash(pin, u.salt).hash, 'hex'), Buffer.from(u.pin_hash, 'hex'))) err('Usuario o PIN incorrecto');
       const t = crypto.randomBytes(24).toString('hex'); db.prepare('INSERT INTO sessions VALUES(?,?)').run(t, u.id); return t;
     },
-    userByToken: t => t && db.prepare('SELECT u.id,u.username,u.coins,u.is_admin,u.avatar,u.display_name FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?').get(t),
+    userByToken: t => t && fhOut(db.prepare('SELECT u.id,u.username,u.coins,u.is_admin,u.avatar,u.display_name,u.facial_hair FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?').get(t)),
     createLine(title, opts, extra = {}) {
       title = String(title || '').trim(); if (!title) err('Falta el título');
       if (!Array.isArray(opts) || opts.length < 2) err('Se necesitan al menos 2 opciones');
@@ -157,7 +160,14 @@ function open(file = 'data.db') {
       });
     },
     myBets: uid => db.prepare('SELECT b.*, l.title, l.kind, o.label FROM bets b JOIN lines l ON l.id=b.line_id JOIN options o ON o.id=b.option_id WHERE b.user_id=? ORDER BY b.id DESC').all(uid),
-    setProfile(uid, avatar, displayName) {
+    setProfile(uid, avatar, displayName, facialHair) {
+      let fh = null;
+      if (facialHair != null && facialHair !== '') {
+        const st = typeof facialHair === 'string' ? facialHair : facialHair.style, col = typeof facialHair === 'object' ? facialHair.color : null;
+        if (!FACIAL.includes(st)) err('Vello facial inválido');
+        if (col != null && col !== '' && !/^#[0-9a-fA-F]{6}$/.test(col)) err('Color inválido (use #rrggbb)');
+        if (st !== 'ninguno') fh = { style: st, color: col ? col.toLowerCase() : null };
+      }
       avatar = String(avatar ?? '').trim(); displayName = String(displayName ?? '').trim().replace(/\s+/g, ' ');
       if (avatar) {
         const g = [...new Intl.Segmenter('es', { granularity: 'grapheme' }).segment(avatar)];
@@ -165,11 +175,11 @@ function open(file = 'data.db') {
       }
       if ([...displayName].length > 20) err('El nombre debe tener máximo 20 caracteres');
       if (/[\u0000-\u001f\u007f<>]/.test(displayName)) err('El nombre tiene caracteres no permitidos');
-      db.prepare('UPDATE users SET avatar=?, display_name=? WHERE id=?').run(avatar || null, displayName || null, uid);
-      return { avatar: avatar || null, display_name: displayName || null };
+      db.prepare('UPDATE users SET avatar=?, display_name=?, facial_hair=? WHERE id=?').run(avatar || null, displayName || null, fh && JSON.stringify(fh), uid);
+      return { avatar: avatar || null, display_name: displayName || null, facialHair: fh };
     },
-    leaderboard: () => db.prepare('SELECT username, avatar, display_name, coins FROM users ORDER BY coins DESC, username').all(),
+    leaderboard: () => db.prepare('SELECT username, avatar, display_name, facial_hair, coins FROM users ORDER BY coins DESC, username').all().map(fhOut),
   };
   return api;
 }
-module.exports = { open, profit, dec, toAmerican, START_COINS };
+module.exports = { open, FACIAL, profit, dec, toAmerican, START_COINS };
