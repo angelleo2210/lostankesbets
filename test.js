@@ -80,6 +80,25 @@ t('perfil: vello facial', () => {
   assert.equal(Q.setProfile(q, '', '', { style: 'ninguno' }).facialHair, null);
   assert.throws(() => Q.setProfile(q, '', '', { style: 'rasta' }), /Vello/); assert.throws(() => Q.setProfile(q, '', '', { style: 'bigote', color: 'red;x' }), /Color/);
 });
+t('recompensas top 3', () => {
+  const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const ids = ['aa', 'bb', 'cc', 'dd'].map(n => Q.register(Q.newInvite(), n, '1111'));
+  const mk = () => { const id = Q.createLine('X', [{ label: 'S', odds: 100 }, { label: 'N', odds: 100 }]); return [id, ...Q.lines().find(l => l.id === id).options]; };
+  const [L, S, N] = mk();
+  Q.placeBet(ids[0], S.id, 3000); Q.placeBet(ids[1], S.id, 2000); Q.placeBet(ids[2], S.id, 1000); Q.placeBet(ids[3], N.id, 100);
+  Q.settleLine(L, S.id); // aa 53000, bb 52000, cc 51000, dd 49900; admin excluido
+  const has = (u, it) => Q.unlocksOf(u).some(x => x.item_id === it);
+  assert.ok(has(ids[0], 'corona') && has(ids[0], 'bronce')); assert.ok(!has(ids[1], 'corona') && has(ids[1], 'trofeo'));
+  assert.ok(has(ids[2], 'medalla') && !has(ids[2], 'plata')); assert.equal(Q.unlocksOf(ids[3]).length, 0); assert.equal(Q.unlocksOf(1).length, 0);
+  let lb = Q.leaderboard(); assert.equal(lb.find(r => r.username === 'aa').badge, '🥇'); assert.equal(lb.find(r => r.username === 'angel').badge, null);
+  assert.throws(() => Q.setProfile(ids[1], '', '', null, { hat: 'corona' }), /Bloqueado/); assert.throws(() => Q.setProfile(ids[3], '', '', null, { hat: 'gorra_campeon' }), /Bloqueado/);
+  assert.throws(() => Q.setProfile(ids[0], '', '', null, { hat: 'oro' }), /inválido/);
+  assert.deepEqual(Q.setProfile(ids[0], '', '', null, { hat: 'corona', color: 'oro', accessory: 'diamante' }).cosmetics, { hat: 'corona', color: 'oro', accessory: 'diamante' });
+  const [L2, S2, N2] = mk(); Q.placeBet(ids[0], N2.id, 10000); Q.placeBet(ids[3], S2.id, 5000); Q.settleLine(L2, S2.id); // aa 43000 cae; dd 54900 sube a 1
+  lb = Q.leaderboard(); const aa = lb.find(r => r.username === 'aa');
+  assert.equal(aa.badge, null); assert.equal(aa.cosmetics.hat, 'corona'); assert.ok(has(ids[0], 'corona')); // trofeo conservado
+  assert.equal(lb.find(r => r.username === 'dd').badge, '🥇'); assert.ok(has(ids[3], 'corona'));
+  assert.ok(Q.setProfile(ids[0], '', '', null, { hat: 'corona' })); // aún puede usarlo
+});
 t('migración idempotente users', () => { const f = require('os').tmpdir() + '/ltb-mig-' + process.pid + '.db';
   const { DatabaseSync } = require('node:sqlite'); const d = new DatabaseSync(f); d.exec('CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT UNIQUE COLLATE NOCASE, pin_hash TEXT, salt TEXT, coins INTEGER, is_admin INTEGER DEFAULT 0)'); d.close();
   open(f).db.close(); const Q = open(f); assert.ok(Q.db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'display_name') && Q.db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'facial_hair')); Q.db.close(); require('fs').unlinkSync(f); });

@@ -11,7 +11,25 @@ function profit(stake, odds) {
 const dec = o => (o > 0 ? 1 + o / 100 : 1 + 100 / -o);
 function toAmerican(d) { return d >= 2 ? Math.round((d - 1) * 100) : Math.round(-100 / (d - 1)); }
 
+// Recompensas top 3 (sin admin). minRank: rango máximo requerido (1 = solo el primero).
+// Política: un ítem desbloqueado se CONSERVA para siempre como trofeo (tabla unlocks);
+// Para calificar hay que tener más de las 50.000 monedas iniciales (evita premios por empate inicial).
+// la insignia 🥇🥈🥉 se calcula en vivo y solo se muestra mientras sigues en el top 3.
+const REWARDS = [
+  { id: 'corona', kind: 'hat', name: 'Corona', icon: '👑', minRank: 1 },
+  { id: 'sombrero_dorado', kind: 'hat', name: 'Sombrero dorado', icon: '🎩', minRank: 2 },
+  { id: 'gorra_campeon', kind: 'hat', name: 'Gorra de campeón', icon: '🧢', minRank: 3 },
+  { id: 'oro', kind: 'color', name: 'Oro metálico', color: '#d4af37', minRank: 1 },
+  { id: 'plata', kind: 'color', name: 'Plata metálica', color: '#c0c0c0', minRank: 2 },
+  { id: 'bronce', kind: 'color', name: 'Bronce metálico', color: '#cd7f32', minRank: 3 },
+  { id: 'diamante', kind: 'accessory', name: 'Diamante', icon: '💎', minRank: 1 },
+  { id: 'trofeo', kind: 'accessory', name: 'Trofeo', icon: '🏆', minRank: 2 },
+  { id: 'medalla', kind: 'accessory', name: 'Medalla', icon: '🎖️', minRank: 3 },
+];
+const BADGES = { 1: '🥇', 2: '🥈', 3: '🥉' };
 const FACIAL = ['ninguno', 'bigote', 'barba_corta', 'barba_larga', 'candado', 'perilla', 'patillas'];
+const deco = (r, id, rk) => { if (!r) return r; const { cosmetics, ...o } = fhOut(r); let c = {}; try { c = cosmetics ? JSON.parse(cosmetics) : {}; } catch {}
+  const rank = rk && rk.get(id) || null; return { ...o, cosmetics: c, rank, badge: rank ? BADGES[rank] : null }; };
 const fhOut = r => { if (!r) return r; const { facial_hair, ...o } = r; let f = null; try { f = facial_hair ? JSON.parse(facial_hair) : null; } catch {} return { ...o, facialHair: f }; };
 function hash(pin, salt = crypto.randomBytes(16).toString('hex')) {
   return { salt, hash: crypto.scryptSync(String(pin), salt, 32).toString('hex') };
@@ -28,9 +46,11 @@ function open(file = 'data.db') {
   CREATE TABLE IF NOT EXISTS bets(id INTEGER PRIMARY KEY, user_id INTEGER, line_id INTEGER, option_id INTEGER, stake INTEGER, odds INTEGER, status TEXT DEFAULT 'open', payout INTEGER DEFAULT 0, created TEXT DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE IF NOT EXISTS parlays(id INTEGER PRIMARY KEY, user_id INTEGER, stake INTEGER, status TEXT DEFAULT 'open', payout INTEGER DEFAULT 0, created TEXT DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE IF NOT EXISTS parlay_legs(id INTEGER PRIMARY KEY, parlay_id INTEGER, line_id INTEGER, option_id INTEGER, odds INTEGER, status TEXT DEFAULT 'open');`);
+  db.exec('CREATE TABLE IF NOT EXISTS unlocks(user_id INTEGER, item_id TEXT, rank INTEGER, created TEXT DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(user_id, item_id))');
   const ucols = db.prepare('PRAGMA table_info(users)').all().map(c => c.name);
   if (!ucols.includes('avatar')) db.exec('ALTER TABLE users ADD COLUMN avatar TEXT');
   if (!ucols.includes('display_name')) db.exec('ALTER TABLE users ADD COLUMN display_name TEXT');
+  if (!ucols.includes('cosmetics')) db.exec('ALTER TABLE users ADD COLUMN cosmetics TEXT');
   if (!ucols.includes('facial_hair')) db.exec('ALTER TABLE users ADD COLUMN facial_hair TEXT');
   const tx = fn => { db.exec('BEGIN'); try { const r = fn(); db.exec('COMMIT'); return r; } catch (e) { db.exec('ROLLBACK'); throw e; } };
   const err = m => { const e = new Error(m); e.user = true; throw e; };
@@ -47,7 +67,7 @@ function open(file = 'data.db') {
     },
     setupAdmin(username, pin) { if (api.hasAdmin()) err('El administrador ya existe'); return api.createUser(username, pin, true); },
     newInvite() { const c = crypto.randomBytes(4).toString('hex'); db.prepare('INSERT INTO invites(code) VALUES(?)').run(c); return c; },
-    listInvites: () => db.prepare('SELECT i.code, u.username used_by, u.avatar, u.display_name, u.facial_hair FROM invites i LEFT JOIN users u ON u.id=i.used_by ORDER BY i.rowid DESC').all().map(fhOut),
+    listInvites: () => { const rk = api.refreshRanks(); return db.prepare('SELECT i.code, u.username used_by, u.avatar, u.display_name, u.facial_hair, u.cosmetics, u.id uid FROM invites i LEFT JOIN users u ON u.id=i.used_by ORDER BY i.rowid DESC').all().map(r => { const { uid, ...o } = deco(r, uid, rk); return o; }); },
     register(code, username, pin) {
       return tx(() => {
         const inv = db.prepare('SELECT * FROM invites WHERE code=?').get(String(code || ''));
@@ -60,7 +80,7 @@ function open(file = 'data.db') {
       if (!u || !crypto.timingSafeEqual(Buffer.from(hash(pin, u.salt).hash, 'hex'), Buffer.from(u.pin_hash, 'hex'))) err('Usuario o PIN incorrecto');
       const t = crypto.randomBytes(24).toString('hex'); db.prepare('INSERT INTO sessions VALUES(?,?)').run(t, u.id); return t;
     },
-    userByToken: t => t && fhOut(db.prepare('SELECT u.id,u.username,u.coins,u.is_admin,u.avatar,u.display_name,u.facial_hair FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?').get(t)),
+    userByToken: t => { const u = t && db.prepare('SELECT u.id,u.username,u.coins,u.is_admin,u.avatar,u.display_name,u.facial_hair,u.cosmetics FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?').get(t); if (!u) return u; const rk = api.refreshRanks(); return { ...deco(u, u.id, rk), unlocks: api.unlocksOf(u.id) }; },
     createLine(title, opts, extra = {}) {
       title = String(title || '').trim(); if (!title) err('Falta el título');
       if (!Array.isArray(opts) || opts.length < 2) err('Se necesitan al menos 2 opciones');
@@ -144,7 +164,7 @@ function open(file = 'data.db') {
             db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(pay, b.user_id);
           } else db.prepare("UPDATE bets SET status='lost' WHERE id=?").run(b.id);
         }
-        api._parlayLegs(l.id, Number(winnerOptionId));
+        api._parlayLegs(l.id, Number(winnerOptionId)); api.refreshRanks();
       });
     },
     cancelLine(id) {
@@ -156,11 +176,19 @@ function open(file = 'data.db') {
           db.prepare("UPDATE bets SET status='refunded', payout=? WHERE id=?").run(b.stake, b.id);
           db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(b.stake, b.user_id);
         }
-        api._parlayLegs(l.id, null);
+        api._parlayLegs(l.id, null); api.refreshRanks();
       });
     },
     myBets: uid => db.prepare('SELECT b.*, l.title, l.kind, o.label FROM bets b JOIN lines l ON l.id=b.line_id JOIN options o ON o.id=b.option_id WHERE b.user_id=? ORDER BY b.id DESC').all(uid),
-    setProfile(uid, avatar, displayName, facialHair) {
+    setProfile(uid, avatar, displayName, facialHair, cosmetics) {
+      let cos;
+      if (cosmetics !== undefined) {
+        cos = {}; if (cosmetics !== null && typeof cosmetics !== 'object') err('Cosméticos inválidos');
+        api.refreshRanks(); const mine = new Set(api.unlocksOf(uid).map(u => u.item_id));
+        for (const kind of ['hat', 'color', 'accessory']) { const v = cosmetics?.[kind]; if (v == null || v === '') continue;
+          const it = REWARDS.find(r => r.id === v && r.kind === kind); if (!it) err('Ítem inválido');
+          if (!mine.has(v)) err(`Bloqueado: ${it.name} requiere top ${it.minRank}`); cos[kind] = v; }
+      }
       let fh = null;
       if (facialHair != null && facialHair !== '') {
         const st = typeof facialHair === 'string' ? facialHair : facialHair.style, col = typeof facialHair === 'object' ? facialHair.color : null;
@@ -176,10 +204,15 @@ function open(file = 'data.db') {
       if ([...displayName].length > 20) err('El nombre debe tener máximo 20 caracteres');
       if (/[\u0000-\u001f\u007f<>]/.test(displayName)) err('El nombre tiene caracteres no permitidos');
       db.prepare('UPDATE users SET avatar=?, display_name=?, facial_hair=? WHERE id=?').run(avatar || null, displayName || null, fh && JSON.stringify(fh), uid);
-      return { avatar: avatar || null, display_name: displayName || null, facialHair: fh };
+      if (cos) db.prepare('UPDATE users SET cosmetics=? WHERE id=?').run(JSON.stringify(cos), uid);
+      return { avatar: avatar || null, display_name: displayName || null, facialHair: fh, ...(cos ? { cosmetics: cos } : {}) };
     },
-    leaderboard: () => db.prepare('SELECT username, avatar, display_name, facial_hair, coins FROM users ORDER BY coins DESC, username').all().map(fhOut),
+    leaderboard: () => { const rk = api.refreshRanks(); return db.prepare('SELECT id, username, avatar, display_name, facial_hair, cosmetics, coins FROM users ORDER BY coins DESC, username').all().map(r => { const { id, ...o } = deco(r, r.id, rk); return o; }); },
+    ranks() { const m = new Map(); db.prepare('SELECT id FROM users WHERE is_admin=0 AND coins>? ORDER BY coins DESC, username LIMIT 3').all(START_COINS).forEach((u, i) => m.set(u.id, i + 1)); return m; },
+    refreshRanks() { const m = api.ranks(); const ins = db.prepare('INSERT OR IGNORE INTO unlocks(user_id,item_id,rank) VALUES(?,?,?)');
+      for (const [uid, rank] of m) for (const it of REWARDS) if (rank <= it.minRank) ins.run(uid, it.id, rank); return m; },
+    unlocksOf: uid => db.prepare('SELECT item_id, rank, created FROM unlocks WHERE user_id=? ORDER BY created').all(uid),
   };
   return api;
 }
-module.exports = { open, FACIAL, profit, dec, toAmerican, START_COINS };
+module.exports = { open, FACIAL, REWARDS, profit, dec, toAmerican, START_COINS };

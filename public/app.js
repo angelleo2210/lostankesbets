@@ -8,7 +8,10 @@ async function api(p, body) { const r = await fetch('/api' + p, { method: body ?
   const d = await r.json(); if (d.error && r.status >= 400) throw new Error(d.error); return d; }
 const FH = { ninguno: ['Ninguno', ''], bigote: ['Bigote', '〰'], barba_corta: ['Barba corta', '▁'], barba_larga: ['Barba larga', '▼'], candado: ['Candado', '◡'], perilla: ['Perilla', '▾'], patillas: ['Patillas', '‖'] };
 const fhChip = f => f && FH[f.style] ? `<span title="${FH[f.style][0]}" style="display:inline-block;font-size:11px;padding:0 4px;border-radius:6px;background:#334155;color:${/^#[0-9a-f]{6}$/.test(f.color || '') ? f.color : '#e2e8f0'}">${FH[f.style][1]} ${FH[f.style][0]}</span> ` : '';
-const who = u => `${u.avatar ? esc(u.avatar) + ' ' : ''}${fhChip(u.facialHair)}${esc(u.display_name || u.username)}`;
+let RW = [];
+const rw = id => RW.find(r => r.id === id);
+const who = u => { const c = u.cosmetics || {}, h = rw(c.hat), ac = rw(c.accessory), col = rw(c.color);
+  return `${u.badge ? u.badge + ' ' : ''}${h ? h.icon : ''}${u.avatar ? esc(u.avatar) : ''}${ac ? ac.icon : ''}${h || ac || u.avatar ? ' ' : ''}${fhChip(u.facialHair)}<span style="${col ? `color:${col.color};font-weight:800;text-shadow:0 0 6px ${col.color}88` : ''}">${esc(u.display_name || u.username)}</span>`; };
 const EMOJIS = '😎🦁🐯🐺🦅🔥⚡💪🍀🎲🏆⚽🏀🏈⚾🥊🍝🍺🤑👑🚀🐐🦈💀'.match(/\p{Extended_Pictographic}/gu);
 const flash = m => { const e = $('#msg'); if (e) e.textContent = m; else alert(m); };
 async function start() {
@@ -26,7 +29,7 @@ async function start() {
     token = localStorage.token = d.token; history.replaceState(null, '', '/'); start(); } catch (e) { flash(e.message); } };
 }
 async function render() {
-  me = await api('/me');
+  me = await api('/me'); if (!RW.length) RW = await api('/rewards').catch(() => []);
   const tabs = [['lineas', 'Líneas'], ['reales', 'Reales'], ['mias', 'Mis apuestas'], ['tabla', 'Tabla'], ['perfil', 'Mi perfil']].concat(me.is_admin ? [['admin', 'Admin']] : []);
   A.innerHTML = `<h1>${me.avatar ? '' : '🎲 '}Hola, ${who(me)} · 🪙 ${fmt(me.coins)}</h1><nav>${tabs.map(([k, v]) => `<button class="${k === tab ? '' : 'alt'}" data-t="${k}">${v}</button>`).join('')}</nav>
   <p id="msg" class="err"></p><div id="body"></div><button class="alt" id="out">Salir</button>`;
@@ -45,18 +48,22 @@ async function render() {
     const pst = { ...st, open: 'Abierto' , won: 'Ganado', lost: 'Perdido', refunded: 'Devuelto' }, gst = { open: '⏳', won: '✅', lost: '❌', cancelled: '🚫' };
     B.innerHTML = (me.parlays || []).map(p => `<div class="card"><b>🎟️ Parlay de ${p.legs.length}</b> ${p.odds ? od(p.odds) : ''} · apostado ${fmt(p.stake)}${p.legs.map(g => `<div class="small">${gst[g.status] || ''} ${esc(g.title)}: ${esc(g.label)} ${od(g.odds)}</div>`).join('')}<div class="small">${pst[p.status]}${p.status === 'open' ? ' · gana ' + fmt(p.potential) : p.payout ? ' · cobrado ' + fmt(p.payout) : ''}</div></div>`).join('') + B.innerHTML; }
   if (tab === 'tabla') { const t = await api('/leaderboard'); B.innerHTML = `<div class="card">${t.map((u, i) => `<div class="opt"><span>${i + 1}. ${who(u)}${u.display_name ? ` <span class="small">@${esc(u.username)}</span>` : ''}</span><b>🪙 ${fmt(u.coins)}</b></div>`).join('')}</div>`; }
-  if (tab === 'perfil') { let av = me.avatar || '', fs = me.facialHair?.style || 'ninguno';
+  if (tab === 'perfil') { let av = me.avatar || '', fs = me.facialHair?.style || 'ninguno', cos = { ...(me.cosmetics || {}) }; const mine = new Set((me.unlocks || []).map(u => u.item_id));
     B.innerHTML = `<div class="card"><h2>Mi perfil</h2><div class="small">Usuario: @${esc(me.username)}</div>
     <div style="display:flex;flex-wrap:wrap;gap:4px;margin:8px 0">${EMOJIS.map(e => `<button class="${e === av ? '' : 'alt'}" style="width:44px;padding:6px" data-em="${e}">${e}</button>`).join('')}<button class="alt" style="width:auto;padding:6px" data-em="">Sin avatar</button></div>
     <h2>Vello facial</h2><select id="fh">${Object.entries(FH).map(([k, v]) => `<option value="${k}" ${k === fs ? 'selected' : ''}>${v[0]}</option>`).join('')}</select>
     <div class="row"><label class="small"><input type="checkbox" id="fcu" style="width:auto" ${me.facialHair?.color ? 'checked' : ''}> Color</label><input type="color" id="fc" value="${esc(me.facialHair?.color || '#5b3a1e')}" style="height:42px"></div>
+    <h2>Recompensas top 3 ${me.badge || ''}</h2><div class="small">Quedar en el top 3 de la tabla desbloquea estos ítems. Lo que ganas se queda para siempre; la medalla 🥇🥈🥉 solo se ve mientras sigues arriba.</div>
+    ${[['hat', 'Sombreros'], ['color', 'Colores metálicos'], ['accessory', 'Accesorios']].map(([k, n]) => `<div class="small" style="margin-top:6px">${n}</div><div style="display:flex;flex-wrap:wrap;gap:4px">${RW.filter(r => r.kind === k).map(r => { const ok = mine.has(r.id);
+      return `<button class="${cos[k] === r.id ? '' : 'alt'}" style="width:auto;padding:6px;${ok ? '' : 'opacity:.45'}" ${ok ? `data-cos="${k}:${r.id}"` : 'disabled'} title="${esc(r.name)}">${ok ? '' : '🔒'}${r.icon || `<span style="color:${r.color}">●</span>`} <span class="small">top ${r.minRank}</span></button>`; }).join('')}<button class="alt" style="width:auto;padding:6px" data-cos="${k}:">Nada</button></div>`).join('')}
     <div class="card">Vista previa: <span id="pv"></span></div>
     <input id="dn" maxlength="20" placeholder="Nombre para mostrar (opcional)" value="${esc(me.display_name || '')}"><button id="sv">Guardar</button></div>`;
     const fhv = () => $('#fh').value === 'ninguno' ? null : { style: $('#fh').value, color: $('#fcu').checked ? $('#fc').value : null };
-    const pv = () => $('#pv').innerHTML = who({ username: me.username, avatar: av, display_name: $('#dn').value.trim(), facialHair: fhv() }); pv();
+    const pv = () => $('#pv').innerHTML = who({ username: me.username, badge: me.badge, cosmetics: cos, avatar: av, display_name: $('#dn').value.trim(), facialHair: fhv() }); pv();
     ['#fh', '#fc', '#fcu', '#dn'].forEach(sel => $(sel).oninput = $(sel).onchange = pv);
+    B.querySelectorAll('[data-cos]').forEach(b => b.onclick = () => { const [k, v] = b.dataset.cos.split(':'); if (v) cos[k] = v; else delete cos[k]; B.querySelectorAll(`[data-cos^="${k}:"]`).forEach(x => x.className = x.dataset.cos === `${k}:${v}` && v ? '' : 'alt'); pv(); });
     B.querySelectorAll('[data-em]').forEach(b => b.onclick = () => { av = b.dataset.em; B.querySelectorAll('[data-em]').forEach(x => x.className = x.dataset.em === av && av ? '' : 'alt'); pv(); });
-    $('#sv').onclick = async () => { try { await api('/profile', { avatar: av, display_name: $('#dn').value, facialHair: fhv() || 'ninguno' }); render(); } catch (e) { flash(e.message); } }; }
+    $('#sv').onclick = async () => { try { await api('/profile', { avatar: av, display_name: $('#dn').value, facialHair: fhv() || 'ninguno', cosmetics: cos }); render(); } catch (e) { flash(e.message); } }; }
   if (tab === 'admin') await adminView(B);
   } catch (e) { flash(e.message); }
 }
