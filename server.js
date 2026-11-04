@@ -26,6 +26,9 @@ app.post('/api/admin/lines', h(r => { admin(r); return { id: C.createLine(r.body
 app.post('/api/admin/lines/:id/close', h(r => { admin(r); C.closeLine(Number(r.params.id)); }));
 app.post('/api/admin/lines/:id/settle', h(r => { admin(r); C.settleLine(r.params.id, r.body.optionId); }));
 app.post('/api/admin/lines/:id/cancel', h(r => { admin(r); C.cancelLine(r.params.id); }));
+app.get('/api/admin/users', h(r => { admin(r); return C.users(); }));
+app.get('/api/admin/topups', h(r => { admin(r); return C.topups(); }));
+app.post('/api/admin/topup', h(r => { const a = admin(r); return C.topup(a.id, r.body.userId, r.body.amount); }));
 app.post('/api/admin/invites', h(r => { admin(r); return { code: C.newInvite() }; }));
 app.get('/api/admin/invites', h(r => { admin(r); return C.listInvites(); }));
 const port = process.env.PORT || 3000; app.listen(port, () => console.log('LosTankesBets en http://localhost:' + port));

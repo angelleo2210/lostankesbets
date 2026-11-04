@@ -1,6 +1,6 @@
 const { DatabaseSync } = require('node:sqlite');
 const crypto = require('node:crypto');
-const START_COINS = 50000;
+const START_COINS = 50000; const MAX_TOPUP = 10000000;
 
 function profit(stake, odds) {
   odds = Number(odds);
@@ -46,6 +46,7 @@ function open(file = 'data.db') {
   CREATE TABLE IF NOT EXISTS bets(id INTEGER PRIMARY KEY, user_id INTEGER, line_id INTEGER, option_id INTEGER, stake INTEGER, odds INTEGER, status TEXT DEFAULT 'open', payout INTEGER DEFAULT 0, created TEXT DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE IF NOT EXISTS parlays(id INTEGER PRIMARY KEY, user_id INTEGER, stake INTEGER, status TEXT DEFAULT 'open', payout INTEGER DEFAULT 0, created TEXT DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE IF NOT EXISTS parlay_legs(id INTEGER PRIMARY KEY, parlay_id INTEGER, line_id INTEGER, option_id INTEGER, odds INTEGER, status TEXT DEFAULT 'open');`);
+  db.exec('CREATE TABLE IF NOT EXISTS topups(id INTEGER PRIMARY KEY, user_id INTEGER, admin_id INTEGER, amount INTEGER, created TEXT DEFAULT CURRENT_TIMESTAMP)');
   db.exec('CREATE TABLE IF NOT EXISTS unlocks(user_id INTEGER, item_id TEXT, rank INTEGER, created TEXT DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(user_id, item_id))');
   const ucols = db.prepare('PRAGMA table_info(users)').all().map(c => c.name);
   if (!ucols.includes('avatar')) db.exec('ALTER TABLE users ADD COLUMN avatar TEXT');
@@ -207,6 +208,19 @@ function open(file = 'data.db') {
       if (cos) db.prepare('UPDATE users SET cosmetics=? WHERE id=?').run(JSON.stringify(cos), uid);
       return { avatar: avatar || null, display_name: displayName || null, facialHair: fh, ...(cos ? { cosmetics: cos } : {}) };
     },
+    topup(adminId, userId, amount) {
+      amount = Number(amount);
+      if (!Number.isInteger(amount) || amount <= 0 || amount > MAX_TOPUP) err('El monto debe ser un entero entre 1 y 10.000.000');
+      return tx(() => {
+        const a = db.prepare('SELECT is_admin FROM users WHERE id=?').get(adminId); if (!a || !a.is_admin) err('Solo el administrador');
+        if (!db.prepare('SELECT 1 FROM users WHERE id=?').get(Number(userId))) err('Usuario no existe');
+        db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(amount, Number(userId));
+        const id = Number(db.prepare('INSERT INTO topups(user_id,admin_id,amount) VALUES(?,?,?)').run(Number(userId), adminId, amount).lastInsertRowid);
+        api.refreshRanks(); return { id, coins: db.prepare('SELECT coins FROM users WHERE id=?').get(Number(userId)).coins };
+      });
+    },
+    topups: (limit = 20) => db.prepare('SELECT t.id, t.amount, t.created, u.username, u.display_name, u.avatar, a.username admin FROM topups t JOIN users u ON u.id=t.user_id JOIN users a ON a.id=t.admin_id ORDER BY t.id DESC LIMIT ?').all(limit),
+    users: () => { const rk = api.refreshRanks(); return db.prepare('SELECT id, username, avatar, display_name, facial_hair, cosmetics, coins, is_admin FROM users ORDER BY username').all().map(r => deco(r, r.id, rk)); },
     leaderboard: () => { const rk = api.refreshRanks(); return db.prepare('SELECT id, username, avatar, display_name, facial_hair, cosmetics, coins FROM users ORDER BY coins DESC, username').all().map(r => { const { id, ...o } = deco(r, r.id, rk); return o; }); },
     ranks() { const m = new Map(); db.prepare('SELECT id FROM users WHERE is_admin=0 AND coins>? ORDER BY coins DESC, username LIMIT 3').all(START_COINS).forEach((u, i) => m.set(u.id, i + 1)); return m; },
     refreshRanks() { const m = api.ranks(); const ins = db.prepare('INSERT OR IGNORE INTO unlocks(user_id,item_id,rank) VALUES(?,?,?)');
