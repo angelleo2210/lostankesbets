@@ -8,6 +8,9 @@ function profit(stake, odds) {
   return Math.floor(odds > 0 ? stake * odds / 100 : stake * 100 / -odds);
 }
 
+const dec = o => (o > 0 ? 1 + o / 100 : 1 + 100 / -o);
+function toAmerican(d) { return d >= 2 ? Math.round((d - 1) * 100) : Math.round(-100 / (d - 1)); }
+
 function hash(pin, salt = crypto.randomBytes(16).toString('hex')) {
   return { salt, hash: crypto.scryptSync(String(pin), salt, 32).toString('hex') };
 }
@@ -20,7 +23,9 @@ function open(file = 'data.db') {
   CREATE TABLE IF NOT EXISTS invites(code TEXT PRIMARY KEY, used_by INTEGER);
   CREATE TABLE IF NOT EXISTS lines(id INTEGER PRIMARY KEY, title TEXT, kind TEXT DEFAULT 'custom', status TEXT DEFAULT 'open', winner INTEGER, event_id TEXT, starts TEXT, created TEXT DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE IF NOT EXISTS options(id INTEGER PRIMARY KEY, line_id INTEGER, label TEXT, odds INTEGER);
-  CREATE TABLE IF NOT EXISTS bets(id INTEGER PRIMARY KEY, user_id INTEGER, line_id INTEGER, option_id INTEGER, stake INTEGER, odds INTEGER, status TEXT DEFAULT 'open', payout INTEGER DEFAULT 0, created TEXT DEFAULT CURRENT_TIMESTAMP);`);
+  CREATE TABLE IF NOT EXISTS bets(id INTEGER PRIMARY KEY, user_id INTEGER, line_id INTEGER, option_id INTEGER, stake INTEGER, odds INTEGER, status TEXT DEFAULT 'open', payout INTEGER DEFAULT 0, created TEXT DEFAULT CURRENT_TIMESTAMP);
+  CREATE TABLE IF NOT EXISTS parlays(id INTEGER PRIMARY KEY, user_id INTEGER, stake INTEGER, status TEXT DEFAULT 'open', payout INTEGER DEFAULT 0, created TEXT DEFAULT CURRENT_TIMESTAMP);
+  CREATE TABLE IF NOT EXISTS parlay_legs(id INTEGER PRIMARY KEY, parlay_id INTEGER, line_id INTEGER, option_id INTEGER, odds INTEGER, status TEXT DEFAULT 'open');`);
   const tx = fn => { db.exec('BEGIN'); try { const r = fn(); db.exec('COMMIT'); return r; } catch (e) { db.exec('ROLLBACK'); throw e; } };
   const err = m => { const e = new Error(m); e.user = true; throw e; };
   const api = {
@@ -76,6 +81,49 @@ function open(file = 'data.db') {
         return Number(db.prepare('INSERT INTO bets(user_id,line_id,option_id,stake,odds) VALUES(?,?,?,?,?)').run(userId, o.line_id, o.id, stake, o.odds).lastInsertRowid);
       });
     },
+    placeParlay(userId, optionIds, stake) {
+      stake = Number(stake);
+      if (!Array.isArray(optionIds) || optionIds.length < 3 || optionIds.length > 4) err('El parlay debe tener 3 o 4 selecciones');
+      const ids = optionIds.map(Number);
+      if (new Set(ids).size !== ids.length) err('Selecciones repetidas');
+      if (!Number.isInteger(stake) || stake <= 0) err('La apuesta debe ser un número entero mayor que 0');
+      return tx(() => {
+        const legs = ids.map(id => {
+          const o = db.prepare('SELECT o.*, l.status FROM options o JOIN lines l ON l.id=o.line_id WHERE o.id=?').get(id);
+          if (!o) err('Opción no existe'); if (o.status !== 'open') err('Una de las líneas ya no acepta apuestas'); return o;
+        });
+        if (new Set(legs.map(o => o.line_id)).size !== legs.length) err('Solo una selección por línea');
+        const u = db.prepare('SELECT coins FROM users WHERE id=?').get(userId);
+        if (u.coins < stake) err('No tienes suficientes monedas');
+        db.prepare('UPDATE users SET coins=coins-? WHERE id=?').run(stake, userId);
+        const pid = Number(db.prepare('INSERT INTO parlays(user_id,stake) VALUES(?,?)').run(userId, stake).lastInsertRowid);
+        for (const o of legs) db.prepare('INSERT INTO parlay_legs(parlay_id,line_id,option_id,odds) VALUES(?,?,?,?)').run(pid, o.line_id, o.id, o.odds);
+        return pid;
+      });
+    },
+    _parlayLegs(lineId, winnerId) {
+      // winnerId null => cancelled
+      const touched = new Set();
+      for (const g of db.prepare("SELECT * FROM parlay_legs WHERE line_id=? AND status='open'").all(lineId)) {
+        const st = winnerId == null ? 'cancelled' : g.option_id === winnerId ? 'won' : 'lost';
+        db.prepare('UPDATE parlay_legs SET status=? WHERE id=?').run(st, g.id); touched.add(g.parlay_id);
+      }
+      for (const pid of touched) {
+        const p = db.prepare('SELECT * FROM parlays WHERE id=?').get(pid); if (p.status !== 'open') continue;
+        const legs = db.prepare('SELECT * FROM parlay_legs WHERE parlay_id=?').all(pid);
+        if (legs.some(g => g.status === 'lost')) { db.prepare("UPDATE parlays SET status='lost' WHERE id=? AND status='open'").run(pid); continue; }
+        if (legs.some(g => g.status === 'open')) continue;
+        const live = legs.filter(g => g.status === 'won');
+        const [st, pay] = live.length ? ['won', Math.floor(p.stake * live.reduce((m, g) => m * dec(g.odds), 1))] : ['refunded', p.stake];
+        if (db.prepare("UPDATE parlays SET status=?, payout=? WHERE id=? AND status='open'").run(st, pay, pid).changes === 1)
+          db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(pay, p.user_id);
+      }
+    },
+    myParlays: uid => db.prepare('SELECT * FROM parlays WHERE user_id=? ORDER BY id DESC').all(uid).map(p => {
+      const legs = db.prepare('SELECT g.*, l.title, o.label FROM parlay_legs g JOIN lines l ON l.id=g.line_id JOIN options o ON o.id=g.option_id WHERE g.parlay_id=? ORDER BY g.id').all(p.id);
+      const d = legs.filter(g => g.status !== 'cancelled').reduce((m, g) => m * dec(g.odds), 1);
+      return { ...p, legs, odds: d > 1 ? toAmerican(d) : null, potential: Math.floor(p.stake * d) };
+    }),
     closeLine(id) { if (db.prepare("UPDATE lines SET status='closed' WHERE id=? AND status='open'").run(id).changes !== 1) err('La línea no está abierta'); },
     settleLine(id, winnerOptionId) {
       return tx(() => {
@@ -90,6 +138,7 @@ function open(file = 'data.db') {
             db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(pay, b.user_id);
           } else db.prepare("UPDATE bets SET status='lost' WHERE id=?").run(b.id);
         }
+        api._parlayLegs(l.id, Number(winnerOptionId));
       });
     },
     cancelLine(id) {
@@ -101,6 +150,7 @@ function open(file = 'data.db') {
           db.prepare("UPDATE bets SET status='refunded', payout=? WHERE id=?").run(b.stake, b.id);
           db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(b.stake, b.user_id);
         }
+        api._parlayLegs(l.id, null);
       });
     },
     myBets: uid => db.prepare('SELECT b.*, l.title, l.kind, o.label FROM bets b JOIN lines l ON l.id=b.line_id JOIN options o ON o.id=b.option_id WHERE b.user_id=? ORDER BY b.id DESC').all(uid),
@@ -108,4 +158,4 @@ function open(file = 'data.db') {
   };
   return api;
 }
-module.exports = { open, profit, START_COINS };
+module.exports = { open, profit, dec, toAmerican, START_COINS };

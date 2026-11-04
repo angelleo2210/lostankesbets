@@ -19,4 +19,43 @@ const o2 = C.lines()[0].options; C.placeBet(p, o2[0].id, 300); C.cancelLine(L2);
 t('cancelar devuelve', () => assert.equal(coins(p), 50630));
 const L3 = C.createLine('Prueba -250', [{ label: 'Sí', odds: -250 }, { label: 'No', odds: 880 }]); const o3 = C.lines()[0].options;
 C.placeBet(p, o3[0].id, 250); C.settleLine(L3, o3[0].id); t('liquidación -250', () => assert.equal(coins(p), 50630 + 100));
+// Parlays
+const P = open(':memory:'); P.setupAdmin('angel', '1234'); const u = P.register(P.newInvite(), 'tank', '1111');
+const pc = id => P.db.prepare('SELECT coins FROM users WHERE id=?').get(id).coins;
+const mk = () => { const id = P.createLine('L', [{ label: 'A', odds: 100 }, { label: 'B', odds: -200 }]); return P.lines().find(l => l.id === id); };
+let ls = [mk(), mk(), mk(), mk()];
+t('parlay validaciones', () => {
+  assert.throws(() => P.placeParlay(u, [ls[0].options[0].id, ls[1].options[0].id], 100), /3 o 4/);
+  assert.throws(() => P.placeParlay(u, ls.map(l => l.options[0].id).concat(ls[0].options[1].id), 100), /3 o 4/);
+  assert.throws(() => P.placeParlay(u, [ls[0].options[0].id, ls[0].options[1].id, ls[1].options[0].id], 100), /una selección por línea/);
+  assert.throws(() => P.placeParlay(u, [ls[0].options[0].id, ls[0].options[0].id, ls[1].options[0].id], 100), /repetidas/);
+  assert.throws(() => P.placeParlay(u, [ls[0].options[0].id, ls[1].options[0].id, 9999], 100), /no existe/);
+  assert.throws(() => P.placeParlay(u, [ls[0].options[0].id, ls[1].options[0].id, ls[2].options[0].id], 0), /entero/);
+  assert.throws(() => P.placeParlay(u, [ls[0].options[0].id, ls[1].options[0].id, ls[2].options[0].id], 50001), /suficientes/);
+  P.closeLine(ls[3].id); assert.throws(() => P.placeParlay(u, [ls[0].options[0].id, ls[1].options[0].id, ls[3].options[0].id], 10), /no acepta/);
+  assert.equal(pc(u), 50000);
+});
+t('parlay gana todas (+100,+100,-200 => x6)', () => {
+  P.placeParlay(u, [ls[0].options[0].id, ls[1].options[0].id, ls[2].options[1].id], 100); assert.equal(pc(u), 49900);
+  P.settleLine(ls[0].id, ls[0].options[0].id); P.settleLine(ls[1].id, ls[1].options[0].id); assert.equal(pc(u), 49900);
+  P.settleLine(ls[2].id, ls[2].options[1].id); assert.equal(pc(u), 49900 + 600);
+  const pp = P.myParlays(u)[0]; assert.equal(pp.status, 'won'); assert.equal(pp.payout, 600); assert.equal(pp.legs.length, 3);
+});
+ls = [mk(), mk(), mk(), mk()];
+t('parlay una perdida => perdido, sin pago', () => {
+  P.placeParlay(u, ls.map(l => l.options[0].id), 100);
+  P.settleLine(ls[0].id, ls[0].options[1].id); assert.equal(P.myParlays(u)[0].status, 'lost');
+  ls.slice(1).forEach(l => P.settleLine(l.id, l.options[0].id)); assert.equal(pc(u), 50400); assert.equal(P.myParlays(u)[0].payout, 0);
+});
+ls = [mk(), mk(), mk()];
+t('parlay pata cancelada => paga resto', () => {
+  P.placeParlay(u, ls.map(l => l.options[0].id), 100); P.cancelLine(ls[1].id);
+  P.settleLine(ls[0].id, ls[0].options[0].id); P.settleLine(ls[2].id, ls[2].options[0].id);
+  assert.equal(pc(u), 50300 + 400); assert.equal(P.myParlays(u)[0].status, 'won');
+});
+ls = [mk(), mk(), mk()];
+t('parlay todo cancelado => devuelve', () => {
+  P.placeParlay(u, ls.map(l => l.options[0].id), 100); ls.forEach(l => P.cancelLine(l.id));
+  assert.equal(pc(u), 50700); assert.equal(P.myParlays(u)[0].status, 'refunded');
+});
 console.log(`\n${n} pruebas OK`);
