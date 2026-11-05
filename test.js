@@ -150,10 +150,10 @@ t('monedas: bono diario idempotente 24h', () => { const Q = open(':memory:'); Q.
   assert.equal(Q.bonusStatus(q, T).available, true); const r = Q.claimBonus(q, T); assert.equal(r.claimed, true); assert.equal(r.coins, 55000);
   const r2 = Q.claimBonus(q, T + 1000); assert.equal(r2.claimed, false); assert.equal(r2.coins, 55000); assert.ok(r2.msLeft > 0 && r2.msLeft <= 86400000);
   assert.equal(Q.claimBonus(q, T + 86400000 - 1).claimed, false); assert.equal(Q.claimBonus(q, T + 86400000).coins, 60000); });
-t('monedas: vender al 50%', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const q = Q.register(Q.newInvite(), 'vende', '1111'); const c = () => Q.db.prepare('SELECT coins FROM users WHERE id=?').get(q).coins;
+t('monedas: vender al 75% (redondeo hacia abajo)', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const q = Q.register(Q.newInvite(), 'vende', '1111'); const c = () => Q.db.prepare('SELECT coins FROM users WHERE id=?').get(q).coins;
   Q.buyItem(q, 'moto_naked'); assert.equal(c(), 20000); assert.throws(() => Q.sellItem(q, 'moto_pista'), /No es tuyo/);
-  assert.deepEqual(Q.sellItem(q, 'moto_naked'), { refund: 15000, coins: 35000 }); assert.equal(Q.owned(q).length, 0); assert.throws(() => Q.sellItem(q, 'moto_naked'), /No es tuyo/);
-  Q.buyItem(q, 'jet_turbo'); assert.equal(Q.sellItem(q, 'jet_turbo').refund, 6750); assert.ok(c() >= 0); });
+  assert.deepEqual(Q.sellItem(q, 'moto_naked'), { refund: 22500, coins: 42500 }); assert.equal(Q.owned(q).length, 0); assert.throws(() => Q.sellItem(q, 'moto_naked'), /No es tuyo/);
+  Q.buyItem(q, 'jet_turbo'); assert.equal(Q.sellItem(q, 'jet_turbo').refund, 10125); Q.db.prepare("UPDATE purchases SET price=? WHERE user_id=?").run(0, q); Q.buyItem(q, 'med_deportivas'); Q.db.prepare('UPDATE purchases SET price=1001 WHERE user_id=?').run(q); assert.equal(Q.sellItem(q, 'med_deportivas').refund, 750); assert.ok(c() >= 0); });
 t('ranking: apuestas ganadas (parlay=1), desempate monedas, sin artículos', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const [a, b, c] = ['ra', 'rb', 'rc'].map(n => Q.register(Q.newInvite(), n, '1111'));
   const mk = () => { const id = Q.createLine('X', [{ label: 'S', odds: 100 }, { label: 'N', odds: 100 }]); return [id, ...Q.lines().find(l => l.id === id).options]; };
   const [L1, S1, N1] = mk(), [L2, S2] = mk(); Q.placeBet(a, S1.id, 100); Q.placeBet(a, S2.id, 100); Q.placeBet(b, N1.id, 9000); Q.placeParlay(c, [S1.id, S2.id], 100);

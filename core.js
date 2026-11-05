@@ -80,9 +80,9 @@ function open(file = 'data.db') {
         return { coins: db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins }; }); },
     setItemColor: (uid, itemId, color) => { if (!ST.valid(itemId, color)) err('Color inválido');
       if (!db.prepare('UPDATE purchases SET color=? WHERE user_id=? AND item_id=?').run(color, uid, itemId).changes) err('No es tuyo'); return { ok: true }; },
-    // Venta: devuelve 50% de lo pagado y el artículo vuelve a la tienda (atómico).
+    // Venta: devuelve 75% de lo pagado y el artículo vuelve a la tienda (atómico).
     sellItem: (uid, itemId) => tx(() => { const p = db.prepare('SELECT price FROM purchases WHERE user_id=? AND item_id=?').get(uid, itemId); if (!p) err('No es tuyo');
-      const refund = Math.floor(p.price / 2); db.prepare('DELETE FROM purchases WHERE user_id=? AND item_id=?').run(uid, itemId);
+      const refund = Math.floor(p.price * 3 / 4); db.prepare('DELETE FROM purchases WHERE user_id=? AND item_id=?').run(uid, itemId);
       db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(refund, uid); if (api._unequip) api._unequip(uid, itemId);
       return { refund, coins: db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins }; }),
     // Bono diario idempotente: una vez cada 24 h; repetir antes devuelve claimed:false sin sumar.
