@@ -42,6 +42,7 @@ function hash(pin, salt = crypto.randomBytes(16).toString('hex')) {
   return { salt, hash: crypto.scryptSync(String(pin), salt, 32).toString('hex') };
 }
 
+const RPS = ['piedra', 'papel', 'tijera'], BEATS = { piedra: 'tijera', tijera: 'papel', papel: 'piedra' }, RPS_MIN = 10, RPS_MAX = 25000, RPS_MS = 24 * 3600e3;
 function open(file = 'data.db') {
   const db = new DatabaseSync(file);
   db.exec(`PRAGMA foreign_keys=ON;
@@ -55,6 +56,7 @@ function open(file = 'data.db') {
   CREATE TABLE IF NOT EXISTS parlay_legs(id INTEGER PRIMARY KEY, parlay_id INTEGER, line_id INTEGER, option_id INTEGER, odds INTEGER, status TEXT DEFAULT 'open');`);
   db.exec('CREATE TABLE IF NOT EXISTS topups(id INTEGER PRIMARY KEY, user_id INTEGER, admin_id INTEGER, amount INTEGER, created TEXT DEFAULT CURRENT_TIMESTAMP)');
   db.exec('CREATE TABLE IF NOT EXISTS unlocks(user_id INTEGER, item_id TEXT, rank INTEGER, created TEXT DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(user_id, item_id))');
+  db.exec('CREATE TABLE IF NOT EXISTS rps(id INTEGER PRIMARY KEY, challenger INTEGER, opponent INTEGER, stake INTEGER, status TEXT, c_pick TEXT, o_pick TEXT, winner INTEGER, created INTEGER, resolved INTEGER)');
   const ucols = db.prepare('PRAGMA table_info(users)').all().map(c => c.name);
   if (!ucols.includes('avatar')) db.exec('ALTER TABLE users ADD COLUMN avatar TEXT');
   if (!ucols.includes('display_name')) db.exec('ALTER TABLE users ADD COLUMN display_name TEXT');
@@ -92,6 +94,35 @@ function open(file = 'data.db') {
     streak: uid => { const rs = db.prepare("SELECT status, COALESCE(ts, CAST(strftime('%s', created) AS INTEGER) * 1000000) o, id FROM bets WHERE user_id=? AND status IN ('won','lost') UNION ALL SELECT status, COALESCE(ts, CAST(strftime('%s', created) AS INTEGER) * 1000000) o, id FROM parlays WHERE user_id=? AND status IN ('won','lost') ORDER BY o, id").all(uid, uid);
       if (!rs.length) return null; const last = rs[rs.length - 1].status; let n = 0; for (let i = rs.length - 1; i >= 0 && rs[i].status === last; i--) n++;
       return last === 'won' && n >= 3 ? { kind: 'fuego', n } : last === 'lost' && n >= 2 ? { kind: 'hielo', n } : null; },
+    // Piedra/Papel/Tijera entre amigos. Apuestas retenidas al retar/aceptar; ganador se lleva el bote; empate devuelve.
+    RPS_MIN, RPS_MAX, RPS_MS,
+    rpsExpire: (now = Date.now()) => tx(() => { for (const g of db.prepare("SELECT id, challenger, stake FROM rps WHERE status='pending' AND created<=?").all(now - RPS_MS))
+      if (db.prepare("UPDATE rps SET status='expired', resolved=? WHERE id=? AND status='pending'").run(now, g.id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(g.stake, g.challenger); }),
+    rpsChallenge: (uid, oppId, stake, now = Date.now()) => { stake = Number(stake); oppId = Number(oppId);
+      if (!Number.isInteger(stake) || stake < RPS_MIN || stake > RPS_MAX) err(`La apuesta debe ser un entero entre ${RPS_MIN} y ${RPS_MAX.toLocaleString('es')}`);
+      if (oppId === Number(uid)) err('No puedes retarte a ti mismo');
+      if (!db.prepare('SELECT 1 FROM users WHERE id=? AND is_admin=0').get(oppId)) err('Ese amigo no existe');
+      return tx(() => { if (!db.prepare('UPDATE users SET coins=coins-? WHERE id=? AND coins>=?').run(stake, uid, stake).changes) err('No tienes monedas suficientes');
+        return { id: Number(db.prepare("INSERT INTO rps(challenger,opponent,stake,status,created) VALUES(?,?,?,'pending',?)").run(uid, oppId, stake, now).lastInsertRowid) }; }); },
+    rpsRespond: (uid, id, accept, now = Date.now()) => { api.rpsExpire(now); return tx(() => { const g = db.prepare("SELECT * FROM rps WHERE id=? AND opponent=? AND status='pending'").get(id, uid); if (!g) err('Reto no disponible');
+      if (!accept) { db.prepare("UPDATE rps SET status='declined', resolved=? WHERE id=?").run(now, id); db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(g.stake, g.challenger); return { status: 'declined' }; }
+      if (!db.prepare('UPDATE users SET coins=coins-? WHERE id=? AND coins>=?').run(g.stake, uid, g.stake).changes) err('No tienes monedas suficientes');
+      db.prepare("UPDATE rps SET status='accepted' WHERE id=?").run(id); return { status: 'accepted' }; }); },
+    rpsPick: (uid, id, pick, now = Date.now()) => { if (!RPS.includes(pick)) err('Elige piedra, papel o tijera'); return tx(() => {
+      const g = db.prepare("SELECT * FROM rps WHERE id=? AND status='accepted' AND (challenger=? OR opponent=?)").get(id, uid, uid); if (!g) err('Reto no disponible');
+      const col = g.challenger === Number(uid) ? 'c_pick' : 'o_pick'; if (g[col]) err('Ya elegiste');
+      db.prepare(`UPDATE rps SET ${col}=? WHERE id=? AND ${col} IS NULL`).run(pick, id); const n = db.prepare('SELECT * FROM rps WHERE id=?').get(id);
+      if (n.c_pick && n.o_pick) { const w = n.c_pick === n.o_pick ? null : BEATS[n.c_pick] === n.o_pick ? n.challenger : n.opponent;
+        if (!db.prepare("UPDATE rps SET status='done', winner=?, resolved=? WHERE id=? AND status='accepted'").run(w, now, id).changes) err('Reto ya resuelto');
+        if (w) db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(n.stake * 2, w); else db.prepare('UPDATE users SET coins=coins+? WHERE id IN (?,?)').run(n.stake, n.challenger, n.opponent); }
+      return api.rpsView(uid, id); }); },
+    // Vista segura: la elección del rival solo se ve cuando el reto terminó.
+    rpsView: (uid, id) => { const g = db.prepare('SELECT r.*, a.username cu, a.display_name cd, b.username ou, b.display_name od FROM rps r JOIN users a ON a.id=r.challenger JOIN users b ON b.id=r.opponent WHERE r.id=?').get(id);
+      if (!g || (g.challenger !== Number(uid) && g.opponent !== Number(uid))) return null; const mine = g.challenger === Number(uid), done = g.status === 'done';
+      return { id: g.id, stake: g.stake, status: g.status, created: g.created, resolved: g.resolved, expires: g.created + RPS_MS, mine: mine ? 'sent' : 'received',
+        rival: mine ? (g.od || g.ou) : (g.cd || g.cu), myPick: mine ? g.c_pick : g.o_pick, rivalPicked: !!(mine ? g.o_pick : g.c_pick), rivalPick: done ? (mine ? g.o_pick : g.c_pick) : null,
+        result: done ? (g.winner == null ? 'empate' : g.winner === Number(uid) ? 'ganaste' : 'perdiste') : null }; },
+    rpsList: (uid, now = Date.now()) => { api.rpsExpire(now); return db.prepare('SELECT id FROM rps WHERE challenger=? OR opponent=? ORDER BY id DESC LIMIT 60').all(uid, uid).map(r => api.rpsView(uid, r.id)); },
     db,
     hasAdmin: () => !!db.prepare('SELECT 1 FROM users WHERE is_admin=1').get(),
     createUser(username, pin, isAdmin = false) {

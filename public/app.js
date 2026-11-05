@@ -42,7 +42,7 @@ async function start() {
 }
 async function render() {
   me = await api('/me'); if (!RW.length) RW = await api('/rewards').catch(() => []);
-  const tabs = [['lineas', 'Líneas'], ['reales', 'Reales'], ['mias', 'Mis apuestas'], ['tabla', 'Tabla'], ['tienda', 'Tienda'], ['perfil', 'Mi perfil']].concat(me.is_admin ? [['admin', 'Admin']] : []);
+  const tabs = [['lineas', 'Líneas'], ['reales', 'Reales'], ['mias', 'Mis apuestas'], ['tabla', 'Tabla'], ['tienda', 'Tienda'], ['juegos', 'Juegos'], ['perfil', 'Mi perfil']].concat(me.is_admin ? [['admin', 'Admin']] : []);
   A.innerHTML = `<h1>Hola, ${who(me, 56)} · 🪙 ${fmt(me.coins)}</h1><nav>${tabs.map(([k, v]) => `<button class="${k === tab ? '' : 'alt'}" data-t="${k}">${v}</button>`).join('')}</nav>
   <div id="bono" class="bono"></div><p id="msg" class="err"></p><div id="body"></div><button class="alt" id="out">Salir</button>`;
   A.querySelectorAll('nav button').forEach(b => b.onclick = () => { tab = b.dataset.t; render(); });
@@ -82,6 +82,7 @@ async function render() {
     B.querySelectorAll('[data-em]').forEach(b => b.onclick = () => { av = b.dataset.em; B.querySelectorAll('[data-em]').forEach(x => x.className = x.dataset.em === av && av ? '' : 'alt'); pv(); });
     $('#sv').onclick = async () => { try { await api('/profile', { avatar: av, display_name: $('#dn').value, facialHair: fhv() || 'ninguno', cosmetics: cos, avatarCfg: acfg }); render(); } catch (e) { flash(e.message); } }; }
   if (tab === 'tienda') await storeView(B);
+  if (tab === 'juegos') await gamesView(B);
   if (tab === 'perfil') { const g = document.createElement('div'); B.append(g); await storeView(g, true); }
   if (tab === 'admin') await adminView(B);
   } catch (e) { flash(e.message); }
@@ -155,3 +156,45 @@ async function storeView(B, garage) { const d = await api('/store'); const own =
   B.querySelectorAll('[data-buy]').forEach(b => b.onclick = async () => { const i = Store.byId(b.dataset.buy); if (!confirm(`¿Comprar ${i.name} por ${fmt(i.price)} monedas?`)) return; try { await api('/store/buy', { itemId: i.id, ...(pick[i.id] ? { color: pick[i.id] } : {}) }); render(); } catch (e) { flash(e.message); } });
   B.querySelectorAll('[data-sell]').forEach(b => b.onclick = async () => { const i = Store.byId(b.dataset.sell), r = Math.floor((paid.get(i.id) ?? i.price) / 2); if (!confirm(`¿Vender ${i.name} por ${fmt(r)} monedas (50% de lo que pagaste)?`)) return; try { await api('/store/sell', { itemId: i.id }); flash(`Vendido: +${fmt(r)}`); render(); } catch (e) { flash(e.message); } });
   B.querySelectorAll('[data-savec]').forEach(b => b.onclick = async () => { const id = b.dataset.savec; if (!pick[id]) return flash('Elige un color primero'); try { await api('/store/color', { itemId: id, color: pick[id] }); flash('Color guardado'); } catch (e) { flash(e.message); } }); }
+
+// ---- Juegos: Piedra, Papel o Tijera ----
+let rpsScreen = null;
+const HAND = (k, z = 90) => { const sk = '#f1c27d', d = '#c68642', S = `stroke="#7a4a1f" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"`;
+  const g = `<defs><radialGradient id="hg${k}" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#ffe7c2"/><stop offset=".6" stop-color="${sk}"/><stop offset="1" stop-color="${d}"/></radialGradient></defs>`;
+  const f = `fill="url(#hg${k})" ${S}`;
+  const body = { piedra: `<rect x="22" y="38" width="56" height="44" rx="18" ${f}/>${[30, 43, 56].map(x => `<path d="M${x} 42 Q${x + 6} 34 ${x + 12} 42" fill="none" ${S}/>`).join('')}<path d="M24 56 Q40 50 50 60" fill="none" ${S}/><ellipse cx="38" cy="48" rx="9" ry="4" fill="#fff" opacity=".35"/>`,
+    papel: `${[30, 41, 52, 63].map((x, i) => `<rect x="${x}" y="${12 + [4, 0, 2, 8][i]}" width="10" height="44" rx="5" ${f}/>`).join('')}<rect x="27" y="44" width="48" height="40" rx="16" ${f}/><path d="M27 60 Q14 50 12 38 Q18 34 24 42 L30 52" ${f}/><ellipse cx="42" cy="54" rx="10" ry="5" fill="#fff" opacity=".35"/>`,
+    tijera: `<rect x="34" y="8" width="11" height="48" rx="5.5" transform="rotate(-12 40 56)" ${f}/><rect x="52" y="8" width="11" height="48" rx="5.5" transform="rotate(12 57 56)" ${f}/><rect x="26" y="44" width="50" height="40" rx="16" ${f}/>${[38, 52].map(x => `<path d="M${x} 54 Q${x + 6} 48 ${x + 12} 54" fill="none" ${S}/>`).join('')}<path d="M26 62 Q38 56 46 66" fill="none" ${S}/>` }[k];
+  return `<svg width="${z}" height="${z}" viewBox="0 0 100 92" aria-hidden="true">${g}${body}</svg>`; };
+const RPSN = { piedra: 'Piedra', papel: 'Papel', tijera: 'Tijera' };
+async function gamesView(B) {
+  const d = await api('/rps'), G = d.games, sel = rpsScreen && G.find(g => g.id === rpsScreen);
+  const left = g => { const h = Math.max(0, Math.ceil((g.expires - Date.now()) / 3600e3)); return `${h} h para aceptar`; };
+  if (sel && sel.status === 'done') { // Pantalla 3: resultado
+    const cl = sel.result === 'ganaste' ? 'won' : sel.result === 'perdiste' ? 'lost' : '';
+    B.innerHTML = `<div class="card rps-res ${cl}"><h2>${sel.result === 'ganaste' ? '✅ ¡Ganaste!' : sel.result === 'perdiste' ? '❌ Perdiste' : '🤝 Empate'}</h2>
+      <div class="rps-vs"><div>${HAND(sel.myPick, 110)}<div>Tú: ${RPSN[sel.myPick]}</div></div><b>VS</b><div>${HAND(sel.rivalPick, 110)}<div>${esc(sel.rival)}: ${RPSN[sel.rivalPick]}</div></div></div>
+      <p>${sel.result === 'ganaste' ? `Te llevas el bote: 🪙 ${fmt(sel.stake * 2)}` : sel.result === 'perdiste' ? `Perdiste 🪙 ${fmt(sel.stake)}` : `Se devolvió 🪙 ${fmt(sel.stake)} a cada uno`}</p><button id="rb">Volver a Juegos</button></div>`;
+    $('#rb').onclick = () => { rpsScreen = null; render(); }; return; }
+  if (sel && sel.status === 'accepted') { // Pantalla 2: elegir
+    B.innerHTML = `<div class="card"><h2>Elige contra ${esc(sel.rival)} · 🪙 ${fmt(sel.stake)}</h2>${sel.myPick ? `<p>Elegiste <b>${RPSN[sel.myPick]}</b>. Esperando a ${esc(sel.rival)}… (su elección está oculta)</p><div class="rps-vs">${HAND(sel.myPick, 110)}</div>`
+      : `<p class="small">Tu elección queda guardada en secreto hasta que ambos elijan.${sel.rivalPicked ? ' Tu rival ya eligió.' : ''}</p><div class="rps-pick">${['piedra', 'papel', 'tijera'].map(k => `<button class="alt" data-pk="${k}">${HAND(k)}<div>${RPSN[k]}</div></button>`).join('')}</div>`}
+      <button class="alt" id="rb">Volver</button></div>`;
+    B.querySelectorAll('[data-pk]').forEach(b => b.onclick = async () => { try { await api('/rps/pick', { id: sel.id, pick: b.dataset.pk }); render(); } catch (e) { flash(e.message); } });
+    $('#rb').onclick = () => { rpsScreen = null; render(); }; return; }
+  // Pantalla 1: retar + pendientes + historial
+  const rec = G.filter(g => g.status === 'pending' && g.mine === 'received'), sent = G.filter(g => g.status === 'pending' && g.mine === 'sent'), play = G.filter(g => g.status === 'accepted'), hist = G.filter(g => !['pending', 'accepted'].includes(g.status));
+  const ST = { done: '', declined: 'Rechazado (devuelto)', expired: 'Vencido (devuelto)' };
+  B.innerHTML = `<div class="card"><h2>✊✋✌️ Piedra, Papel o Tijera</h2><p class="small">Reta a un amigo. Tu apuesta se retiene al retar; tiene 24 h para aceptar. El ganador se lleva todo el bote; empate devuelve.</p>
+    <div class="row"><select id="ro">${d.friends.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('')}</select><input id="rs" type="number" min="${d.min}" max="${d.max}" step="1" placeholder="Apuesta (${d.min}–${fmt(d.max)})"><button id="rgo">Retar</button></div>
+    <div class="small">Mínimo 🪙 ${fmt(d.min)} · máximo 🪙 ${fmt(d.max)} · tienes 🪙 ${fmt(me.coins)}</div></div>
+    <div class="card"><h2>Retos recibidos</h2>${rec.map(g => `<div class="opt"><span>${esc(g.rival)} te reta por 🪙 ${fmt(g.stake)} · <span class="small">${left(g)}</span></span><span><button data-ac="${g.id}">Aceptar</button> <button class="alt" data-rj="${g.id}">Rechazar</button></span></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
+    <div class="card"><h2>Por jugar</h2>${play.map(g => `<div class="opt"><span>vs ${esc(g.rival)} · 🪙 ${fmt(g.stake)} ${g.myPick ? '<span class="small">(ya elegiste)</span>' : ''}</span><button data-go="${g.id}">${g.myPick ? 'Ver' : 'Elegir'}</button></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
+    <div class="card"><h2>Retos enviados</h2>${sent.map(g => `<div class="opt"><span>A ${esc(g.rival)} por 🪙 ${fmt(g.stake)}</span><span class="small">${left(g)}</span></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
+    <div class="card"><h2>Historial</h2>${hist.map(g => `<div class="opt ${g.result === 'ganaste' ? 'won' : g.result === 'perdiste' ? 'lost' : ''}"><span>vs ${esc(g.rival)} · 🪙 ${fmt(g.stake)}</span><span>${g.status === 'done' ? `<a href="#" data-go="${g.id}">${g.result === 'ganaste' ? '✅ ¡Ganaste!' : g.result === 'perdiste' ? '❌ Perdiste' : '🤝 Empate'}</a>` : ST[g.status]}</span></div>`).join('') || '<p class="small">Aún no hay partidas</p>'}</div>`;
+  $('#rgo').onclick = async () => { const v = Number($('#rs').value); if (!Number.isInteger(v) || v < d.min || v > d.max) return flash(`La apuesta debe ser entre ${d.min} y ${fmt(d.max)}`);
+    try { await api('/rps', { opponentId: Number($('#ro').value), stake: v }); render(); } catch (e) { flash(e.message); } };
+  B.querySelectorAll('[data-ac],[data-rj]').forEach(b => b.onclick = async () => { const id = Number(b.dataset.ac || b.dataset.rj);
+    try { await api('/rps/respond', { id, accept: !!b.dataset.ac }); if (b.dataset.ac) rpsScreen = id; render(); } catch (e) { flash(e.message); } });
+  B.querySelectorAll('[data-go]').forEach(b => b.onclick = e => { e.preventDefault(); rpsScreen = Number(b.dataset.go); render(); });
+}

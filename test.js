@@ -170,4 +170,18 @@ t('racha: fuego, hielo, nada, pendientes ignoradas', () => { const Q = open(':me
   const [A, AS] = mk(), [B2, BS] = mk(); Q.placeParlay(q, [AS.id, BS.id], 10); Q.settleLine(A, AS.id); Q.settleLine(B2, BS.id); assert.deepEqual(Q.streak(q), { kind: 'fuego', n: 4 });
   bet(0); assert.equal(Q.streak(q), null); bet(0); assert.deepEqual(Q.streak(q), { kind: 'hielo', n: 2 });
   assert.deepEqual(Q.leaderboard().find(r => r.username === 'racha').streak, { kind: 'hielo', n: 2 }); });
+t('piedra papel tijera', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const a = Q.register(Q.newInvite(), 'ana', '1111'), b = Q.register(Q.newInvite(), 'beto', '1111');
+  const c = id => Q.db.prepare('SELECT coins FROM users WHERE id=?').get(id).coins, set = (id, v) => Q.db.prepare('UPDATE users SET coins=? WHERE id=?').run(v, id);
+  set(a, 30000); set(b, 30000);
+  for (const bad of [9, 25001, 1.5, 'x']) assert.throws(() => Q.rpsChallenge(a, b, bad), /entre 10/);
+  const g1 = Q.rpsChallenge(a, b, 25000).id; assert.equal(c(a), 5000); Q.rpsRespond(b, g1, true); assert.equal(c(b), 5000);
+  Q.rpsPick(a, g1, 'piedra'); const vb = Q.rpsView(b, g1); assert.equal(vb.rivalPick, null); assert.equal(vb.rivalPicked, true); assert.equal(Q.rpsList(b)[0].rivalPick, null);
+  assert.throws(() => Q.rpsPick(a, g1, 'papel'), /Ya elegiste/); const r = Q.rpsPick(b, g1, 'tijera'); assert.equal(r.result, 'perdiste'); assert.equal(r.rivalPick, 'piedra');
+  assert.equal(c(a), 55000); assert.equal(c(b), 5000); assert.throws(() => Q.rpsPick(b, g1, 'papel'), /no disponible/);
+  const g2 = Q.rpsChallenge(a, b, 10).id; Q.rpsRespond(b, g2, true); Q.rpsPick(a, g2, 'papel'); assert.equal(Q.rpsPick(b, g2, 'papel').result, 'empate'); assert.equal(c(a), 55000); assert.equal(c(b), 5000);
+  const g3 = Q.rpsChallenge(a, b, 100).id; Q.rpsRespond(b, g3, false); assert.equal(c(a), 55000); assert.throws(() => Q.rpsRespond(b, g3, true), /no disponible/);
+  const t0 = Date.now(); const g4 = Q.rpsChallenge(a, b, 100, t0).id; assert.equal(c(a), 54900); Q.rpsExpire(t0 + 24 * 3600e3 + 1); Q.rpsExpire(t0 + 24 * 3600e3 + 2); assert.equal(c(a), 55000); assert.equal(Q.rpsView(a, g4).status, 'expired');
+  set(b, 50); assert.throws(() => Q.rpsChallenge(b, a, 51), /suficientes/); assert.equal(c(b), 50);
+  const g5 = Q.rpsChallenge(a, b, 100).id; assert.throws(() => Q.rpsRespond(b, g5, true), /suficientes/); assert.equal(c(b), 50);
+  assert.throws(() => Q.rpsPick(a, g5, 'piedra'), /no disponible/); assert.equal(Q.rpsView(999, g5), null); });
 console.log(`\n${n} pruebas OK`);

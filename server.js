@@ -19,6 +19,10 @@ app.post('/api/profile', h(r => { const u = auth(r); return C.setProfile(u.id, r
 app.get('/api/store', h(r => { const u = auth(r); return { items: require('./public/store').ITEMS, owned: C.owned(u.id) }; }));
 app.post('/api/store/buy', h(r => { const u = auth(r); return C.buyItem(u.id, r.body.itemId, r.body.color); }));
 app.post('/api/store/sell', h(r => { const u = auth(r); return C.sellItem(u.id, r.body.itemId); }));
+app.get('/api/rps', h(r => { const u = auth(r); return { games: C.rpsList(u.id), min: C.RPS_MIN, max: C.RPS_MAX, friends: C.users().filter(x => !x.is_admin && x.id !== u.id).map(x => ({ id: x.id, name: x.display_name || x.username })) }; }));
+app.post('/api/rps', h(r => C.rpsChallenge(auth(r).id, r.body.opponentId, r.body.stake)));
+app.post('/api/rps/respond', h(r => C.rpsRespond(auth(r).id, r.body.id, !!r.body.accept)));
+app.post('/api/rps/pick', h(r => C.rpsPick(auth(r).id, r.body.id, r.body.pick)));
 app.get('/api/bonus', h(r => C.bonusStatus(auth(r).id)));
 app.post('/api/bonus', h(r => C.claimBonus(auth(r).id)));
 app.post('/api/store/color', h(r => { const u = auth(r); return C.setItemColor(u.id, r.body.itemId, r.body.color); }));
