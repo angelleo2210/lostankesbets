@@ -19,6 +19,8 @@ app.post('/api/profile', h(r => { const u = auth(r); return C.setProfile(u.id, r
 app.get('/api/store', h(r => { const u = auth(r); return { items: require('./public/store').ITEMS, owned: C.owned(u.id) }; }));
 app.post('/api/store/buy', h(r => { const u = auth(r); return C.buyItem(u.id, r.body.itemId, r.body.color); }));
 app.post('/api/store/sell', h(r => { const u = auth(r); return C.sellItem(u.id, r.body.itemId); }));
+app.get('/api/chat/:kind/:id', h(r => C.chatList(auth(r).id, r.params.kind, r.params.id)));
+app.post('/api/chat/:kind/:id', h(r => C.chatSend(auth(r).id, r.params.kind, r.params.id, r.body.text)));
 app.get('/api/bb', h(r => { const u = auth(r); return { games: C.bbList(u.id), min: C.RPS_MIN, max: C.RPS_MAX, n: C.BB_N, friends: C.users().filter(x => !x.is_admin && x.id !== u.id).map(x => ({ id: x.id, name: x.display_name || x.username })) }; }));
 app.post('/api/bb', h(r => C.bbChallenge(auth(r).id, r.body.opponentId, r.body.stake)));
 app.post('/api/bb/respond', h(r => C.bbRespond(auth(r).id, r.body.id, !!r.body.accept)));

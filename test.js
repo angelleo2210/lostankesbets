@@ -266,4 +266,16 @@ t('béisbol de una entrada: retos, extra, 24 h y plan secreto', () => { const Q 
   Q.bbExpire(t1 + 24 * 3600e3 - 1); assert.equal(Q.bbView(a, g4).status, 'accepted'); Q.bbExpire(t1 + 24 * 3600e3 + 1); const v4 = Q.bbView(a, g4); assert.equal(v4.result, 'won'); assert.equal(v4.reason, 'abandono'); assert.equal(c(a), before + 1000); });
 t('béisbol: empate en la primera entrada va a entrada extra', () => { const ap = { pitch: Array(15).fill('bola'), bat: ['no', 'no', 'no', 'no', ...Array(11).fill('swing')] }, bp = { pitch: Array(15).fill('bola'), bat: ['no', 'no', 'no', 'no', 'swing', 'swing', 'swing', 'no', 'no', 'no', 'no', 'no', 'no', 'no', 'no'] };
   const g = C.bbGame(ap, bp); assert.equal(g.innings[0].top.runs, g.innings[0].bot.runs); assert.ok(g.innings.length >= 2); });
+t('mensajes dentro de retos', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const a = Q.register(Q.newInvite(), 'ca', '1111'), b = Q.register(Q.newInvite(), 'cb', '1111'), x = Q.register(Q.newInvite(), 'cx', '1111');
+  const g = Q.penChallenge(a, b, 100).id; assert.throws(() => Q.chatSend(a, 'pen', g, 'hola'), /aceptado/); Q.penRespond(b, g, true);
+  const t0 = 1e12; Q.chatSend(a, 'pen', g, 'hola <b>x</b>', t0); assert.throws(() => Q.chatSend(a, 'pen', g, 'otra', t0 + 500), /rápido/); Q.chatSend(b, 'pen', g, 'qué tal', t0 + 600);
+  const L = Q.chatList(b, 'pen', g); assert.equal(L.length, 2); assert.equal(L[0].text, 'hola &lt;b&gt;x&lt;/b&gt;'); assert.equal(L[0].mine, false); assert.equal(L[1].mine, true);
+  assert.throws(() => Q.chatList(x, 'pen', g), /No participas/); assert.throws(() => Q.chatSend(x, 'pen', g, 'hey'), /No participas/); assert.throws(() => Q.chatList(a, 'xx', g), /no válido/);
+  assert.throws(() => Q.chatSend(a, 'pen', g, 'a'.repeat(141), t0 + 5000), /140/); assert.throws(() => Q.chatSend(a, 'pen', g, '   ', t0 + 5000), /Escribe/);
+  for (let i = 0; i < 28; i++) Q.chatSend(i % 2 ? a : b, 'pen', g, 'm' + i, t0 + 10000 + i * 1000); assert.throws(() => Q.chatSend(a, 'pen', g, 'extra', t0 + 99999), /30/);
+  for (let r = 0; r < 5; r++) { Q.penPlay(a, g, 'izquierda', 'centro'); Q.penPlay(b, g, 'centro', 'derecha'); } assert.equal(Q.penView(a, g).status, 'done');
+  assert.throws(() => Q.chatList(a, 'pen', g), /aceptado/); assert.throws(() => Q.chatSend(a, 'pen', g, 'tarde'), /aceptado/);
+  // reto de béisbol: rechazo cierra; aceptado y luego vencido borra
+  const h = Q.bbChallenge(a, b, 100, 1000).id; Q.bbRespond(b, h, true, 2000); Q.chatSend(a, 'bb', h, 'suerte', 3000); assert.equal(Q.chatList(b, 'bb', h).length, 1);
+  Q.bbExpire(2000 + 24 * 3600e3 + 1); assert.throws(() => Q.chatList(b, 'bb', h), /aceptado/); });
 console.log(`\n${n} pruebas OK`);

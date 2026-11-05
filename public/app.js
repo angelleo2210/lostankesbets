@@ -40,7 +40,7 @@ async function start() {
     const d = await api(mode === 'setup' ? '/setup' : mode === 'register' ? '/register' : '/login', b);
     token = localStorage.token = d.token; history.replaceState(null, '', '/'); start(); } catch (e) { flash(e.message); } };
 }
-async function render() {
+async function render() { clearInterval(chatT);
   me = await api('/me'); if (!RW.length) RW = await api('/rewards').catch(() => []);
   const tabs = [['lineas', 'Líneas'], ['reales', 'Reales'], ['mias', 'Mis apuestas'], ['tabla', 'Tabla'], ['tienda', 'Tienda'], ['juegos', 'Retos' + (me.retosPend ? ` (${me.retosPend})` : '')], ['perfil', 'Mi perfil']].concat(me.is_admin ? [['admin', 'Admin']] : []);
   A.innerHTML = `<h1>Hola, ${who(me, 56)} · 🪙 ${fmt(me.coins)}</h1><nav>${tabs.map(([k, v]) => `<button class="${k === tab ? '' : 'alt'}" data-t="${k}">${v}</button>`).join('')}</nav>
@@ -89,7 +89,7 @@ async function render() {
     B.querySelectorAll('[data-em]').forEach(b => b.onclick = () => { av = b.dataset.em; B.querySelectorAll('[data-em]').forEach(x => x.className = x.dataset.em === av && av ? '' : 'alt'); pv(); });
     $('#sv').onclick = async () => { try { await api('/profile', { avatar: av, display_name: $('#dn').value, facialHair: fhv() || 'ninguno', cosmetics: cos, avatarCfg: acfg }); render(); } catch (e) { flash(e.message); } }; }
   if (tab === 'tienda') await storeView(B);
-  if (tab === 'juegos') await (gameSel === 'rps' ? gamesView(B) : gameSel === 'pen' ? penView(B) : retosMenu(B));
+  if (tab === 'juegos') await (gameSel === 'rps' ? gamesView(B) : gameSel === 'pen' ? penView(B) : gameSel === 'bb' ? bbView(B) : retosMenu(B));
   if (tab === 'perfil') { const g = document.createElement('div'); B.append(g); await storeView(g, true); }
   if (tab === 'admin') await adminView(B);
   } catch (e) { flash(e.message); }
@@ -178,10 +178,96 @@ async function storeView(B, garage) { const d = await api('/store'); const own =
   B.querySelectorAll('[data-savec]').forEach(b => b.onclick = async () => { const id = b.dataset.savec; if (!pick[id]) return flash('Elige un color primero'); try { await api('/store/color', { itemId: id, color: pick[id] }); flash('Color guardado'); } catch (e) { flash(e.message); } }); }
 
 // ---- Juegos: Piedra, Papel o Tijera ----
-let rpsScreen = null, gameSel = null, penScreen = null;
-async function retosMenu(B) { const [r, p] = await Promise.all([api('/rps'), api('/pen')]), pend = d => d.games.filter(g => g.status === 'pending' && g.mine === 'received').length, turn = d => d.games.filter(g => g.status === 'accepted' && !(g.myPick || g.iPlayed)).length;
+let rpsScreen = null, gameSel = null, penScreen = null, bbScreen = null, chatT;
+// ---- Mensajes dentro del reto (se borran al terminar) ----
+const NYT = t => new Date(t).toLocaleTimeString('es', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit' });
+const chatBox = (k, id) => `<div class="chat" data-ck="${k}" data-ci="${id}"><div class="small">💬 Mensajes con tu rival · <i>Los mensajes se borran al terminar el reto</i></div><div class="chat-l"></div><div class="row"><input class="chat-i" maxlength="140" placeholder="Escribe (máx. 140)"><button class="chat-s" style="flex:0 0 80px">Enviar</button></div></div>`;
+function mountChat() { const el = document.querySelector('.chat'); if (!el) return; const path = `/chat/${el.dataset.ck}/${el.dataset.ci}`, L = el.querySelector('.chat-l');
+  const load = async () => { try { const ms = await api(path); L.innerHTML = ms.map(m => `<div class="msg ${m.mine ? 'me' : ''}"><b>${m.name}</b> <span class="small">${NYT(m.at)} ET</span><div>${m.text}</div></div>`).join('') || '<div class="small">Aún no hay mensajes</div>'; L.scrollTop = 1e9; } catch (e) { clearInterval(chatT); L.innerHTML = `<div class="small">${esc(e.message)}</div>`; } };
+  const send = async () => { const i = el.querySelector('.chat-i'), t = i.value.trim(); if (!t) return; try { await api(path, { text: t }); i.value = ''; load(); } catch (e) { flash(e.message); } };
+  el.querySelector('.chat-s').onclick = send; el.querySelector('.chat-i').onkeydown = e => { if (e.key === 'Enter') send(); };
+  load(); clearInterval(chatT); chatT = setInterval(() => { if (!document.body.contains(el)) return clearInterval(chatT); load(); }, 3000); }
+// ---- Reproductor de animaciones (con Saltar y prefers-reduced-motion) ----
+const REDUCED = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const CONF = () => `<div class="confeti">${Array.from({ length: 26 }, (_, i) => `<i style="left:${(i * 37) % 100}%;background:${['#22c55e', '#facc15', '#38bdf8', '#f472b6', '#fb923c'][i % 5]};animation-delay:${(i % 7) * 60}ms"></i>`).join('')}</div>`;
+function playSeq(B, title, steps, done) { let i = 0, t, over = false; const summary = steps.map(s => `<div class="opt ${s.ok ? 'won' : 'lost'}"><span class="small">${s.text}</span></div>`).join('');
+  const end = () => { if (over) return; over = true; clearTimeout(t); B.innerHTML = `<div class="card"><h2>${title}</h2>${summary}<button id="anok">Continuar</button></div>`; $('#anok').onclick = done; };
+  if (REDUCED()) return end();
+  const show = () => { if (over) return; if (i >= steps.length) return end(); const s = steps[i++];
+    B.innerHTML = `<div class="card anim"><h2>${title}</h2><div class="stage">${s.svg}<div class="anlbl ${s.ok ? 'won' : 'lost'}" style="animation-delay:${s.lblAt || 0}ms">${s.label}</div>${s.ok && s.confetti ? CONF() : ''}</div><div class="small">${s.text}</div>${s.extra || ''}<button class="alt" id="ansk">Saltar ⏭</button></div>`;
+    $('#ansk').onclick = end; t = setTimeout(show, s.ms); };
+  show(); }
+const PX = { izquierda: 70, centro: 150, derecha: 230 };
+const penStep = (shot, save, goal, who, rivalShoots) => { const bx = PX[shot], kx = PX[save] - 150, by = goal ? 62 : 70;
+  return { ms: 2300, lblAt: 1250, ok: rivalShoots ? !goal : goal, confetti: true, label: goal ? '¡GOOOL!' : '¡ATAJADA!', text: `${who}: ${ZN[shot]} · atajada a la ${ZN[save].toLowerCase()} → ${goal ? '⚽ Gol' : '🧤 Atajada'}`,
+    svg: `<svg viewBox="0 0 300 200" class="pen-an" style="--bx:${bx - 150}px;--by:${by - 175}px;--kx:${kx}px;--kr:${kx < 0 ? -70 : kx > 0 ? 70 : 0}deg;--kb:${goal ? 1 : 0}"><defs><linearGradient id="pgr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4ade80"/><stop offset="1" stop-color="#166534"/></linearGradient><pattern id="pnet" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M0 0L10 10M10 0L0 10" stroke="#fff" stroke-opacity=".3"/></pattern><radialGradient id="pbl" cx=".35" cy=".35"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#cbd5e1"/></radialGradient></defs>
+      <rect width="300" height="200" fill="url(#pgr)"/><rect x="30" y="25" width="240" height="85" fill="url(#pnet)" stroke="#f8fafc" stroke-width="7" stroke-linejoin="round"/><path d="M0 112H300" stroke="#fff" stroke-width="3"/><ellipse cx="150" cy="178" rx="6" ry="2" fill="#fff"/>
+      <g class="keeper"><g transform="translate(150,72)"><circle r="10" cy="-24" fill="#fcd34d"/><rect x="-14" y="-14" width="28" height="36" rx="10" fill="#f97316"/><path d="M-14 -8L-30 -22M14 -8L30 -22" stroke="#f97316" stroke-width="8" stroke-linecap="round"/><circle cx="-31" cy="-23" r="5" fill="#fff"/><circle cx="31" cy="-23" r="5" fill="#fff"/></g></g>
+      <g class="kicker"><g transform="translate(118,190)"><circle r="8" cy="-34" fill="#c68642"/><rect x="-9" y="-26" width="18" height="22" rx="6" fill="#2563eb"/><path d="M-4 -4L-8 8M4 -4L10 6" stroke="#1e3a8a" stroke-width="6" stroke-linecap="round"/></g></g>
+      <g class="ball"><g transform="translate(150,175)"><circle r="8" fill="url(#pbl)" stroke="#111" stroke-width="1.5"/><path d="M-3-2l3-2.5 3 2.5-1 3.5h-4z" fill="#111"/></g></g></svg>` }; };
+// ---- Béisbol de una entrada ----
+const EVN = { jonron: '¡JONRÓN!', ponche: '¡PONCHE!', strike: 'STRIKE', out: '¡OUT!', bola: 'BOLA', base: 'BASE POR BOLAS' };
+const bbField = (e, ev) => `<svg viewBox="0 0 300 220" class="bb-an ${e}"><defs><radialGradient id="bgr" cx=".5" cy="1" r="1"><stop offset="0" stop-color="#4ade80"/><stop offset="1" stop-color="#14532d"/></radialGradient><radialGradient id="bbl" cx=".35" cy=".35"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#d4d4d8"/></radialGradient></defs>
+  <rect width="300" height="220" fill="#0f172a"/><path d="M150 215 L-20 50 Q150 -30 320 50 Z" fill="url(#bgr)"/><path d="M-20 50 Q150 -30 320 50" stroke="#a16207" stroke-width="7" fill="none"/>
+  <path d="M150 200 L205 145 L150 90 L95 145 Z" fill="#b45309" stroke="#fef3c7" stroke-width="2"/>${[[150, 200], [205, 145], [150, 90], [95, 145]].map(([x, y]) => `<rect x="${x - 5}" y="${y - 5}" width="10" height="10" fill="#fff" transform="rotate(45 ${x} ${y})"/>`).join('')}<circle cx="150" cy="148" r="7" fill="#d97706"/>
+  <g transform="translate(150,140)"><circle r="7" cy="-18" fill="#fcd34d"/><rect x="-7" y="-12" width="14" height="16" rx="5" fill="#dc2626"/></g>
+  <g class="runner"><g><circle r="6" cy="-20" fill="#c68642"/><rect x="-6" y="-15" width="12" height="15" rx="5" fill="#2563eb"/></g></g>
+  <g class="bat"><path d="M162 198 L192 176" stroke="#a16207" stroke-width="6" stroke-linecap="round"/></g><circle class="flash" cx="168" cy="190" r="16" fill="#fde047" opacity="0"/>
+  <g class="ball"><circle cx="150" cy="148" r="5" fill="url(#bbl)" stroke="#ef4444" stroke-width=".8"/></g>
+  <g class="cnt"><rect x="6" y="6" width="104" height="44" rx="8" fill="#000a"/><text x="14" y="24" fill="#fff" font-size="12" font-weight="600">Bolas ${ev.balls}/4</text><text x="14" y="42" fill="#fff" font-size="12" font-weight="600">Strikes ${ev.strikes}/3</text><text x="200" y="22" fill="#fff" font-size="13" font-weight="700">Carreras ${ev.runs}</text></g></svg>`;
+const bbSteps = (g, myName, rivName) => { const out = [];
+  for (const inn of g.innings) for (const [half, iBat] of [['top', g.iTop], ['bot', !g.iTop]]) { const H = inn[half], who = iBat ? 'Tú bateas' : `Batea ${esc(rivName)}`;
+    out.push({ ms: 1100, ok: true, label: `${inn.n > 1 ? 'Extra · ' : ''}${half === 'top' ? 'Alta' : 'Baja'} ${inn.n}`, text: `${who} · ${half === 'top' ? 'parte alta' : 'parte baja'} de la entrada ${inn.n}`, svg: bbField('intro', { balls: 0, strikes: 0, runs: 0 }) });
+    H.ev.forEach((ev, i) => { const good = ev.e === 'jonron' || ev.e === 'base', ok = iBat ? good : !good;
+      out.push({ ms: ev.e === 'jonron' ? 2600 : ev.e === 'base' ? 1500 : 900, lblAt: ev.e === 'jonron' ? 700 : 150, ok, confetti: ev.e === 'jonron' || ev.e === 'base', label: EVN[ev.e] + (good ? ' +1' : ''),
+        text: `${who} · lanzamiento ${i + 1}: ${ev.p === 'strike' ? 'strike' : 'bola'} · ${ev.b === 'swing' ? 'swing' : 'no swing'} → ${EVN[ev.e]} (bolas ${ev.balls}/4, strikes ${ev.strikes}/3, carreras ${ev.runs})`, svg: bbField(ev.e, ev) }); }); }
+  return out; };
+async function bbView(B) {
+  const d = await api('/bb'), G = d.games, sel = bbScreen && G.find(g => g.id === bbScreen), back = () => { bbScreen = null; render(); };
+  const left = g => `${Math.max(0, Math.ceil((g.expires - Date.now()) / 3600e3))} h`;
+  const score = g => { const rows = g.game.innings.map(n => { const my = g.iTop ? n.top.runs : n.bot.runs, rv = g.iTop ? n.bot.runs : n.top.runs; return [n.n, my, rv]; });
+    return `<table class="bb-sb"><tr><th></th>${rows.map(r => `<th>${r[0]}</th>`).join('')}<th>C</th></tr><tr><td>Tú ${g.iTop ? '(alta)' : '(baja)'}</td>${rows.map(r => `<td>${r[1]}</td>`).join('')}<td><b>${g.game.my}</b></td></tr><tr><td>${esc(g.rival)}</td>${rows.map(r => `<td>${r[2]}</td>`).join('')}<td><b>${g.game.rival}</b></td></tr></table>`; };
+  if (sel && sel.status === 'done' && sel.game && !localStorage['bb_seen_' + sel.id]) { localStorage['bb_seen_' + sel.id] = 1; return playSeq(B, `Béisbol de una entrada vs ${esc(sel.rival)}`, bbSteps({ ...sel.game, iTop: sel.iTop }, 'Tú', sel.rival), () => bbView(B)); }
+  if (sel && sel.status === 'done') { const w = sel.result === 'won', tie = sel.result === 'tie';
+    const txt = sel.game ? sel.game.innings.map(n => [['top', 'Alta'], ['bot', 'Baja']].map(([h, nm]) => { const mine = (h === 'top') === sel.iTop, H = n[h], k = H.ev.reduce((a, e) => (a[e.e] = (a[e.e] || 0) + 1, a), {});
+      return `<div class="opt ${(H.runs > 0) === mine ? 'won' : 'lost'}"><span class="small">${nm} ${n.n} · ${mine ? 'Tú' : esc(sel.rival)}: ${H.runs} carrera(s) — ${k.jonron || 0} jonrón, ${k.base || 0} base por bolas, ${k.strike || 0} strikes, final: ${EVN[H.ev[H.ev.length - 1]?.e] || '—'}</span></div>`; }).join('')).join('') : '';
+    B.innerHTML = `<div class="card rps-res ${w ? 'won' : tie ? '' : 'lost'}"><h2>Béisbol de una entrada · ${w ? '✅ ¡Ganaste!' : tie ? '🤝 Empate' : '❌ Perdiste'}</h2>${sel.game ? score(sel) : ''}
+      <p>${sel.reason === 'abandono' ? (w ? 'Tu rival no mandó su plan a tiempo. ' : 'No mandaste tu plan a tiempo (24 h). ') : ''}${w ? `Te llevas el bote: 🪙 ${fmt(sel.stake * 2)}` : tie ? `Empate tras todas las entradas extra: se devolvió 🪙 ${fmt(sel.stake)} a cada uno` : `Perdiste 🪙 ${fmt(sel.stake)}`}</p>${txt}
+      ${sel.game ? '<button class="alt" id="rep">▶ Ver repetición</button>' : ''}<button id="rb">Volver a Béisbol</button></div>`;
+    if ($('#rep')) $('#rep').onclick = () => { delete localStorage['bb_seen_' + sel.id]; render(); }; $('#rb').onclick = back; return; }
+  if (sel && sel.status === 'accepted') { const pl = { pitch: Array(d.n).fill(null), bat: Array(d.n).fill(null) };
+    const draw = () => { const ready = pl.pitch.every(Boolean) && pl.bat.every(Boolean);
+      B.innerHTML = `<div class="card"><h2>⚾ Béisbol vs ${esc(sel.rival)} · bote 🪙 ${fmt(sel.stake * 2)}</h2>${sel.iSent ? `<p>Ya mandaste tu plan (no se puede cambiar). Esperando a ${esc(sel.rival)}… su plan está oculto. Le quedan ${left(sel)}.</p>`
+        : `<p class="small">Bateas en la parte ${sel.iTop ? 'alta' : 'baja'}. Arma tu plan secreto de ${d.n} lanzamientos y ${d.n} decisiones; se manda una sola vez. ${sel.rivalSent ? 'Tu rival ya mandó el suyo.' : ''} Tienes ${left(sel)} o pierdes.</p>
+        <div class="small">Strike + swing = jonrón (+1) · strike sin swing = ponche (out) · bola + swing = strike · 4 bolas = base por bolas (+1) · 3 strikes = out · un out termina la media entrada.</div>
+        <h3>🎯 Como pitcher</h3><div class="bb-grid">${pl.pitch.map((v, i) => `<button class="${v ? '' : 'alt'} ${v === 'strike' ? 'red' : ''}" data-pi="${i}">${i + 1}<br>${v ? (v === 'strike' ? 'Strike' : 'Bola') : '—'}</button>`).join('')}</div>
+        <h3>🏏 Como bateador</h3><div class="bb-grid">${pl.bat.map((v, i) => `<button class="${v ? '' : 'alt'}" data-bi="${i}">${i + 1}<br>${v ? (v === 'swing' ? 'Swing' : 'No swing') : '—'}</button>`).join('')}</div>
+        <div class="row"><button class="alt" id="rnd">🎲 Al azar</button><button id="bgo" ${ready ? '' : 'disabled style="opacity:.5"'}>Mandar plan</button></div>`}${chatBox('bb', sel.id)}<button class="alt" id="rb">Volver</button></div>`;
+      B.querySelectorAll('[data-pi]').forEach(b => b.onclick = () => { const i = +b.dataset.pi; pl.pitch[i] = pl.pitch[i] === 'bola' ? 'strike' : 'bola'; draw(); });
+      B.querySelectorAll('[data-bi]').forEach(b => b.onclick = () => { const i = +b.dataset.bi; pl.bat[i] = pl.bat[i] === 'no' ? 'swing' : 'no'; draw(); });
+      if ($('#rnd')) $('#rnd').onclick = () => { pl.pitch = pl.pitch.map(() => Math.random() < .5 ? 'bola' : 'strike'); pl.bat = pl.bat.map(() => Math.random() < .5 ? 'swing' : 'no'); draw(); };
+      if ($('#bgo')) $('#bgo').onclick = async () => { if (!confirm('¿Mandar el plan? No se puede cambiar.')) return; try { await api('/bb/plan', { id: sel.id, ...pl }); render(); } catch (e) { flash(e.message); } };
+      $('#rb').onclick = back; mountChat(); };
+    draw(); return; }
+  const rec = G.filter(g => g.status === 'pending' && g.mine === 'received'), sent = G.filter(g => g.status === 'pending' && g.mine === 'sent'), play = G.filter(g => g.status === 'accepted'), past = G.filter(g => !['pending', 'accepted'].includes(g.status));
+  const ST = { declined: 'Rechazado (sin cobro)', expired: 'Vencido (sin cobro)' };
+  B.innerHTML = `<button class="alt" id="toRetos" style="width:auto">← Retos</button><div class="card"><h2>⚾ Béisbol de una entrada</h2><div style="text-align:center">${bbField('intro', { balls: 0, strikes: 0, runs: 0 })}</div>
+    <p class="small">Reta a un amigo. No se cobra nada hasta que acepte (24 h); al aceptar se descuenta la apuesta de los dos. Cada uno manda una vez un plan secreto de 15 lanzamientos (bola/strike) y 15 decisiones (swing/no swing). Gana quien anote más carreras; si empatan, entrada extra. Si no mandas tu plan en 24 h tras aceptar, pierdes.</p>
+    <div class="row"><select id="ro">${d.friends.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('')}</select><input id="rs" type="number" min="${d.min}" max="${d.max}" step="1" placeholder="Apuesta (${d.min}–${fmt(d.max)})"><button id="rgo">Retar</button></div>
+    <div class="small">Mínimo 🪙 ${fmt(d.min)} · máximo 🪙 ${fmt(d.max)} · tienes 🪙 ${fmt(me.coins)}</div></div>
+    <div class="card"><h2>Retos recibidos</h2>${rec.map(g => `<div class="opt"><span>${esc(g.rival)} te reta por 🪙 ${fmt(g.stake)} · <span class="small">${left(g)} para aceptar</span></span><span><button data-ac="${g.id}">Aceptar</button> <button class="alt" data-rj="${g.id}">Rechazar</button></span></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
+    <div class="card"><h2>En juego</h2>${play.map(g => `<div class="opt"><span>vs ${esc(g.rival)} · 🪙 ${fmt(g.stake)} ${g.iSent ? '<span class="small">(esperando rival)</span>' : '<b>· manda tu plan</b>'}</span><button data-go="${g.id}">${g.iSent ? 'Ver' : 'Jugar'}</button></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
+    <div class="card"><h2>Retos enviados</h2>${sent.map(g => `<div class="opt"><span>A ${esc(g.rival)} por 🪙 ${fmt(g.stake)}</span><span class="small">${left(g)} para aceptar</span></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
+    <div class="card"><h2>Historial</h2>${past.map(g => `<div class="opt ${g.result === 'won' ? 'won' : g.result === 'lost' ? 'lost' : ''}"><span>vs ${esc(g.rival)} · 🪙 ${fmt(g.stake)}${g.game ? ` · ${g.game.my}-${g.game.rival}` : ''}</span><span>${g.status === 'done' ? `<a href="#" data-go="${g.id}">${g.result === 'won' ? '✅ ¡Ganaste!' : g.result === 'lost' ? '❌ Perdiste' : '🤝 Empate'}</a>` : ST[g.status]}</span></div>`).join('') || '<p class="small">Aún no hay partidos</p>'}</div>`;
+  $('#toRetos').onclick = () => { gameSel = null; render(); };
+  $('#rgo').onclick = async () => { const v = Number($('#rs').value); if (!Number.isInteger(v) || v < d.min || v > d.max) return flash(`La apuesta debe ser entre ${d.min} y ${fmt(d.max)}`);
+    try { await api('/bb', { opponentId: Number($('#ro').value), stake: v }); flash('Reto de Béisbol enviado'); render(); } catch (e) { flash(e.message); } };
+  B.querySelectorAll('[data-ac],[data-rj]').forEach(b => b.onclick = async () => { const id = Number(b.dataset.ac || b.dataset.rj);
+    try { await api('/bb/respond', { id, accept: !!b.dataset.ac }); if (b.dataset.ac) bbScreen = id; render(); } catch (e) { flash(e.message); } });
+  B.querySelectorAll('[data-go]').forEach(b => b.onclick = e => { e.preventDefault(); bbScreen = Number(b.dataset.go); render(); }); }
+async function retosMenu(B) { const [r, p, q] = await Promise.all([api('/rps'), api('/pen'), api('/bb')]), pend = d => d.games.filter(g => g.status === 'pending' && g.mine === 'received').length, turn = d => d.games.filter(g => g.status === 'accepted' && !(g.myPick || g.iPlayed || g.iSent)).length;
   const tile = (k, ic, n, d) => `<button class="alt retot" data-gm="${k}">${ic}<b>${n}</b><span class="small">${pend(d) ? `📩 ${pend(d)} reto(s) recibido(s)` : ''}${turn(d) ? ` · 🎯 te toca en ${turn(d)}` : ''}</span></button>`;
-  B.innerHTML = `<div class="card"><h2>⚔️ Retos</h2><p class="small">Elige un minijuego para retar a un amigo con monedas.</p><div class="retos">${tile('rps', HAND('piedra', 70), 'Piedra, papel o tijera', r)}${tile('pen', GOAL(null, null, 90), 'Tanda de penaltis', p)}</div></div>`;
+  B.innerHTML = `<div class="card"><h2>⚔️ Retos</h2><p class="small">Elige un minijuego para retar a un amigo con monedas.</p><div class="retos">${tile('rps', HAND('piedra', 70), 'Piedra, papel o tijera', r)}${tile('pen', GOAL(null, null, 90), 'Tanda de penaltis', p)}${tile('bb', `<svg viewBox="0 0 60 60" width="64"><circle cx="30" cy="30" r="24" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/><path d="M14 14q10 16 0 32M46 14q-10 16 0 32" stroke="#ef4444" stroke-width="2.5" fill="none" stroke-dasharray="3 2"/></svg>`, 'Béisbol', q)}</div></div>`;
   B.querySelectorAll('[data-gm]').forEach(b => b.onclick = () => { gameSel = b.dataset.gm; render(); }); }
 // ---- Tanda de penaltis ----
 const ZN = { izquierda: 'Izquierda', centro: 'Centro', derecha: 'Derecha' }, ZX = { izquierda: 55, centro: 120, derecha: 185 };
@@ -192,6 +278,8 @@ const GOAL = (shot, save, w = 240, goal) => `<svg viewBox="0 0 240 150" width="$
 async function penView(B) {
   const d = await api('/pen'), G = d.games, sel = penScreen && G.find(g => g.id === penScreen), back = () => { penScreen = null; render(); };
   const left = g => `${Math.max(0, Math.ceil((g.expires - Date.now()) / 3600e3))} h`;
+  if (sel && sel.rounds.length && Number(localStorage['pen_seen_' + sel.id] || 0) < sel.rounds.length) { const r = sel.rounds[sel.rounds.length - 1]; localStorage['pen_seen_' + sel.id] = sel.rounds.length;
+    return playSeq(B, `Tanda de penaltis · Ronda ${r.n}`, [penStep(r.myShot, r.rivalSave, r.myGoal, 'Tu tiro'), penStep(r.rivalShot, r.mySave, r.rivalGoal, `Tiro de ${esc(sel.rival)}`, true)], () => penView(B)); }
   const board = g => `<div class="pen-sb"><span>Tú <b>${g.myGoals}</b></span><span>Ronda ${Math.min(g.round, Math.max(5, g.round))}${g.round > 5 ? ' · muerte súbita' : ' de 5'}</span><span><b>${g.rivalGoals}</b> ${esc(g.rival)}</span></div>
     <div class="pen-dots">${g.rounds.map(r => `<span title="Ronda ${r.n}">${r.myGoal ? '⚽' : '🧤'}</span>`).join('')}</div><div class="pen-dots">${g.rounds.map(r => `<span>${r.rivalGoal ? '⚽' : '🧤'}</span>`).join('')}</div>`;
   const hist = g => g.rounds.map(r => `<div class="opt ${r.myGoal ? 'won' : 'lost'}"><span class="small">R${r.n} · Tu tiro ${ZN[r.myShot]} vs su atajada ${ZN[r.rivalSave]}: ${r.myGoal ? '⚽ Gol' : '🧤 Atajada'}</span></div><div class="opt ${r.rivalGoal ? 'lost' : 'won'}"><span class="small">R${r.n} · Su tiro ${ZN[r.rivalShot]} vs tu atajada ${ZN[r.mySave]}: ${r.rivalGoal ? '⚽ Gol' : '🧤 ¡Atajaste!'}</span></div>`).reverse().join('');
@@ -205,7 +293,7 @@ async function penView(B) {
       : `<p class="small">Elige en secreto dónde tiras y dónde atajas. ${sel.rivalPlayed ? 'Tu rival ya jugó esta ronda.' : ''} Tienes ${left(sel)} o pierdes la serie.</p>${GOAL(shot, save)}
       <div class="small">⚽ Tu tiro</div><div class="row">${Object.keys(ZN).map(z => `<button class="${shot === z ? '' : 'alt'}" data-sh="${z}">${ZN[z]}</button>`).join('')}</div>
       <div class="small">🧤 Tu atajada</div><div class="row">${Object.keys(ZN).map(z => `<button class="${save === z ? '' : 'alt'}" data-sv="${z}">${ZN[z]}</button>`).join('')}</div>
-      <button id="pgo" ${shot && save ? '' : 'disabled style="opacity:.5"'}>Confirmar ronda ${sel.round}</button>`}${hist(sel)}<button class="alt" id="rb">Volver</button></div>`;
+      <button id="pgo" ${shot && save ? '' : 'disabled style="opacity:.5"'}>Confirmar ronda ${sel.round}</button>`}${chatBox('pen', sel.id)}${hist(sel)}<button class="alt" id="rb">Volver</button></div>`; mountChat();
       B.querySelectorAll('[data-sh]').forEach(b => b.onclick = () => { shot = b.dataset.sh; draw(); }); B.querySelectorAll('[data-sv]').forEach(b => b.onclick = () => { save = b.dataset.sv; draw(); });
       if ($('#pgo')) $('#pgo').onclick = async () => { try { await api('/pen/play', { id: sel.id, shot, save }); render(); } catch (e) { flash(e.message); } }; $('#rb').onclick = back; };
     draw(); return; }
@@ -245,7 +333,7 @@ async function gamesView(B) {
   if (sel && sel.status === 'accepted') { // Pantalla 2: elegir
     B.innerHTML = `<div class="card"><h2>Elige contra ${esc(sel.rival)} · 🪙 ${fmt(sel.stake)}</h2>${sel.myPick ? `<p>Elegiste <b>${RPSN[sel.myPick]}</b>. Esperando a ${esc(sel.rival)}… (su elección está oculta)</p><div class="rps-vs">${HAND(sel.myPick, 110)}</div>`
       : `<p class="small">Tu elección queda guardada en secreto hasta que ambos elijan.${sel.rivalPicked ? ' Tu rival ya eligió.' : ''}</p><div class="rps-pick">${['piedra', 'papel', 'tijera'].map(k => `<button class="alt" data-pk="${k}">${HAND(k)}<div>${RPSN[k]}</div></button>`).join('')}</div>`}
-      <button class="alt" id="rb">Volver</button></div>`;
+      ${chatBox('rps', sel.id)}<button class="alt" id="rb">Volver</button></div>`; mountChat();
     B.querySelectorAll('[data-pk]').forEach(b => b.onclick = async () => { try { await api('/rps/pick', { id: sel.id, pick: b.dataset.pk }); render(); } catch (e) { flash(e.message); } });
     $('#rb').onclick = () => { rpsScreen = null; render(); }; return; }
   // Pantalla 1: retar + pendientes + historial

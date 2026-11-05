@@ -406,6 +406,20 @@ function open(file = 'data.db') {
       for (const [uid, rank] of m) for (const it of REWARDS) if (rank <= it.minRank) ins.run(uid, it.id, rank); return m; },
     unlocksOf: uid => db.prepare('SELECT item_id, rank, created FROM unlocks WHERE user_id=? ORDER BY created').all(uid),
   };
+  // Mensajes dentro de retos aceptados: solo en memoria, solo los dos jugadores, se borran al cerrar el reto.
+  const CHAT_T = { rps: 'rps', pen: 'pen', bb: 'bb' }, chats = new Map(), CHAT_MAX = 140, CHAT_PER = 30, CHAT_GAP = 1000;
+  const chatGame = (kind, id) => { if (!CHAT_T[kind]) err('Juego no válido'); return db.prepare(`SELECT id, challenger, opponent, status FROM ${CHAT_T[kind]} WHERE id=?`).get(Number(id)); };
+  api.chatPurge = () => { for (const k of [...chats.keys()]) { const [kind, id] = k.split(':'), g = chatGame(kind, id); if (!g || g.status !== 'accepted') chats.delete(k); } };
+  const chatCheck = (uid, kind, id) => { const g = chatGame(kind, id); if (!g || (g.challenger !== uid && g.opponent !== uid)) err('No participas en este reto');
+    if (g.status !== 'accepted') { chats.delete(kind + ':' + g.id); err('El chat solo está disponible durante un reto aceptado y en curso'); } return kind + ':' + g.id; };
+  const escH = t => t.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  api.chatSend = (uid, kind, id, text, now = Date.now()) => { const k = chatCheck(uid, kind, id); text = String(text ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim();
+    if (!text) err('Escribe un mensaje'); if ([...text].length > CHAT_MAX) err(`Máximo ${CHAT_MAX} caracteres`);
+    const L = chats.get(k) || []; if (L.length >= CHAT_PER) err(`Máximo ${CHAT_PER} mensajes por reto`);
+    const last = L.filter(m => m.uid === uid).pop(); if (last && now - last.at < CHAT_GAP) err('Vas muy rápido; espera un segundo');
+    const u = db.prepare('SELECT username, display_name FROM users WHERE id=?').get(uid); L.push({ uid, name: u.display_name || u.username, text: escH(text), at: now }); chats.set(k, L); return { ok: true }; };
+  api.chatList = (uid, kind, id) => { const k = chatCheck(uid, kind, id); return (chats.get(k) || []).map(m => ({ name: escH(m.name), text: m.text, at: m.at, mine: m.uid === uid })); };
+  for (const f of ['rpsRespond', 'rpsPick', 'rpsExpire', 'penRespond', 'penPlay', 'penExpire', 'bbRespond', 'bbPlan', 'bbExpire']) { const o = api[f]; api[f] = (...a) => { try { return o(...a); } finally { if (chats.size) api.chatPurge(); } }; }
   return api;
 }
 module.exports = { open, BONUS, FACIAL, REWARDS, profit, dec, toAmerican, START_COINS };
