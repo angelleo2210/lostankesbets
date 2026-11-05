@@ -60,6 +60,8 @@ function open(file = 'data.db') {
   if (!ucols.includes('display_name')) db.exec('ALTER TABLE users ADD COLUMN display_name TEXT');
   if (!ucols.includes('avatar_cfg')) db.exec('ALTER TABLE users ADD COLUMN avatar_cfg TEXT');
   if (!ucols.includes('cosmetics')) db.exec('ALTER TABLE users ADD COLUMN cosmetics TEXT');
+  for (const t of ['bets', 'parlays']) if (!db.prepare(`PRAGMA table_info(${t})`).all().some(c => c.name === 'ts')) db.exec(`ALTER TABLE ${t} ADD COLUMN ts INTEGER`);
+  let tick = 0; const now = () => Date.now() * 1000 + (tick++ % 1000);
   if (!ucols.includes('last_bonus')) db.exec('ALTER TABLE users ADD COLUMN last_bonus INTEGER');
   if (!ucols.includes('facial_hair')) db.exec('ALTER TABLE users ADD COLUMN facial_hair TEXT');
   db.exec('CREATE TABLE IF NOT EXISTS purchases(user_id INTEGER, item_id TEXT, price INTEGER, color TEXT, created TEXT DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(user_id, item_id))');
@@ -86,6 +88,10 @@ function open(file = 'data.db') {
       return { amount: BONUS, available: now >= next, nextAt: next > now ? next : null, msLeft: Math.max(0, next - now) }; },
     claimBonus: (uid, now = Date.now()) => tx(() => { const r = db.prepare('UPDATE users SET coins=coins+?, last_bonus=? WHERE id=? AND (last_bonus IS NULL OR last_bonus<=?)').run(BONUS, now, uid, now - BONUS_MS);
       const coins = db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins; return { claimed: !!r.changes, coins, ...api.bonusStatus(uid, now) }; }),
+    // Racha: apuestas resueltas (ganada/perdida) en orden cronológico; parlay = 1; pendientes/devueltas no cuentan.
+    streak: uid => { const rs = db.prepare("SELECT status, COALESCE(ts, CAST(strftime('%s', created) AS INTEGER) * 1000000) o, id FROM bets WHERE user_id=? AND status IN ('won','lost') UNION ALL SELECT status, COALESCE(ts, CAST(strftime('%s', created) AS INTEGER) * 1000000) o, id FROM parlays WHERE user_id=? AND status IN ('won','lost') ORDER BY o, id").all(uid, uid);
+      if (!rs.length) return null; const last = rs[rs.length - 1].status; let n = 0; for (let i = rs.length - 1; i >= 0 && rs[i].status === last; i--) n++;
+      return last === 'won' && n >= 3 ? { kind: 'fuego', n } : last === 'lost' && n >= 2 ? { kind: 'hielo', n } : null; },
     db,
     hasAdmin: () => !!db.prepare('SELECT 1 FROM users WHERE is_admin=1').get(),
     createUser(username, pin, isAdmin = false) {
@@ -136,7 +142,7 @@ function open(file = 'data.db') {
         const u = db.prepare('SELECT coins FROM users WHERE id=?').get(userId);
         if (u.coins < stake) err('No tienes suficientes monedas');
         db.prepare('UPDATE users SET coins=coins-? WHERE id=?').run(stake, userId);
-        return Number(db.prepare('INSERT INTO bets(user_id,line_id,option_id,stake,odds) VALUES(?,?,?,?,?)').run(userId, o.line_id, o.id, stake, o.odds).lastInsertRowid);
+        return Number(db.prepare('INSERT INTO bets(user_id,line_id,option_id,stake,odds,ts) VALUES(?,?,?,?,?,?)').run(userId, o.line_id, o.id, stake, o.odds, now()).lastInsertRowid);
       });
     },
     placeParlay(userId, optionIds, stake) {
@@ -154,7 +160,7 @@ function open(file = 'data.db') {
         const u = db.prepare('SELECT coins FROM users WHERE id=?').get(userId);
         if (u.coins < stake) err('No tienes suficientes monedas');
         db.prepare('UPDATE users SET coins=coins-? WHERE id=?').run(stake, userId);
-        const pid = Number(db.prepare('INSERT INTO parlays(user_id,stake) VALUES(?,?)').run(userId, stake).lastInsertRowid);
+        const pid = Number(db.prepare('INSERT INTO parlays(user_id,stake,ts) VALUES(?,?,?)').run(userId, stake, now()).lastInsertRowid);
         for (const o of legs) db.prepare('INSERT INTO parlay_legs(parlay_id,line_id,option_id,odds) VALUES(?,?,?,?)').run(pid, o.line_id, o.id, o.odds);
         return pid;
       });
@@ -254,7 +260,7 @@ function open(file = 'data.db') {
     },
     topups: (limit = 20) => db.prepare('SELECT t.id, t.amount, t.created, u.username, u.display_name, u.avatar, u.avatar_cfg, u.facial_hair, a.username admin FROM topups t JOIN users u ON u.id=t.user_id JOIN users a ON a.id=t.admin_id ORDER BY t.id DESC LIMIT ?').all(limit).map(r => deco(r)),
     users: () => { const rk = api.refreshRanks(); return db.prepare('SELECT id, username, avatar, display_name, facial_hair, cosmetics, avatar_cfg, coins, is_admin FROM users ORDER BY username').all().map(r => deco(r, r.id, rk)); },
-    leaderboard: () => { const rk = api.refreshRanks(); return db.prepare('SELECT id, username, avatar, display_name, facial_hair, cosmetics, avatar_cfg, coins, (SELECT COUNT(*) FROM bets b WHERE b.user_id=users.id AND b.status=\'won\') + (SELECT COUNT(*) FROM parlays p WHERE p.user_id=users.id AND p.status=\'won\') wins FROM users ORDER BY wins DESC, coins DESC, username').all().map(r => { const { id, ...o } = deco(r, r.id, rk); return o; }); },
+    leaderboard: () => { const rk = api.refreshRanks(); return db.prepare('SELECT id, username, avatar, display_name, facial_hair, cosmetics, avatar_cfg, coins, (SELECT COUNT(*) FROM bets b WHERE b.user_id=users.id AND b.status=\'won\') + (SELECT COUNT(*) FROM parlays p WHERE p.user_id=users.id AND p.status=\'won\') wins FROM users ORDER BY wins DESC, coins DESC, username').all().map(r => { const { id, ...o } = deco(r, r.id, rk); return { ...o, streak: api.streak(id) }; }); },
     ranks() { const m = new Map(); db.prepare('SELECT id, (SELECT COUNT(*) FROM bets b WHERE b.user_id=users.id AND b.status=\'won\') + (SELECT COUNT(*) FROM parlays p WHERE p.user_id=users.id AND p.status=\'won\') wins FROM users WHERE is_admin=0 AND wins>0 ORDER BY wins DESC, coins DESC, username LIMIT 3').all().forEach((u, i) => m.set(u.id, i + 1)); return m; },
     refreshRanks() { const m = api.ranks(); const ins = db.prepare('INSERT OR IGNORE INTO unlocks(user_id,item_id,rank) VALUES(?,?,?)');
       for (const [uid, rank] of m) for (const it of REWARDS) if (rank <= it.minRank) ins.run(uid, it.id, rank); return m; },

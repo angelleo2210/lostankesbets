@@ -11,7 +11,7 @@ app.get('/api/status', h(() => ({ hasAdmin: C.hasAdmin() })));
 app.post('/api/setup', h(r => { C.setupAdmin(r.body.username, r.body.pin); return { token: C.login(r.body.username, r.body.pin) }; }));
 app.post('/api/register', h(r => { C.register(r.body.code, r.body.username, r.body.pin, r.body.avatarCfg); return { token: C.login(r.body.username, r.body.pin) }; }));
 app.post('/api/login', h(r => ({ token: C.login(r.body.username, r.body.pin) })));
-app.get('/api/me', h(r => { const u = auth(r); return { ...u, bets: C.myBets(u.id), parlays: C.myParlays(u.id) }; }));
+app.get('/api/me', h(r => { const u = auth(r); return { ...u, streak: C.streak(u.id), bets: C.myBets(u.id), parlays: C.myParlays(u.id) }; }));
 app.get('/api/lines', h(r => { auth(r); return C.lines(['open', 'closed']); }));
 app.get('/api/leaderboard', h(r => { auth(r); return C.leaderboard(); }));
 app.post('/api/bet', h(r => { const u = auth(r); C.placeBet(u.id, r.body.optionId, r.body.stake); }));

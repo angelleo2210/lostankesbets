@@ -160,4 +160,14 @@ t('ranking: apuestas ganadas (parlay=1), desempate monedas, sin artículos', () 
   Q.settleLine(L1, S1.id); Q.settleLine(L2, S2.id); Q.db.prepare('UPDATE users SET coins=9000000 WHERE id=?').run(b);
   const lb = Q.leaderboard().filter(r => r.username.startsWith('r')); assert.deepEqual(lb.map(r => [r.username, r.wins]), [['ra', 2], ['rc', 1], ['rb', 0]]);
   Q.db.prepare('UPDATE users SET coins=200000 WHERE id=?').run(c); Q.buyItem(c, 'car_deportivo'); assert.equal(Q.leaderboard().filter(r => r.username.startsWith('r'))[1].username, 'rc'); });
+t('racha: fuego, hielo, nada, pendientes ignoradas', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const q = Q.register(Q.newInvite(), 'racha', '1111');
+  const mk = () => { const id = Q.createLine('X', [{ label: 'S', odds: 100 }, { label: 'N', odds: 100 }]); return [id, ...Q.lines().find(l => l.id === id).options]; };
+  const bet = win => { const [L, S, N] = mk(); Q.placeBet(q, S.id, 10); Q.settleLine(L, win ? S.id : N.id); };
+  assert.equal(Q.streak(q), null); bet(1); bet(1); assert.equal(Q.streak(q), null);
+  const [Lp, Sp] = mk(); Q.placeBet(q, Sp.id, 10); // pendiente: no cuenta
+  const [Lc, Sc] = mk(); Q.placeBet(q, Sc.id, 10); Q.cancelLine(Lc); // anulada: no cuenta
+  bet(1); assert.deepEqual(Q.streak(q), { kind: 'fuego', n: 3 });
+  const [A, AS] = mk(), [B2, BS] = mk(); Q.placeParlay(q, [AS.id, BS.id], 10); Q.settleLine(A, AS.id); Q.settleLine(B2, BS.id); assert.deepEqual(Q.streak(q), { kind: 'fuego', n: 4 });
+  bet(0); assert.equal(Q.streak(q), null); bet(0); assert.deepEqual(Q.streak(q), { kind: 'hielo', n: 2 });
+  assert.deepEqual(Q.leaderboard().find(r => r.username === 'racha').streak, { kind: 'hielo', n: 2 }); });
 console.log(`\n${n} pruebas OK`);
