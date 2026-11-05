@@ -1,6 +1,5 @@
 const $ = s => document.querySelector(s); const A = $('#app');
 let token = localStorage.token, me = null, tab = 'lineas', boleto = [];
-function mascot(u) { let m = document.getElementById('mascot'); if (!m) { m = document.createElement('div'); m.id = 'mascot'; m.setAttribute('aria-hidden', 'true'); document.body.append(m); } document.body.classList.toggle('has-mascot', !!u); m.hidden = !u; if (u) m.innerHTML = Avatar.render(u.avatarCfg || Avatar.DEFAULT, { size: 100, facialHair: u.facialHair }); }
 const dec = o => o > 0 ? 1 + o / 100 : 1 + 100 / -o; const toAm = d => d >= 2 ? Math.round((d - 1) * 100) : Math.round(-100 / (d - 1));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = n => Number(n).toLocaleString('es-US'); const od = o => (o > 0 ? '+' : '') + o;
@@ -26,7 +25,7 @@ function builder(el, cfg, unlocked, onChange) {
 const flash = m => { const e = $('#msg'); if (e) e.textContent = m; else alert(m); };
 async function start() {
   if (token) try { me = await api('/me'); return render(); } catch { token = null; localStorage.removeItem('token'); }
-  mascot(null); const st = await api('/status'); const code = new URLSearchParams(location.search).get('invitacion') || '';
+  const st = await api('/status'); const code = new URLSearchParams(location.search).get('invitacion') || '';
   const mode = !st.hasAdmin ? 'setup' : code ? 'register' : 'login';
   A.innerHTML = `<h1>🎲 LosTankesBets</h1><p class="small">Solo monedas ficticias. Sin dinero real.</p><div class="card">
   <h2>${mode === 'setup' ? 'Crear administrador' : mode === 'register' ? 'Unirte con invitación' : 'Entrar'}</h2>
@@ -43,7 +42,6 @@ async function start() {
 }
 async function render() {
   me = await api('/me'); if (!RW.length) RW = await api('/rewards').catch(() => []);
-  mascot(tab === 'perfil' ? null : me);
   const tabs = [['lineas', 'Líneas'], ['reales', 'Reales'], ['mias', 'Mis apuestas'], ['tabla', 'Tabla'], ['perfil', 'Mi perfil']].concat(me.is_admin ? [['admin', 'Admin']] : []);
   A.innerHTML = `<h1>Hola, ${who(me, 56)} · 🪙 ${fmt(me.coins)}</h1><nav>${tabs.map(([k, v]) => `<button class="${k === tab ? '' : 'alt'}" data-t="${k}">${v}</button>`).join('')}</nav>
   <p id="msg" class="err"></p><div id="body"></div><button class="alt" id="out">Salir</button>`;
