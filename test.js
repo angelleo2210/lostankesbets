@@ -278,4 +278,26 @@ t('mensajes dentro de retos', () => { const Q = open(':memory:'); Q.setupAdmin('
   // reto de béisbol: rechazo cierra; aceptado y luego vencido borra
   const h = Q.bbChallenge(a, b, 100, 1000).id; Q.bbRespond(b, h, true, 2000); Q.chatSend(a, 'bb', h, 'suerte', 3000); assert.equal(Q.chatList(b, 'bb', h).length, 1);
   Q.bbExpire(2000 + 24 * 3600e3 + 1); assert.throws(() => Q.chatList(b, 'bb', h), /aceptado/); });
+t('Three Contest', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const a = Q.register(Q.newInvite(), 'ta', '1111'), b = Q.register(Q.newInvite(), 'tb', '1111');
+  const coins = u => Q.users().find(x => x.id === u).coins, A0 = coins(a), B0 = coins(b); let seq = []; Q.tcRand = () => seq.length ? seq.shift() : 0.9;
+  assert.deepEqual(Q.TC_POS, ['Esquina izquierda', 'Ala izquierda', 'Centro (cima del arco)', 'Ala derecha', 'Esquina derecha']);
+  assert.throws(() => Q.tcChallenge(a, b, 5), /entre/); const d = Q.tcChallenge(a, b, 100, 0).id; Q.tcRespond(b, d, false, 1); assert.equal(coins(a), A0); assert.equal(Q.tcView(a, d).status, 'declined');
+  const e = Q.tcChallenge(a, b, 100, 0).id; Q.tcExpire(24 * 3600e3 + 1); assert.equal(Q.tcView(a, e).status, 'expired'); assert.equal(coins(a), A0); assert.equal(coins(b), B0);
+  const g = Q.tcChallenge(a, b, 100, 0).id; assert.throws(() => Q.tcStart(a, g, 1), /en juego/); Q.tcRespond(b, g, true, 10); assert.equal(coins(a), A0 - 100); assert.equal(coins(b), B0 - 100);
+  Q.tcStart(a, g, 100); assert.throws(() => Q.tcStart(a, g, 101), /una vez/);
+  seq = Array(Q.TC.total).fill(0.1); let T = 100; for (let p = 0; p < 5; p++) { for (let k = 0; k < 5; k++) { const r = Q.tcShoot(a, g, ++T); assert.equal(r.shot.pos, p); assert.equal(r.shot.pts, 3); assert.equal(r.shot.money, k === Q.TC.per - 1); }
+    assert.throws(() => Q.tcShoot(a, g, ++T), p < 4 ? /siguiente/ : /25/); if (p < 4) assert.equal(Q.tcNext(a, g, ++T).pos, p + 1); }
+  assert.throws(() => Q.tcNext(a, g, ++T), /última|25/); const va = Q.tcView(a, g, T); assert.equal(Q.TC.max, 75); assert.equal(Q.TC.max, Q.TC.total * Q.TC.ppm); assert.equal(va.me.points, Q.TC.max); assert.equal(va.me.finished, true);
+  const vb = Q.tcView(b, g, T); assert.equal(vb.rivalFinished, true); assert.equal(vb.rivalPoints, null); assert.equal(vb.rivalShots, null); // secreto
+  // reloj del servidor: B empieza y a los 75 s ya no puede tirar
+  Q.tcStart(b, g, 1000); Q.tcShoot(b, g, 2000); assert.throws(() => Q.tcShoot(b, g, 1000 + 75001), /tiempo|en juego/); assert.equal(Q.tcView(b, g, 80000).me.shots.length, 1); const vr = Q.tcView(a, g, 80000); assert.equal(vr.status, 'done'); assert.equal(vr.result, 'won'); assert.equal(coins(a), A0 + 100); assert.equal(vr.rivalPoints, 0);
+  // empate → ronda extra; si sigue empatado se devuelve
+  const h = Q.tcChallenge(a, b, 50, 0).id; Q.tcRespond(b, h, true, 0); Q.tcStart(a, h, 0); Q.tcStart(b, h, 0); seq = [0.9, 0.9, 0.9, 0.9, 0.9, 0.1, 0.9, 0.9, 0.9, 0.9]; Q.tcExpire(80000);
+  const vh = Q.tcView(b, h); assert.equal(vh.result, 'won'); assert.equal(vh.reason, 'extra'); assert.equal(vh.extra.my.filter(Boolean).length, 1);
+  const k = Q.tcChallenge(a, b, 50, 0).id; Q.tcRespond(b, k, true, 0); Q.tcStart(a, k, 0); Q.tcStart(b, k, 0); const cA = coins(a); seq = []; Q.tcExpire(80000); assert.equal(Q.tcView(a, k).result, 'tie'); assert.equal(coins(a), cA + 50);
+  // aceptado sin concurso en 24 h
+  const m = Q.tcChallenge(a, b, 50, 0).id; Q.tcRespond(b, m, true, 0); Q.tcStart(a, m, 0); const cB = coins(b); Q.tcExpire(24 * 3600e3 + 1); assert.equal(Q.tcView(b, m).result, 'lost'); assert.equal(Q.tcView(b, m).reason, 'abandono'); assert.equal(coins(b), cB);
+  const o = Q.tcChallenge(a, b, 50, 0).id; Q.tcRespond(b, o, true, 0); const c2 = coins(a); Q.tcExpire(24 * 3600e3 + 1); assert.equal(Q.tcView(a, o).status, 'expired'); assert.equal(coins(a), c2 + 50);
+  // atómico: el retador sin monedas → no se cobra a nadie
+  const z = Q.tcChallenge(a, b, 25000, 0).id; Q.db.prepare('UPDATE users SET coins=10 WHERE id=?').run(a); const bz = coins(b); assert.throws(() => Q.tcRespond(b, z, true, 1), /retador/); assert.equal(coins(b), bz); assert.equal(Q.tcView(b, z).status, 'pending'); });
 console.log(`\n${n} pruebas OK`);

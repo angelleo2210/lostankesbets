@@ -73,6 +73,7 @@ function open(file = 'data.db') {
   db.exec('CREATE TABLE IF NOT EXISTS unlocks(user_id INTEGER, item_id TEXT, rank INTEGER, created TEXT DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(user_id, item_id))');
   db.exec('CREATE TABLE IF NOT EXISTS pen(id INTEGER PRIMARY KEY, challenger INTEGER, opponent INTEGER, stake INTEGER, status TEXT, created INTEGER, round_start INTEGER, winner INTEGER, reason TEXT, resolved INTEGER)');
   db.exec('CREATE TABLE IF NOT EXISTS pen_rounds(game_id INTEGER, n INTEGER, c_shot TEXT, c_save TEXT, o_shot TEXT, o_save TEXT, c_goal INTEGER, o_goal INTEGER, PRIMARY KEY(game_id, n))');
+  db.exec('CREATE TABLE IF NOT EXISTS tc(id INTEGER PRIMARY KEY, challenger INTEGER, opponent INTEGER, stake INTEGER, status TEXT, created INTEGER, accepted_at INTEGER, c_st TEXT, o_st TEXT, winner INTEGER, reason TEXT, extra TEXT, resolved INTEGER)');
   db.exec('CREATE TABLE IF NOT EXISTS bb(id INTEGER PRIMARY KEY, challenger INTEGER, opponent INTEGER, stake INTEGER, status TEXT, created INTEGER, accepted_at INTEGER, c_plan TEXT, o_plan TEXT, winner INTEGER, reason TEXT, result TEXT, resolved INTEGER)');
   db.exec('CREATE TABLE IF NOT EXISTS rps(id INTEGER PRIMARY KEY, challenger INTEGER, opponent INTEGER, stake INTEGER, status TEXT, c_pick TEXT, o_pick TEXT, winner INTEGER, created INTEGER, resolved INTEGER)');
   const ucols = db.prepare('PRAGMA table_info(users)').all().map(c => c.name);
@@ -406,8 +407,58 @@ function open(file = 'data.db') {
       for (const [uid, rank] of m) for (const it of REWARDS) if (rank <= it.minRank) ins.run(uid, it.id, rank); return m; },
     unlocksOf: uid => db.prepare('SELECT item_id, rank, created FROM unlocks WHERE user_id=? ORDER BY created').all(uid),
   };
+  // ---- Three Contest: 5 posiciones × 5 balones, 75 s de reloj del servidor, 40% por tiro ----
+  const POINTS_PER_MAKE = 3, TC_PER = 5, TC_MS = 75000, TC_P = 0.4, TC_EXTRA = 5, TC_POS = ['Esquina izquierda', 'Ala izquierda', 'Centro (cima del arco)', 'Ala derecha', 'Esquina derecha']; const TC_N = TC_POS.length * TC_PER, TC_MAX = TC_N * POINTS_PER_MAKE; // todos los tiros valen igual; el último de cada posición solo se ve dorado
+  api.TC = { ppm: POINTS_PER_MAKE, per: TC_PER, ms: TC_MS, total: TC_N, max: TC_MAX, extra: TC_EXTRA, pos: TC_POS }; api.TC_POS = TC_POS; api.TC_MS = TC_MS; api.tcRand = Math.random;
+  const tcPts = st => st ? st.shots.reduce((a, x) => a + x.pts, 0) : 0;
+  const tcDone = (st, now) => !!st && (st.shots.length >= TC_N || now > st.start + TC_MS || st.fin);
+  const tcRow = id => db.prepare('SELECT * FROM tc WHERE id=?').get(Number(id));
+  const tcResolve = (g, now) => { const cs = g.c_st && JSON.parse(g.c_st), os = g.o_st && JSON.parse(g.o_st); if (!tcDone(cs, now) || !tcDone(os, now)) return;
+    let c = tcPts(cs), o = tcPts(os), extra = null;
+    if (c === o) { const r5 = () => Array.from({ length: TC_EXTRA }, () => api.tcRand() < TC_P); extra = { c: r5(), o: r5() }; c += extra.c.filter(Boolean).length * POINTS_PER_MAKE; o += extra.o.filter(Boolean).length * POINTS_PER_MAKE; }
+    const w = c > o ? g.challenger : o > c ? g.opponent : null;
+    if (!db.prepare("UPDATE tc SET status='done', winner=?, reason=?, extra=?, resolved=? WHERE id=? AND status='accepted'").run(w, w ? (extra ? 'extra' : 'puntos') : 'empate', extra && JSON.stringify(extra), now, g.id).changes) return;
+    if (w) db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(2 * g.stake, w); else db.prepare('UPDATE users SET coins=coins+? WHERE id IN (?,?)').run(g.stake, g.challenger, g.opponent); };
+  api.tcExpire = (now = Date.now()) => tx(() => {
+    db.prepare("UPDATE tc SET status='expired', resolved=? WHERE status='pending' AND created<=?").run(now, now - PEN_MS);
+    for (const g of db.prepare("SELECT * FROM tc WHERE status='accepted'").all()) { tcResolve(g, now); if (g.accepted_at > now - PEN_MS || tcRow(g.id).status !== 'accepted') continue;
+      if (!g.c_st && !g.o_st) { if (db.prepare("UPDATE tc SET status='expired', reason='ninguno jugó', resolved=? WHERE id=? AND status='accepted'").run(now, g.id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id IN (?,?)').run(g.stake, g.challenger, g.opponent); }
+      else if (!g.c_st || !g.o_st) { const w = g.c_st ? g.challenger : g.opponent; if (db.prepare("UPDATE tc SET status='done', winner=?, reason='abandono', resolved=? WHERE id=? AND status='accepted'").run(w, now, g.id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(2 * g.stake, w); } } });
+  api.tcChallenge = (uid, oppId, stake, now = Date.now()) => { stake = Number(stake); oppId = Number(oppId);
+    if (!Number.isInteger(stake) || stake < RPS_MIN || stake > RPS_MAX) err(`La apuesta debe ser un entero entre ${RPS_MIN} y ${RPS_MAX.toLocaleString('es')}`);
+    if (oppId === uid) err('No puedes retarte a ti mismo'); const o = db.prepare('SELECT id, is_admin FROM users WHERE id=?').get(oppId); if (!o || o.is_admin) err('Ese amigo no existe');
+    if (db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins < stake) err('No tienes monedas suficientes');
+    return { id: Number(db.prepare("INSERT INTO tc(challenger,opponent,stake,status,created) VALUES(?,?,?,'pending',?)").run(uid, oppId, stake, now).lastInsertRowid) }; };
+  api.tcRespond = (uid, id, accept, now = Date.now()) => { api.tcExpire(now); return tx(() => { const g = db.prepare("SELECT * FROM tc WHERE id=? AND opponent=? AND status='pending'").get(Number(id), uid); if (!g) err('Reto no disponible');
+    if (!accept) { db.prepare("UPDATE tc SET status='declined', resolved=? WHERE id=?").run(now, g.id); return { status: 'declined' }; }
+    const c = x => db.prepare('SELECT coins FROM users WHERE id=?').get(x).coins;
+    if (c(uid) < g.stake) err('No tienes monedas suficientes para aceptar'); if (c(g.challenger) < g.stake) err('El retador ya no tiene monedas suficientes; el reto no se puede aceptar');
+    db.prepare('UPDATE users SET coins=coins-? WHERE id IN (?,?)').run(g.stake, uid, g.challenger); db.prepare("UPDATE tc SET status='accepted', accepted_at=? WHERE id=?").run(now, g.id); return { status: 'accepted' }; }); };
+  const tcMine = (uid, id, now) => { const g = tcRow(id); if (!g || (g.challenger !== uid && g.opponent !== uid)) err('Reto no encontrado'); if (g.status !== 'accepted') err('Este reto ya no está en juego');
+    const col = g.challenger === uid ? 'c_st' : 'o_st'; return { g, col, st: g[col] && JSON.parse(g[col]) }; };
+  const tcSave = (g, col, st, now) => { db.prepare(`UPDATE tc SET ${col}=? WHERE id=?`).run(JSON.stringify(st), g.id); tcResolve(tcRow(g.id), now); };
+  api.tcStart = (uid, id, now = Date.now()) => { api.tcExpire(now); return tx(() => { const { g, col, st } = tcMine(uid, id, now); if (st) err('Ya empezaste tu concurso; solo se hace una vez');
+    tcSave(g, col, { start: now, pos: 0, shots: [] }, now); return api.tcView(uid, g.id, now); }); };
+  api.tcShoot = (uid, id, now = Date.now()) => { api.tcExpire(now); return tx(() => { const { g, col, st } = tcMine(uid, id, now); if (!st) err('Primero empieza tu concurso');
+    if (now > st.start + TC_MS) { tcSave(g, col, st, now); err(`Se acabó el tiempo (${TC_MS / 1000} s)`); } if (st.shots.length >= TC_N || st.fin) err('Ya tiraste los 25 balones');
+    const inPos = st.shots.filter(x => x.pos === st.pos).length; if (inPos >= TC_PER) err(`Ya tiraste los ${TC_PER} balones de esta posición; pasa a la siguiente`);
+    const ball = inPos + 1, money = ball === TC_PER, made = api.tcRand() < TC_P, shot = { pos: st.pos, ball, money, made, pts: made ? POINTS_PER_MAKE : 0, t: now - st.start };
+    st.shots.push(shot); tcSave(g, col, st, now); return { shot, points: tcPts(st), left: Math.max(0, st.start + TC_MS - now), done: st.shots.length >= TC_N }; }); };
+  api.tcNext = (uid, id, now = Date.now()) => { api.tcExpire(now); return tx(() => { const { g, col, st } = tcMine(uid, id, now); if (!st) err('Primero empieza tu concurso');
+    if (now > st.start + TC_MS) { tcSave(g, col, st, now); err(`Se acabó el tiempo (${TC_MS / 1000} s)`); } if (st.pos >= TC_POS.length - 1) err('Ya estás en la última posición');
+    st.pos++; tcSave(g, col, st, now); return { pos: st.pos, name: TC_POS[st.pos] }; }); };
+  api.tcView = (uid, id, now = Date.now()) => { const g = db.prepare('SELECT x.*, a.username cu, a.display_name cd, b.username ou, b.display_name od FROM tc x JOIN users a ON a.id=x.challenger JOIN users b ON b.id=x.opponent WHERE x.id=?').get(Number(id));
+    if (!g || (g.challenger !== uid && g.opponent !== uid)) err('Reto no encontrado'); const mine = g.challenger === uid, ms = JSON.parse((mine ? g.c_st : g.o_st) || 'null'), rs = JSON.parse((mine ? g.o_st : g.c_st) || 'null'), ex = g.extra && JSON.parse(g.extra), done = g.status === 'done';
+    return { id: g.id, stake: g.stake, status: g.status, reason: g.reason, mine: mine ? 'sent' : 'received', rival: mine ? (g.od || g.ou) : (g.cd || g.cu),
+      expires: g.status === 'pending' ? g.created + PEN_MS : g.status === 'accepted' ? g.accepted_at + PEN_MS : null,
+      me: ms && { shots: ms.shots, pos: ms.pos, points: tcPts(ms), left: Math.max(0, ms.start + TC_MS - now), finished: tcDone(ms, now) }, rivalFinished: tcDone(rs, now), rivalStarted: !!rs,
+      rivalShots: done ? (rs ? rs.shots : []) : null, rivalPoints: done ? tcPts(rs) : null,
+      extra: done && ex ? { my: mine ? ex.c : ex.o, rival: mine ? ex.o : ex.c } : null,
+      result: done ? (g.winner === uid ? 'won' : g.winner ? 'lost' : 'tie') : null }; };
+  api.tcList = (uid, now = Date.now()) => { api.tcExpire(now); return db.prepare('SELECT id FROM tc WHERE challenger=? OR opponent=? ORDER BY id DESC LIMIT 60').all(uid, uid).map(r => api.tcView(uid, r.id, now)); };
+
   // Mensajes dentro de retos aceptados: solo en memoria, solo los dos jugadores, se borran al cerrar el reto.
-  const CHAT_T = { rps: 'rps', pen: 'pen', bb: 'bb' }, chats = new Map(), CHAT_MAX = 140, CHAT_PER = 30, CHAT_GAP = 1000;
+  const CHAT_T = { rps: 'rps', pen: 'pen', bb: 'bb', tc: 'tc' }, chats = new Map(), CHAT_MAX = 140, CHAT_PER = 30, CHAT_GAP = 1000;
   const chatGame = (kind, id) => { if (!CHAT_T[kind]) err('Juego no válido'); return db.prepare(`SELECT id, challenger, opponent, status FROM ${CHAT_T[kind]} WHERE id=?`).get(Number(id)); };
   api.chatPurge = () => { for (const k of [...chats.keys()]) { const [kind, id] = k.split(':'), g = chatGame(kind, id); if (!g || g.status !== 'accepted') chats.delete(k); } };
   const chatCheck = (uid, kind, id) => { const g = chatGame(kind, id); if (!g || (g.challenger !== uid && g.opponent !== uid)) err('No participas en este reto');
@@ -419,7 +470,7 @@ function open(file = 'data.db') {
     const last = L.filter(m => m.uid === uid).pop(); if (last && now - last.at < CHAT_GAP) err('Vas muy rápido; espera un segundo');
     const u = db.prepare('SELECT username, display_name FROM users WHERE id=?').get(uid); L.push({ uid, name: u.display_name || u.username, text: escH(text), at: now }); chats.set(k, L); return { ok: true }; };
   api.chatList = (uid, kind, id) => { const k = chatCheck(uid, kind, id); return (chats.get(k) || []).map(m => ({ name: escH(m.name), text: m.text, at: m.at, mine: m.uid === uid })); };
-  for (const f of ['rpsRespond', 'rpsPick', 'rpsExpire', 'penRespond', 'penPlay', 'penExpire', 'bbRespond', 'bbPlan', 'bbExpire']) { const o = api[f]; api[f] = (...a) => { try { return o(...a); } finally { if (chats.size) api.chatPurge(); } }; }
+  for (const f of ['rpsRespond', 'rpsPick', 'rpsExpire', 'penRespond', 'penPlay', 'penExpire', 'bbRespond', 'bbPlan', 'bbExpire', 'tcRespond', 'tcExpire', 'tcStart', 'tcShoot', 'tcNext']) { const o = api[f]; api[f] = (...a) => { try { return o(...a); } finally { if (chats.size) api.chatPurge(); } }; }
   return api;
 }
 module.exports = { open, BONUS, FACIAL, REWARDS, profit, dec, toAmerican, START_COINS };
