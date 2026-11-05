@@ -42,7 +42,7 @@ async function start() {
 }
 async function render() {
   me = await api('/me'); if (!RW.length) RW = await api('/rewards').catch(() => []);
-  const tabs = [['lineas', 'Líneas'], ['reales', 'Reales'], ['mias', 'Mis apuestas'], ['tabla', 'Tabla'], ['perfil', 'Mi perfil']].concat(me.is_admin ? [['admin', 'Admin']] : []);
+  const tabs = [['lineas', 'Líneas'], ['reales', 'Reales'], ['mias', 'Mis apuestas'], ['tabla', 'Tabla'], ['tienda', 'Tienda'], ['perfil', 'Mi perfil']].concat(me.is_admin ? [['admin', 'Admin']] : []);
   A.innerHTML = `<h1>Hola, ${who(me, 56)} · 🪙 ${fmt(me.coins)}</h1><nav>${tabs.map(([k, v]) => `<button class="${k === tab ? '' : 'alt'}" data-t="${k}">${v}</button>`).join('')}</nav>
   <p id="msg" class="err"></p><div id="body"></div><button class="alt" id="out">Salir</button>`;
   A.querySelectorAll('nav button').forEach(b => b.onclick = () => { tab = b.dataset.t; render(); });
@@ -79,6 +79,8 @@ async function render() {
     B.querySelectorAll('[data-cos]').forEach(b => b.onclick = () => { const [k, v] = b.dataset.cos.split(':'); if (v) cos[k] = v; else delete cos[k]; B.querySelectorAll(`[data-cos^="${k}:"]`).forEach(x => x.className = x.dataset.cos === `${k}:${v}` && v ? '' : 'alt'); pv(); });
     B.querySelectorAll('[data-em]').forEach(b => b.onclick = () => { av = b.dataset.em; B.querySelectorAll('[data-em]').forEach(x => x.className = x.dataset.em === av && av ? '' : 'alt'); pv(); });
     $('#sv').onclick = async () => { try { await api('/profile', { avatar: av, display_name: $('#dn').value, facialHair: fhv() || 'ninguno', cosmetics: cos, avatarCfg: acfg }); render(); } catch (e) { flash(e.message); } }; }
+  if (tab === 'tienda') await storeView(B);
+  if (tab === 'perfil') { const g = document.createElement('div'); B.append(g); await storeView(g, true); }
   if (tab === 'admin') await adminView(B);
   } catch (e) { flash(e.message); }
 }
@@ -126,3 +128,13 @@ async function adminView(B) {
   act('#inv', () => api('/admin/invites', {}));
 }
 start();
+async function storeView(B, garage) { const d = await api('/store'); const own = new Map(d.owned.map(o => [o.item_id, o.color])); const pick = {};
+  const sw = id => `<div class="sw">${Store.COLORS.map(c => `<button class="swb" style="background:${c}" data-sw="${id}" data-c="${c}" title="${c}"></button>`).join('')}<input type="color" data-cc="${id}" value="${own.get(id) || Store.byId(id).color}"></div>`;
+  const cats = garage ? [['', '']] : Store.CATS, list = k => d.items.filter(i => garage ? own.has(i.id) : i.cat === k);
+  B.innerHTML = (garage ? `<h2>🚗 Mi garaje</h2>${own.size ? '' : '<div class="small">Aún no tienes nada. Pásate por la Tienda.</div>'}` : `<div class="card"><h2>🛍️ Tienda</h2><div class="small">Solo cosméticos para presumir: no dan ventajas en las apuestas. Prueba colores gratis antes de comprar.</div></div>`) +
+    cats.map(([k, v]) => `${v ? `<h2>${v}</h2>` : ''}<div class="shop">${list(k).map(i => `<div class="card item ${own.has(i.id) ? 'owned' : ''}"><div class="isvg" id="sv_${i.id}">${Store.render(i.id, own.get(i.id))}</div><b>${esc(i.name)}</b><div>🪙 ${fmt(i.price)}</div>${sw(i.id)}${own.has(i.id) ? `<div class="small">✅ Tuyo</div><button class="alt" data-savec="${i.id}">Guardar color</button>` : `<button data-buy="${i.id}" ${me.coins < i.price ? 'disabled' : ''}>Comprar</button>`}</div>`).join('')}</div>`).join('');
+  const set = (id, c) => { pick[id] = c; $('#sv_' + id).innerHTML = Store.render(id, c); };
+  B.querySelectorAll('[data-sw]').forEach(b => b.onclick = () => set(b.dataset.sw, b.dataset.c));
+  B.querySelectorAll('[data-cc]').forEach(b => b.oninput = () => set(b.dataset.cc, b.value));
+  B.querySelectorAll('[data-buy]').forEach(b => b.onclick = async () => { const i = Store.byId(b.dataset.buy); if (!confirm(`¿Comprar ${i.name} por ${fmt(i.price)} monedas?`)) return; try { await api('/store/buy', { itemId: i.id, ...(pick[i.id] ? { color: pick[i.id] } : {}) }); render(); } catch (e) { flash(e.message); } });
+  B.querySelectorAll('[data-savec]').forEach(b => b.onclick = async () => { const id = b.dataset.savec; if (!pick[id]) return flash('Elige un color primero'); try { await api('/store/color', { itemId: id, color: pick[id] }); flash('Color guardado'); } catch (e) { flash(e.message); } }); }

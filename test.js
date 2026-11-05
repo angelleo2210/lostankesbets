@@ -126,4 +126,11 @@ t('avatar cuerpo completo', () => {
 t('migración idempotente users', () => { const f = require('os').tmpdir() + '/ltb-mig-' + process.pid + '.db';
   const { DatabaseSync } = require('node:sqlite'); const d = new DatabaseSync(f); d.exec('CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT UNIQUE COLLATE NOCASE, pin_hash TEXT, salt TEXT, coins INTEGER, is_admin INTEGER DEFAULT 0)'); d.close();
   open(f).db.close(); const Q = open(f); assert.ok(Q.db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'display_name') && Q.db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'facial_hair') && Q.db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'avatar_cfg')); Q.db.close(); require('fs').unlinkSync(f); });
+t('tienda: compra, saldo, duplicado, color', () => { const S = open(':memory:'); S.setupAdmin('angel', '1234'); const s = S.register(S.newInvite(), 'compra', '1111'); const sc = () => S.db.prepare('SELECT coins FROM users WHERE id=?').get(s).coins;
+  assert.throws(() => S.buyItem(s, 'nada'), /no existe/); assert.throws(() => S.buyItem(s, 'car_deportivo'), /suficientes/); assert.equal(sc(), 50000);
+  assert.throws(() => S.buyItem(s, 'jet_basico', 'rojo'), /Color/); assert.equal(S.buyItem(s, 'jet_basico').coins, 38000); assert.equal(S.owned(s)[0].color, '#3b82f6');
+  S.db.prepare('UPDATE users SET coins=110000 WHERE id=?').run(s); assert.throws(() => S.buyItem(s, 'jet_basico'), /Ya es tuyo/); assert.equal(sc(), 110000);
+  S.setItemColor(s, 'jet_basico', '#ABCDEF'); assert.equal(S.owned(s)[0].color, '#ABCDEF'); assert.throws(() => S.setItemColor(s, 'jet_basico', '#12345'), /Color/); assert.throws(() => S.setItemColor(s, 'moto_naked', '#123456'), /No es tuyo/);
+  assert.equal(S.buyItem(s, 'moto_scooter', '#000000').coins, 90000); assert.equal(S.owned(s).length, 2);
+  assert.ok(require('./public/store').render('yate_blanco', '#123456').includes('#123456')); open(':memory:'); });
 console.log(`\n${n} pruebas OK`);

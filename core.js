@@ -1,6 +1,6 @@
 const { DatabaseSync } = require('node:sqlite');
 const crypto = require('node:crypto');
-const AV = require('./public/avatar');
+const AV = require('./public/avatar'); const ST = require('./public/store');
 const START_COINS = 50000; const MAX_TOPUP = 10000000;
 
 function profit(stake, odds) {
@@ -61,9 +61,20 @@ function open(file = 'data.db') {
   if (!ucols.includes('avatar_cfg')) db.exec('ALTER TABLE users ADD COLUMN avatar_cfg TEXT');
   if (!ucols.includes('cosmetics')) db.exec('ALTER TABLE users ADD COLUMN cosmetics TEXT');
   if (!ucols.includes('facial_hair')) db.exec('ALTER TABLE users ADD COLUMN facial_hair TEXT');
+  db.exec('CREATE TABLE IF NOT EXISTS purchases(user_id INTEGER, item_id TEXT, price INTEGER, color TEXT, created TEXT DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(user_id, item_id))');
+  if (!db.prepare('PRAGMA table_info(purchases)').all().some(c => c.name === 'color')) db.exec('ALTER TABLE purchases ADD COLUMN color TEXT');
   const tx = fn => { db.exec('BEGIN'); try { const r = fn(); db.exec('COMMIT'); return r; } catch (e) { db.exec('ROLLBACK'); throw e; } };
   const err = m => { const e = new Error(m); e.user = true; throw e; };
   const api = {
+    owned: uid => db.prepare('SELECT item_id, color, price, created FROM purchases WHERE user_id=? ORDER BY created').all(Number(uid)),
+    buyItem: (uid, itemId, color) => { const i = ST.byId(itemId); if (!i) err('Artículo no existe');
+      if (color != null && !ST.HEX.test(color)) err('Color inválido');
+      return tx(() => { if (db.prepare('SELECT 1 FROM purchases WHERE user_id=? AND item_id=?').get(uid, itemId)) err('Ya es tuyo');
+        const r = db.prepare('UPDATE users SET coins=coins-? WHERE id=? AND coins>=?').run(i.price, uid, i.price); if (!r.changes) err('No tienes monedas suficientes');
+        db.prepare('INSERT INTO purchases(user_id,item_id,price,color) VALUES(?,?,?,?)').run(uid, itemId, i.price, color || i.color);
+        return { coins: db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins }; }); },
+    setItemColor: (uid, itemId, color) => { if (!ST.HEX.test(color || '')) err('Color inválido');
+      if (!db.prepare('UPDATE purchases SET color=? WHERE user_id=? AND item_id=?').run(color, uid, itemId).changes) err('No es tuyo'); return { ok: true }; },
     db,
     hasAdmin: () => !!db.prepare('SELECT 1 FROM users WHERE is_admin=1').get(),
     createUser(username, pin, isAdmin = false) {
