@@ -26,6 +26,8 @@ app.post('/api/tc', h(r => C.tcChallenge(auth(r).id, r.body.opponentId, r.body.s
 app.post('/api/tc/respond', h(r => C.tcRespond(auth(r).id, r.body.id, !!r.body.accept)));
 app.post('/api/tc/start', h(r => C.tcStart(auth(r).id, r.body.id)));
 app.post('/api/tc/aim', h(r => C.tcAim(auth(r).id, r.body.id)));
+app.post('/api/tc/press', h(r => C.tcAim(auth(r).id, r.body.id)));
+app.post('/api/tc/release', h(r => C.tcShoot(auth(r).id, r.body.id)));
 app.post('/api/tc/shoot', h(r => C.tcShoot(auth(r).id, r.body.id)));
 app.post('/api/tc/next', h(r => C.tcNext(auth(r).id, r.body.id)));
 app.get('/api/bb', h(r => { const u = auth(r); return { games: C.bbList(u.id), min: C.RPS_MIN, max: C.RPS_MAX, n: C.BB_N, friends: C.users().filter(x => !x.is_admin && x.id !== u.id).map(x => ({ id: x.id, name: x.display_name || x.username })) }; }));

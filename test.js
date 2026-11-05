@@ -281,7 +281,7 @@ t('mensajes dentro de retos', () => { const Q = open(':memory:'); Q.setupAdmin('
   Q.bbExpire(2000 + 24 * 3600e3 + 1); assert.throws(() => Q.chatList(b, 'bb', h), /aceptado/); });
 t('Three Contest', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const a = Q.register(Q.newInvite(), 'ta', '1111'), b = Q.register(Q.newInvite(), 'tb', '1111');
   const coins = u => Q.users().find(x => x.id === u).coins, A0 = coins(a), B0 = coins(b); let seq = []; Q.tcRand = () => seq.length ? seq.shift() : 0.99;
-  assert.deepEqual(Q.TC_POS, ['Esquina izquierda', 'Centro', 'Esquina derecha']); assert.equal(Q.TC.total, 15); assert.equal(Q.TC.ms, 40000);
+  assert.deepEqual(Q.TC_POS, ['Esquina izquierda', 'Centro', 'Esquina derecha']); assert.equal(Q.TC.total, 15); assert.equal(Q.TC.ms, 75000);
   assert.throws(() => Q.tcChallenge(a, b, 5), /entre/); const d = Q.tcChallenge(a, b, 100, 0).id; Q.tcRespond(b, d, false, 1); assert.equal(coins(a), A0); assert.equal(Q.tcView(a, d).status, 'declined');
   const e = Q.tcChallenge(a, b, 100, 0).id; Q.tcExpire(24 * 3600e3 + 1); assert.equal(Q.tcView(a, e).status, 'expired'); assert.equal(coins(a), A0); assert.equal(coins(b), B0);
   const g = Q.tcChallenge(a, b, 100, 0).id; assert.throws(() => Q.tcStart(a, g, 1), /en juego/); Q.tcRespond(b, g, true, 10); assert.equal(coins(a), A0 - 100); assert.equal(coins(b), B0 - 100);
@@ -291,19 +291,20 @@ t('Three Contest', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '12
   assert.throws(() => Q.tcNext(a, g, ++T), /última|15/); const va = Q.tcView(a, g, T); assert.equal(Q.TC.max, 45); assert.equal(Q.TC.max, Q.TC.total * Q.TC.ppm); assert.equal(va.me.points, Q.TC.max); assert.equal(va.me.finished, true);
   const vb = Q.tcView(b, g, T); assert.equal(vb.rivalFinished, true); assert.equal(vb.rivalPoints, null); assert.equal(vb.rivalShots, null); // secreto
   // reloj del servidor: B empieza y a los 75 s ya no puede tirar
-  Q.tcStart(b, g, 1000); Q.tcShoot(b, g, 2000); assert.throws(() => Q.tcShoot(b, g, 1000 + 40001), /tiempo|en juego/); assert.equal(Q.tcView(b, g, 50000).me.shots.length, 1); const vr = Q.tcView(a, g, 80000); assert.equal(vr.status, 'done'); assert.equal(vr.result, 'won'); assert.equal(coins(a), A0 + 100); assert.equal(vr.rivalPoints, 0);
+  Q.tcStart(b, g, 1000); Q.tcShoot(b, g, 2000); assert.throws(() => Q.tcShoot(b, g, 1000 + 75001), /tiempo|en juego/); assert.equal(Q.tcView(b, g, 80000).me.shots.length, 1); const vr = Q.tcView(a, g, 80000); assert.equal(vr.status, 'done'); assert.equal(vr.result, 'won'); assert.equal(coins(a), A0 + 100); assert.equal(vr.rivalPoints, 0);
   // barra de potencia medida por el servidor
-  assert.equal(Q.tcBar(0), 0); assert.equal(Q.tcBar(250), 50); assert.equal(Q.tcBar(500), 100); assert.equal(Q.tcBar(750), 50); assert.equal(Q.tcProb(50), 0.75); assert.equal(Q.tcProb(30), 0.4); assert.equal(Q.tcProb(5), 0.1);
+  assert.equal(Q.TC.bar, 2500); assert.equal(Q.tcBar(0), 0); assert.equal(Q.tcBar(1250), 50); assert.equal(Q.tcBar(2500), 100); assert.equal(Q.tcBar(9000), 100); assert.equal(Q.tcZone(80, 80).k, 'perfecto'); assert.equal(Q.tcProb(84, 80), 0.85); assert.equal(Q.tcProb(92, 80), 0.5); assert.equal(Q.tcProb(70, 80), 0.5); assert.equal(Q.tcZone(50, 80).k, 'temprano'); assert.equal(Q.tcZone(97, 80).k, 'tarde'); assert.equal(Q.tcZone(100, 95).k, 'tarde'); assert.equal(Q.tcProb(100, 95), 0.1);
+  Q.tcZoneRand = () => 0; const z0 = Q.tcChallenge(a, b, 10, 0).id; Q.tcRespond(b, z0, true, 0); Q.tcStart(a, z0, 0); assert.equal(Q.tcAim(a, z0, 0).green, 68); Q.tcZoneRand = () => 0.999; assert.equal(Q.tcAim(a, z0, 0).green, 90); Q.tcZoneRand = () => 0.5;
   // empate → desempate de 1 tiro; ambos aciertan/fallan repite; secreto; uno acierta gana
-  const tie = () => { const h = Q.tcChallenge(a, b, 50, 0).id; Q.tcRespond(b, h, true, 0); Q.tcStart(a, h, 0); Q.tcStart(b, h, 0); Q.tcExpire(50000); return h; };
-  const h = tie(); let vh = Q.tcView(a, h, 50000); assert.equal(vh.status, 'accepted'); assert.equal(vh.tiebreak.round, 1);
-  assert.throws(() => Q.tcNext(a, h, 50001), /tiempo|última/);
-  Q.tcAim(a, h, 60000); seq = [0.01]; Q.tcShoot(a, h, 60250); assert.throws(() => Q.tcShoot(a, h, 60300), /desempate/); vh = Q.tcView(b, h, 60300); assert.equal(vh.tiebreak.rivalShot, true); assert.equal(vh.tiebreak.hist.length, 0); assert.equal(vh.rivalPoints, null);
-  Q.tcAim(b, h, 61000); seq = [0.01]; Q.tcShoot(b, h, 61250); vh = Q.tcView(a, h, 61300); assert.equal(vh.status, 'accepted'); assert.equal(vh.tiebreak.round, 2); assert.deepEqual(vh.tiebreak.hist[0], { my: true, rival: true, myBar: 50, rivalBar: 50 });
-  seq = [0.99]; Q.tcShoot(a, h, 62000); seq = [0.99]; Q.tcShoot(b, h, 62000); assert.equal(Q.tcView(a, h, 62000).tiebreak.round, 3);
-  const cB0 = coins(b); seq = [0.99]; Q.tcShoot(a, h, 63000); seq = [0.01]; Q.tcAim(b, h, 63000); Q.tcShoot(b, h, 63250); vh = Q.tcView(b, h); assert.equal(vh.result, 'won'); assert.equal(vh.reason, 'desempate'); assert.equal(coins(b), cB0 + 100);
+  const tie = () => { const h = Q.tcChallenge(a, b, 50, 0).id; Q.tcRespond(b, h, true, 0); Q.tcStart(a, h, 0); Q.tcStart(b, h, 0); Q.tcExpire(80000); return h; };
+  const h = tie(); let vh = Q.tcView(a, h, 80000); assert.equal(vh.status, 'accepted'); assert.equal(vh.tiebreak.round, 1);
+  assert.throws(() => Q.tcNext(a, h, 80001), /tiempo|última/);
+  Q.tcAim(a, h, 160000); seq = [0.01]; assert.equal(Q.tcShoot(a, h, 160000 + 2500 * 0.79).shot.zone, 'perfecto'); assert.throws(() => Q.tcShoot(a, h, 160300), /desempate/); vh = Q.tcView(b, h, 160300); assert.equal(vh.tiebreak.rivalShot, true); assert.equal(vh.tiebreak.hist.length, 0); assert.equal(vh.rivalPoints, null);
+  Q.tcAim(b, h, 161000); seq = [0.01]; Q.tcShoot(b, h, 161000 + 1250); vh = Q.tcView(a, h, 161300); assert.equal(vh.status, 'accepted'); assert.equal(vh.tiebreak.round, 2); assert.deepEqual(vh.tiebreak.hist[0], { my: true, rival: true, myBar: 79, rivalBar: 50 });
+  seq = [0.99]; Q.tcShoot(a, h, 162000); seq = [0.99]; Q.tcShoot(b, h, 162000); assert.equal(Q.tcView(a, h, 162000).tiebreak.round, 3);
+  const cB0 = coins(b); seq = [0.99]; Q.tcShoot(a, h, 163000); seq = [0.01]; Q.tcAim(b, h, 163000); Q.tcShoot(b, h, 164975); vh = Q.tcView(b, h); assert.equal(vh.result, 'won'); assert.equal(vh.reason, 'desempate'); assert.equal(coins(b), cB0 + 100);
   // 24 h sin tirar en el desempate = pierde
-  const k = tie(); seq = [0.99]; Q.tcShoot(a, k, 60000); const cA = coins(a); Q.tcExpire(50000 + 24 * 3600e3 + 1); assert.equal(Q.tcView(a, k).result, 'won'); assert.equal(Q.tcView(b, k).reason, 'abandono'); assert.equal(coins(a), cA + 100);
+  const k = tie(); seq = [0.99]; Q.tcShoot(a, k, 160000); const cA = coins(a); Q.tcExpire(80000 + 24 * 3600e3 + 1); assert.equal(Q.tcView(a, k).result, 'won'); assert.equal(Q.tcView(b, k).reason, 'abandono'); assert.equal(coins(a), cA + 100 + 20) // +20 del reto z0 que b tampoco jugó;
   // aceptado sin concurso en 24 h
   const m = Q.tcChallenge(a, b, 50, 0).id; Q.tcRespond(b, m, true, 0); Q.tcStart(a, m, 0); const cB = coins(b); Q.tcExpire(24 * 3600e3 + 1); assert.equal(Q.tcView(b, m).result, 'lost'); assert.equal(Q.tcView(b, m).reason, 'abandono'); assert.equal(coins(b), cB);
   const o = Q.tcChallenge(a, b, 50, 0).id; Q.tcRespond(b, o, true, 0); const c2 = coins(a); Q.tcExpire(24 * 3600e3 + 1); assert.equal(Q.tcView(a, o).status, 'expired'); assert.equal(coins(a), c2 + 50);

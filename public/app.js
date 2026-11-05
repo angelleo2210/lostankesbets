@@ -214,9 +214,36 @@ const COURT = (pos, w = 300, names, shot) => `<svg viewBox="0 0 300 220" width="
   ${TCX.map(([x, y], i) => `<g class="${i === pos ? 'act' : ''}"><circle cx="${x}" cy="${y}" r="14" fill="${i === pos ? '#16a34a' : '#0f172acc'}" stroke="#fff" stroke-width="2"/><text x="${x}" y="${y + 5}" text-anchor="middle" fill="#fff" font-size="14" font-weight="800">${i + 1}</text>${names ? `<text x="${x}" y="${y - 20}" text-anchor="middle" fill="#0f172a" font-size="10" font-weight="700">${names[i]}</text>` : ''}</g>`).join('')}
   ${pos >= 0 ? `<g class="tc-pl" style="transform:translate(${TCX[pos][0]}px,${TCX[pos][1] + 30}px)"><circle r="7" cy="-26" fill="#c68642"/><rect x="-8" y="-19" width="16" height="20" rx="6" fill="#2563eb"/><text y="-6" text-anchor="middle" fill="#fff" font-size="8" font-weight="800">23</text></g>
     <g class="tc-ball" style="--sx:${TCX[pos][0]}px;--sy:${TCX[pos][1] + 2}px;--mx:${(TCX[pos][0] + 150) / 2}px"><circle r="6" fill="url(#tcb)" stroke="#431407" stroke-width="1"/></g>` : ''}</svg>`;
+// Escena pseudo-3D (SVG + CSS, sin librerías): tablero, aro en perspectiva, red, jugador y balón.
+const SCENE = (pos, from = pos) => { const cam = [60, 0, -60], av = (typeof me !== 'undefined' && me && me.avatarCfg) || {}, skin = av.skin || '#c68642';
+  return `<svg viewBox="0 0 300 230" class="tc-scene" style="--cam0:${cam[from]}px;--cam1:${cam[pos]}px"><defs><linearGradient id="tfl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9a066"/><stop offset="1" stop-color="#a9713e"/></linearGradient><linearGradient id="tbd" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8fafc"/><stop offset="1" stop-color="#cbd5e1"/></linearGradient><radialGradient id="tbl2" cx=".35" cy=".3"><stop offset="0" stop-color="#fdba74"/><stop offset=".7" stop-color="#ea580c"/><stop offset="1" stop-color="#9a3412"/></radialGradient><linearGradient id="tsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e293b"/><stop offset="1" stop-color="#334155"/></linearGradient></defs>
+  <rect width="300" height="230" fill="url(#tsky)"/><g class="tc-cam"><path d="M-80 230 L70 92 H230 L380 230 Z" fill="url(#tfl)"/><path d="M-20 230 Q150 60 320 230" fill="none" stroke="#fff" stroke-width="3" opacity=".9"/><path d="M110 92 L95 140 H205 L190 92" fill="#c2410c55" stroke="#fff" stroke-width="2"/>
+    ${[[-10, 210], [150, 168], [310, 210]].map(([x, y], i) => `<g opacity="${i === pos ? 1 : .55}"><ellipse cx="${x}" cy="${y}" rx="16" ry="5" fill="${i === pos ? '#16a34a' : '#0f172a'}"/><text x="${x}" y="${y + 4}" text-anchor="middle" font-size="9" font-weight="800" fill="#fff">${i + 1}</text></g>`).join('')}</g>
+  <rect x="146" y="30" width="8" height="64" fill="#475569"/><g class="tc-board"><rect x="112" y="14" width="76" height="46" rx="3" fill="url(#tbd)" stroke="#94a3b8" stroke-width="2" opacity=".95"/><rect x="136" y="32" width="28" height="20" fill="none" stroke="#ef4444" stroke-width="2"/></g>
+  <g class="tc-net"><path d="M138 62 L142 82 L158 82 L162 62 M144 62 L147 82 M150 62 V82 M156 62 L153 82 M140 70 H160 M142 77 H158" stroke="#f1f5f9" stroke-width="1.2" fill="none"/></g>
+  <ellipse cx="150" cy="62" rx="13" ry="3.5" fill="none" stroke="#ea580c" stroke-width="2.5" class="tc-rim"/>
+  <ellipse class="tc-shadow" cx="150" cy="214" rx="10" ry="3" fill="#0006"/>
+  <g class="tc-player"><g class="tc-body"><rect x="138" y="178" width="24" height="30" rx="9" fill="#2563eb"/><text x="150" y="198" text-anchor="middle" font-size="10" font-weight="800" fill="#fff">23</text><circle cx="150" cy="170" r="9" fill="${skin}"/><path d="M140 182 L132 166 M160 182 L168 166" stroke="${skin}" stroke-width="5" stroke-linecap="round" class="tc-arms"/><path d="M143 207 L141 224 M157 207 L159 224" stroke="#1e3a8a" stroke-width="6" stroke-linecap="round" class="tc-legs"/></g></g>
+  <g class="tc-ball2" transform="translate(150,162)"><g class="tc-spin"><circle r="8" fill="url(#tbl2)"/><path d="M-8 0H8M0-8V8M-5.6-5.6Q0 0-5.6 5.6M5.6-5.6Q0 0 5.6 5.6" stroke="#431407" stroke-width=".9" fill="none"/></g></g>
+  <g class="tc-plus" opacity="0"><text x="150" y="44" text-anchor="middle" font-size="22" font-weight="900" fill="#22c55e" stroke="#052e16" stroke-width="1">+3</text></g></svg>`; };
+// El servidor ya decidió; esto solo lo muestra (entra o rebota según la respuesta).
+function tcAnimate(st, s, T, reduced) { const lb = st.querySelector('#tclbl'), svg = st.querySelector('svg'), ball = svg.querySelector('.tc-ball2'), spin = svg.querySelector('.tc-spin'), sh = svg.querySelector('.tc-shadow'), plus = svg.querySelector('.tc-plus');
+  const label = () => { lb.style.display = ''; lb.className = 'anlbl ' + (s.made ? (s.money ? 'won gold' : 'won') : 'lost'); lb.textContent = s.made ? (s.money ? '¡TRIPLE! 🟡' : '¡TRIPLE!') : '¡FALLÓ!'; };
+  if (reduced) { label(); return Promise.resolve(); }
+  svg.classList.add('release'); const q = (a, c, b, t) => (1 - t) * (1 - t) * a + 2 * (1 - t) * t * c + t * t * b;
+  const segs = [{ from: [150, 162], ctl: [150, -40], to: [150, 58], ms: 900 }];
+  if (s.made) segs.push({ from: [150, 58], ctl: [150, 66], to: [150, 92], ms: 380, net: true });
+  else { const d = s.zone === 'temprano' ? -1 : 1; segs[0].to = [150 + 11 * d, 60]; segs.push({ from: segs[0].to, ctl: [150 + 20 * d, 30], to: [150 - 6 * d, 54], ms: 330 }, { from: [150 - 6 * d, 54], ctl: [150 + 30 * d, 36], to: [150 + 38 * d, 70], ms: 360 }, { from: [150 + 38 * d, 70], ctl: [150 + 70 * d, 90], to: [150 + 110 * d, 210], ms: 520 }); }
+  return new Promise(done => { let i = 0, t0 = performance.now(), rot = 0;
+    const step = now => { const g = segs[i], t = Math.min(1, (now - t0) / g.ms), x = q(g.from[0], g.ctl[0], g.to[0], t), y = q(g.from[1], g.ctl[1], g.to[1], t), sc = 0.55 + 0.45 * Math.max(0, Math.min(1, (y - 30) / 140)) * (y > 150 ? 1 : 0.9);
+      rot += 9; ball.setAttribute('transform', `translate(${x},${y}) scale(${sc.toFixed(3)})`); spin.setAttribute('transform', `rotate(${rot})`);
+      sh.setAttribute('cx', x); sh.setAttribute('cy', 214 - (214 - 100) * Math.min(1, (162 - Math.min(162, Math.max(y, 0))) / 300 + (i ? .6 : t * .6))); sh.setAttribute('rx', (10 * sc).toFixed(1));
+      if (t >= 1) { if (g.net) { svg.classList.add('swish'); plus.setAttribute('opacity', 1); plus.classList.add('up'); } if (!s.made && i >= 1) svg.classList.add('clank'); i++; t0 = now; if (i >= segs.length) { label(); return setTimeout(done, 650); } }
+      requestAnimationFrame(step); };
+    requestAnimationFrame(step); }); }
 async function tcView(B) {
   clearInterval(tcTimer); clearInterval(tcBarT); const d = await api('/tc'), T = d.tc, G = d.games, sel = tcScreen && G.find(g => g.id === tcScreen), back = () => { tcScreen = null; render(); };
-  const left = g => `${Math.max(0, Math.ceil((g.expires - Date.now()) / 3600e3))} h`, rules = `${T.pos.length} posiciones en orden (${T.pos.map((p, i) => `${i + 1}) ${p.toLowerCase()}`).join(', ')}) × ${T.per} balones = ${T.total} tiros en ${T.ms / 1000} s. Cada triple vale ${T.ppm} puntos (máximo ${T.max}). Para la barra de potencia en la zona verde para tener más probabilidad.`;
+  const left = g => `${Math.max(0, Math.ceil((g.expires - Date.now()) / 3600e3))} h`, rules = `${T.pos.length} posiciones en orden (${T.pos.map((p, i) => `${i + 1}) ${p.toLowerCase()}`).join(', ')}) × ${T.per} balones = ${T.total} tiros en ${T.ms / 1000} s. Cada triple vale ${T.ppm} puntos (máximo ${T.max}). Barra de potencia: mantén presionado y suelta en la zona verde, arriba (cambia cada tiro; verde ${Math.round(T.green.p * 100 || 85)}%, amarilla 50%, resto 10%; barra llena = muy tarde).`;
   const bar = () => `<div class="tc-bar"><div class="tc-zone"></div><div class="tc-mid"></div><i id="tcneedle"></i></div>`;
   const runBar = t0 => { const n = $('#tcneedle'); if (!n) return; tcBarT = setInterval(() => { const t = (Date.now() - t0) % T.bar, h = T.bar / 2; n.style.left = (t < h ? t / h : (T.bar - t) / h) * 100 + '%'; }, 16); };
   const posTxt = sh => T.pos.map((p, i) => { const L = sh.filter(x => x.pos === i); return `${i + 1}) ${p}: ${L.map(x => x.made ? (x.money ? '🟡' : '🟢') : '🔴').join('') || '—'} ${L.filter(x => x.made).length}/${T.per}`; }).join('<br>');
@@ -234,19 +261,28 @@ async function tcView(B) {
       <button class="alt" id="rep">▶ Ver repetición</button><button id="rb">Volver a Three Contest</button></div>`;
     $('#rep').onclick = () => { delete localStorage['tc_seen_' + sel.id]; render(); }; $('#rb').onclick = back; return; }
   if (sel && sel.status === 'accepted') { const me = sel.me, tb = sel.tiebreak;
-    const shootUI = (title, extra, isTb) => { B.innerHTML = `<div class="card"><h2>${title}</h2>${extra}<div class="stage tc-stage" id="tcst">${COURT(isTb ? 1 : me.pos, 300, T.pos)}<div class="anlbl" id="tclbl" style="display:none"></div></div>${bar()}
-        <div class="row"><button id="tcshot" class="big">🏀 Tirar</button>${isTb ? '' : `<button class="alt" id="tcnext" style="flex:0 0 40%">Siguiente posición ➡</button>`}</div><div class="small">Toca «Tirar» para soltar el balón (o desliza hacia arriba sobre la cancha).</div><div class="small" id="tclog"></div>${chatBox('tc', sel.id)}<button class="alt" id="rb">Volver</button></div>`;
-      $('#rb').onclick = back; mountChat(); let busy = false;
-      const aim = async () => { const a = await api('/tc/aim', { id: sel.id }).catch(e => (flash(e.message), null)); if (a) runBar(Date.now()); };
-      const fire = async () => { if (busy) return; busy = true; clearInterval(tcBarT);
-        try { const r = await api('/tc/shoot', { id: sel.id }), s = r.shot, st = $('#tcst'), lb = $('#tclbl');
-          st.querySelector('svg').classList.add('shoot', s.made ? 'in' : 'out'); lb.style.display = ''; lb.className = 'anlbl ' + (s.made ? (s.money ? 'won gold' : 'won') : 'lost'); lb.textContent = s.made ? (s.money ? '¡TRIPLE! 🟡' : '¡TRIPLE!') : '¡FALLÓ!';
-          $('#tclog').textContent = `Barra ${s.bar}/100 · ${s.made ? `+${T.ppm} puntos` : 'sin puntos'}${r.points != null ? ` · total ${r.points}` : ''}`;
-          await new Promise(k => setTimeout(k, REDUCED() ? 400 : 1100)); busy = false; if (isTb || r.done) return render(); if (me) me.points = r.points; const big = $('#tcpts'); if (big) big.textContent = r.points; st.querySelector('svg').classList.remove('shoot', 'in', 'out'); lb.style.display = 'none'; aim(); }
-        catch (e) { busy = false; flash(e.message); render(); } };
-      $('#tcshot').onclick = fire; let y0; $('#tcst').ontouchstart = e => y0 = e.touches[0].clientY; $('#tcst').ontouchend = e => { if (y0 - e.changedTouches[0].clientY > 40) fire(); };
-      if ($('#tcnext')) $('#tcnext').onclick = async () => { try { await api('/tc/next', { id: sel.id }); render(); } catch (e) { flash(e.message); } };
-      aim(); };
+    const shootUI = (title, extra, isTb) => { const pos = isTb ? 1 : me.pos, prevPos = Number(sessionStorage['tc_pos_' + sel.id] ?? pos); sessionStorage['tc_pos_' + sel.id] = pos;
+      const shotsHere = isTb ? 0 : me.shots.filter(x => x.pos === pos).length;
+      B.innerHTML = `<div class="card"><h2>${title}</h2>${extra}<div class="tc3d" id="tcst">${SCENE(pos, prevPos)}<div class="tc-tag" id="tctag">${isTb ? 'Desempate · centro' : `${pos + 1}) ${T.pos[pos]} · balón ${Math.min(shotsHere + 1, T.per)}/${T.per}`}</div><div class="anlbl" id="tclbl" style="display:none"></div>
+          <div class="tc-vbar"><div class="tc-y" id="tcy"></div><div class="tc-g" id="tcg"></div><div class="tc-fill" id="tcfill"></div></div></div>
+        <div class="row"><button id="tcshot" class="big">🏀 Mantén presionado para tirar</button>${isTb ? '' : `<button class="alt" id="tcnext" style="flex:0 0 36%">Siguiente posición ➡</button>`}</div>
+        <div class="small">Mantén presionado y suelta en la zona verde, arriba (cambia cada tiro). Si la barra se llena, el tiro sale solo: muy tarde. El resultado lo decide el servidor.</div><div class="small" id="tclog"></div>${chatBox('tc', sel.id)}<button class="alt" id="rb">Volver</button></div>`;
+      $('#rb').onclick = back; mountChat(); let state = 'idle', t0 = 0, raf, green = null;
+      const st = $('#tcst'), fill = $('#tcfill');
+      const paintZone = g => { const G = T.green, y = $('#tcy'), gg = $('#tcg'); y.style.bottom = (g - G.width / 2 - G.yellow) + '%'; y.style.height = (G.width + 2 * G.yellow) + '%'; gg.style.bottom = (g - G.width / 2) + '%'; gg.style.height = G.width + '%'; };
+      const press = async e => { e && e.preventDefault(); if (state !== 'idle') return; state = 'aim';
+        const a = await api('/tc/aim', { id: sel.id }).catch(er => (flash(er.message), null)); if (!a) { state = 'idle'; return render(); }
+        green = a.green; paintZone(green); t0 = performance.now(); st.classList.add('charging'); if (state === 'aim') state = 'hold';
+        const tick = () => { if (state !== 'hold') return; const v = Math.min(100, (performance.now() - t0) / T.bar * 100); fill.style.height = v + '%'; if (v >= 100) return release(); raf = requestAnimationFrame(tick); }; tick(); };
+      const release = async () => { if (state === 'aim') { state = 'pending-release'; return; } if (state !== 'hold') return; state = 'flying'; cancelAnimationFrame(raf); st.classList.remove('charging');
+        try { const r = await api('/tc/shoot', { id: sel.id }), s = r.shot; fill.style.height = s.bar + '%';
+          await tcAnimate(st, s, T, REDUCED()); $('#tclog').textContent = `${s.label} · barra ${s.bar}% (verde ${s.green - T.green.width / 2}–${s.green + T.green.width / 2}%) · ${s.made ? `¡TRIPLE! +${T.ppm}` : 'falló'}${r.points != null ? ` · total ${r.points}` : ''}`;
+          await new Promise(k => setTimeout(k, REDUCED() ? 900 : 700)); if (isTb || r.done) return render(); render(); }
+        catch (er) { flash(er.message); render(); } };
+      const btn = $('#tcshot'); btn.onpointerdown = press; btn.onpointerup = btn.onpointerleave = () => { if (state === 'pending-release') { state = 'hold'; release(); } else release(); };
+      btn.onkeydown = e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) press(e); }; btn.onkeyup = e => { if (e.key === ' ' || e.key === 'Enter') release(); };
+      let y0; st.ontouchstart = e => { y0 = e.touches[0].clientY; press(); }; st.ontouchend = () => release();
+      if ($('#tcnext')) $('#tcnext').onclick = async () => { try { await api('/tc/next', { id: sel.id }); render(); } catch (er) { flash(er.message); } }; };
     if (tb && tb.active) { if (tb.iShot) { B.innerHTML = `<div class="card"><h2>🏀 Desempate · ronda ${tb.round}</h2><p>Ya hiciste tu tiro. Esperando a ${esc(sel.rival)} (su tiro está oculto). Le quedan ${left({ expires: tb.expires })}.</p>${chatBox('tc', sel.id)}<button class="alt" id="rb">Volver</button></div>`; $('#rb').onclick = back; mountChat(); return; }
       return shootUI(`🏀 Desempate · ronda ${tb.round}`, `<p class="small">Empataron a ${me.points} puntos. Un solo tiro desde el centro, sin reloj. Si uno acierta y el otro falla, gana; si no, se repite. Tienes ${left({ expires: tb.expires })} o pierdes la serie.</p>${tb.hist.length ? `<div class="small">${tb.hist.map((h, i) => `Ronda ${i + 1}: tú ${h.my ? '✅' : '❌'} · rival ${h.rival ? '✅' : '❌'}`).join(' · ')}</div>` : ''}`, true); }
     if (!me) { B.innerHTML = `<div class="card"><h2>🏀 Three Contest vs ${esc(sel.rival)} · bote 🪙 ${fmt(sel.stake * 2)}</h2><div style="text-align:center">${COURT(-1, 300, T.pos)}</div><p class="small">${rules}</p><p><b>El reloj de ${T.ms / 1000} s lo lleva el servidor y corre aunque cierres la app.</b> Solo tienes un intento. ${sel.rivalStarted ? 'Tu rival ya empezó (su marcador está oculto).' : ''} Tienes ${left(sel)} para hacerlo o pierdes.</p>
