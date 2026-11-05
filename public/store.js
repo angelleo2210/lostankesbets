@@ -6,7 +6,7 @@
   const ITEMS = [
     it('car_deportivo', 'carros', 'Deportivo Rojo', 200000, '#ef4444'), it('car_gt', 'carros', 'Gran Turismo Azul', 500000, '#1d4ed8'), it('car_super', 'carros', 'Superdeportivo L', 600000, '#facc15'), it('car_hiper', 'carros', 'Hiperauto Galáctico', 1000000, '#a855f7'),
     it('moto_scooter', 'motos', 'Scooter Playero', 20000, '#14b8a6'), it('moto_naked', 'motos', 'Moto Callejera', 30000, '#f97316'), it('moto_pista', 'motos', 'Moto de Pista', 40000, '#22c55e'),
-    it('yate_lancha', 'yates', 'Lancha Rápida', 300000, '#f8fafc'), it('yate_blanco', 'yates', 'Yate Blanco', 1200000, '#f8fafc'), it('yate_mega', 'yates', 'Megayate Dorado', 1800000, '#facc15'),
+    it('yate_lancha', 'yates', 'Lancha Rápida', 1000000, '#f8fafc'), it('yate_blanco', 'yates', 'Yate Blanco', 1250000, '#f8fafc'), it('yate_mega', 'yates', 'Megayate Dorado', 1500000, '#facc15'),
     it('jet_basico', 'jetskis', 'Jet Ski Básico', 12000, '#3b82f6'), it('jet_turbo', 'jetskis', 'Jet Ski Turbo', 13500, '#ec4899'), it('jet_pro', 'jetskis', 'Jet Ski Pro', 15000, '#111827'),
     it('reloj_plata', 'relojes', 'Reloj de Plata', 75000, '#64748b'), it('reloj_oro', 'relojes', 'Reloj de Oro', 350000, '#facc15'), it('reloj_diamante', 'relojes', 'Reloj de Diamantes', 1000000, '#a5f3fc'),
     it('casa_playa', 'mansiones', 'Casa de Playa', 700000, '#f97316'), it('casa_mansion', 'mansiones', 'Mansión en la Colina', 1400000, '#f8fafc'), it('casa_castillo', 'mansiones', 'Castillo Privado', 1900000, '#64748b'),
