@@ -31,7 +31,7 @@ async function start() {
   <h2>${mode === 'setup' ? 'Crear administrador' : mode === 'register' ? 'Unirte con invitación' : 'Entrar'}</h2>
   ${mode === 'register' ? `<input id="code" placeholder="Código de invitación" value="${esc(code)}">` : ''}
   <input id="u" placeholder="Usuario" autocapitalize="none"><input id="p" type="password" placeholder="PIN (mín. 4)" inputmode="numeric">
-  ${mode === 'register' ? '<details><summary class="small">🎨 Arma tu muñeco (opcional)</summary><div class="avpv" id="rpv"></div><div id="rbl"></div></details>' : ''}
+  ${mode === 'register' ? '<details><summary class="small">🎨 Arma tu muñeco (opcional)</summary><div style="text-align:center" id="rpv"></div><div id="rbl"></div></details>' : ''}
   <button id="go">${mode === 'login' ? 'Entrar' : 'Crear cuenta'}</button>
   ${mode === 'login' ? '<p class="small">¿Tienes invitación? Abre el link que te mandaron.</p>' : ''}<p id="msg" class="err"></p></div>`;
   const rcfg = { ...Avatar.DEFAULT }; let touched = false;
