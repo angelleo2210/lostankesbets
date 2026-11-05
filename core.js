@@ -43,6 +43,20 @@ function hash(pin, salt = crypto.randomBytes(16).toString('hex')) {
 }
 
 const PEN = ['izquierda', 'centro', 'derecha'], PEN_MS = 24 * 3600e3, PEN_ROUNDS = 5;
+// Béisbol de una entrada: cada jugador manda una vez 15 lanzamientos (bola/strike) y 15 decisiones (swing/no).
+const BB_N = 15, BB_EXTRA = 15;
+const bbHalf = (pitch, bat, off = 0) => { let runs = 0, balls = 0, strikes = 0; const ev = [];
+  for (let i = 0; i < BB_N; i++) { const p = pitch[(i + off) % BB_N], b = bat[(i + off) % BB_N]; let e;
+    if (p === 'strike' && b === 'swing') { runs++; balls = 0; e = 'jonron'; }
+    else if (p === 'strike') e = 'ponche';
+    else if (b === 'swing') { strikes++; e = strikes >= 3 ? 'out' : 'strike'; }
+    else { balls++; e = 'bola'; if (balls >= 4) { runs++; balls = 0; e = 'base'; } }
+    ev.push({ p, b, e, runs, balls, strikes }); if (e === 'ponche' || e === 'out') break; }
+  return { runs, ev }; };
+const bbGame = (cp, op) => { const innings = []; let c = 0, o = 0;
+  for (let k = 0; k <= BB_EXTRA; k++) { const top = bbHalf(op.pitch, cp.bat, k), bot = bbHalf(cp.pitch, op.bat, k); c += top.runs; o += bot.runs; innings.push({ n: k + 1, top, bot });
+    if (c !== o) break; }
+  return { c, o, innings }; };
 const RPS = ['piedra', 'papel', 'tijera'], BEATS = { piedra: 'tijera', tijera: 'papel', papel: 'piedra' }, RPS_MIN = 10, RPS_MAX = 25000, RPS_MS = 24 * 3600e3;
 function open(file = 'data.db') {
   const db = new DatabaseSync(file);
@@ -59,6 +73,7 @@ function open(file = 'data.db') {
   db.exec('CREATE TABLE IF NOT EXISTS unlocks(user_id INTEGER, item_id TEXT, rank INTEGER, created TEXT DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(user_id, item_id))');
   db.exec('CREATE TABLE IF NOT EXISTS pen(id INTEGER PRIMARY KEY, challenger INTEGER, opponent INTEGER, stake INTEGER, status TEXT, created INTEGER, round_start INTEGER, winner INTEGER, reason TEXT, resolved INTEGER)');
   db.exec('CREATE TABLE IF NOT EXISTS pen_rounds(game_id INTEGER, n INTEGER, c_shot TEXT, c_save TEXT, o_shot TEXT, o_save TEXT, c_goal INTEGER, o_goal INTEGER, PRIMARY KEY(game_id, n))');
+  db.exec('CREATE TABLE IF NOT EXISTS bb(id INTEGER PRIMARY KEY, challenger INTEGER, opponent INTEGER, stake INTEGER, status TEXT, created INTEGER, accepted_at INTEGER, c_plan TEXT, o_plan TEXT, winner INTEGER, reason TEXT, result TEXT, resolved INTEGER)');
   db.exec('CREATE TABLE IF NOT EXISTS rps(id INTEGER PRIMARY KEY, challenger INTEGER, opponent INTEGER, stake INTEGER, status TEXT, c_pick TEXT, o_pick TEXT, winner INTEGER, created INTEGER, resolved INTEGER)');
   const ucols = db.prepare('PRAGMA table_info(users)').all().map(c => c.name);
   if (!ucols.includes('avatar')) db.exec('ALTER TABLE users ADD COLUMN avatar TEXT');
@@ -109,6 +124,40 @@ function open(file = 'data.db') {
       return last === 'won' && n >= 3 ? { kind: 'fuego', n, intense: n >= 6 } : last === 'lost' && n >= 2 ? { kind: 'hielo', n, intense: n >= 6 } : null; },
     // Piedra/Papel/Tijera entre amigos. Apuestas retenidas al retar/aceptar; ganador se lleva el bote; empate devuelve.
     RPS_MIN, RPS_MAX, RPS_MS,
+    bbHalf, bbGame, BB_N,
+    bbExpire: (now = Date.now()) => tx(() => {
+      db.prepare("UPDATE bb SET status='expired', resolved=? WHERE status='pending' AND created<=?").run(now, now - PEN_MS);
+      for (const g of db.prepare("SELECT * FROM bb WHERE status='accepted' AND accepted_at<=?").all(now - PEN_MS)) {
+        if (!g.c_plan && !g.o_plan) { if (db.prepare("UPDATE bb SET status='expired', reason='ninguno jugó', resolved=? WHERE id=? AND status='accepted'").run(now, g.id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id IN (?,?)').run(g.stake, g.challenger, g.opponent); }
+        else { const w = g.c_plan ? g.challenger : g.opponent; if (db.prepare("UPDATE bb SET status='done', winner=?, reason='abandono', resolved=? WHERE id=? AND status='accepted'").run(w, now, g.id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(2 * g.stake, w); } } }),
+    bbChallenge: (uid, oppId, stake, now = Date.now()) => { stake = Number(stake); oppId = Number(oppId);
+      if (!Number.isInteger(stake) || stake < RPS_MIN || stake > RPS_MAX) err(`La apuesta debe ser un entero entre ${RPS_MIN} y ${RPS_MAX.toLocaleString('es')}`);
+      if (oppId === uid) err('No puedes retarte a ti mismo');
+      const o = db.prepare('SELECT id, is_admin FROM users WHERE id=?').get(oppId); if (!o || o.is_admin) err('Ese amigo no existe');
+      if (db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins < stake) err('No tienes monedas suficientes');
+      return { id: Number(db.prepare("INSERT INTO bb(challenger,opponent,stake,status,created) VALUES(?,?,?,'pending',?)").run(uid, oppId, stake, now).lastInsertRowid) }; },
+    bbRespond: (uid, id, accept, now = Date.now()) => { api.bbExpire(now); return tx(() => { const g = db.prepare("SELECT * FROM bb WHERE id=? AND opponent=? AND status='pending'").get(id, uid); if (!g) err('Reto no disponible');
+      if (!accept) { db.prepare("UPDATE bb SET status='declined', resolved=? WHERE id=?").run(now, id); return { status: 'declined' }; }
+      const c = x => db.prepare('SELECT coins FROM users WHERE id=?').get(x).coins;
+      if (c(uid) < g.stake) err('No tienes monedas suficientes para aceptar'); if (c(g.challenger) < g.stake) err('El retador ya no tiene monedas suficientes; el reto no se puede aceptar');
+      db.prepare('UPDATE users SET coins=coins-? WHERE id IN (?,?)').run(g.stake, uid, g.challenger); db.prepare("UPDATE bb SET status='accepted', accepted_at=? WHERE id=?").run(now, id); return { status: 'accepted' }; }); },
+    bbPlan: (uid, id, pitch, bat, now = Date.now()) => {
+      if (!Array.isArray(pitch) || !Array.isArray(bat) || pitch.length !== BB_N || bat.length !== BB_N || !pitch.every(x => x === 'bola' || x === 'strike') || !bat.every(x => x === 'swing' || x === 'no')) err(`El plan debe tener ${BB_N} lanzamientos (bola/strike) y ${BB_N} decisiones (swing/no swing)`);
+      api.bbExpire(now); return tx(() => { const g = db.prepare("SELECT * FROM bb WHERE id=? AND status='accepted' AND (challenger=? OR opponent=?)").get(id, uid, uid); if (!g) err('Reto no disponible');
+        const col = g.challenger === uid ? 'c_plan' : 'o_plan';
+        if (!db.prepare(`UPDATE bb SET ${col}=? WHERE id=? AND ${col} IS NULL`).run(JSON.stringify({ pitch, bat }), id).changes) err('Ya mandaste tu plan; no se puede cambiar');
+        const n = db.prepare('SELECT * FROM bb WHERE id=?').get(id);
+        if (n.c_plan && n.o_plan) { const r = bbGame(JSON.parse(n.c_plan), JSON.parse(n.o_plan));
+          if (r.c === r.o) { if (db.prepare("UPDATE bb SET status='done', reason='empate', result=?, resolved=? WHERE id=? AND status='accepted'").run(JSON.stringify(r), now, id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id IN (?,?)').run(g.stake, g.challenger, g.opponent); }
+          else { const w = r.c > r.o ? g.challenger : g.opponent; if (!db.prepare("UPDATE bb SET status='done', winner=?, reason='carreras', result=?, resolved=? WHERE id=? AND status='accepted'").run(w, JSON.stringify(r), now, id).changes) err('Reto ya resuelto'); db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(2 * g.stake, w); } }
+        return api.bbView(uid, id); }); },
+    bbView: (uid, id) => { const g = db.prepare('SELECT x.*, a.username cu, a.display_name cd, b.username ou, b.display_name od FROM bb x JOIN users a ON a.id=x.challenger JOIN users b ON b.id=x.opponent WHERE x.id=?').get(id);
+      if (!g || (g.challenger !== uid && g.opponent !== uid)) err('Reto no encontrado'); const mine = g.challenger === uid, r = g.status === 'done' && g.result ? JSON.parse(g.result) : null;
+      return { id: g.id, stake: g.stake, status: g.status, reason: g.reason, mine: mine ? 'sent' : 'received', created: g.created, resolved: g.resolved, iTop: mine,
+        expires: g.status === 'pending' ? g.created + PEN_MS : g.status === 'accepted' ? g.accepted_at + PEN_MS : null, rival: mine ? (g.od || g.ou) : (g.cd || g.cu),
+        iSent: !!(mine ? g.c_plan : g.o_plan), rivalSent: !!(mine ? g.o_plan : g.c_plan), result: g.status === 'done' ? (g.winner === uid ? 'won' : g.winner ? 'lost' : 'tie') : null,
+        game: r ? { my: mine ? r.c : r.o, rival: mine ? r.o : r.c, innings: r.innings } : null }; },
+    bbList: (uid, now = Date.now()) => { api.bbExpire(now); return db.prepare('SELECT id FROM bb WHERE challenger=? OR opponent=? ORDER BY id DESC LIMIT 60').all(uid, uid).map(r => api.bbView(uid, r.id)); },
     PEN, PEN_MS, PEN_ROUNDS,
     // Penales: nada de monedas se mueve hasta que se acepta; al aceptar se retienen ambas apuestas a la vez.
     penExpire: (now = Date.now()) => tx(() => {

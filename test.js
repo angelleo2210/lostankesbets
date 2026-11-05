@@ -235,4 +235,35 @@ t('tanda de penaltis', () => { const Q = open(':memory:'); Q.setupAdmin('angel',
   Q.penExpire(t1 + 24 * 3600e3 - 1); assert.equal(Q.penView(a, g3).status, 'accepted'); Q.penExpire(t1 + 24 * 3600e3 + 5);
   const v3 = Q.penView(a, g3); assert.equal(v3.status, 'done'); assert.equal(v3.result, 'won'); assert.equal(v3.reason, 'abandono'); assert.equal(c(a), 55500); assert.equal(c(b), 4500);
   Q.penExpire(t1 + 99 * 3600e3); assert.equal(c(a), 55500); assert.ok(Q.penList(a).length >= 4); });
+t('béisbol de una entrada: reglas por lanzamiento', () => { const H = (p, b) => C.bbHalf(p.split('').map(x => x === 'S' ? 'strike' : 'bola'), b.split('').map(x => x === 'W' ? 'swing' : 'no'));
+  const pad = (x, f) => (x + f.repeat(15)).slice(0, 15);
+  let r = H(pad('S', 'S'), pad('W', 'N')); assert.equal(r.ev[0].e, 'jonron'); assert.equal(r.ev[1].e, 'ponche'); assert.equal(r.runs, 1); assert.equal(r.ev.length, 2); // strike+swing=jonrón; strike+no=ponche termina
+  r = H(pad('BBB', 'S'), pad('WWW', 'N')); assert.deepEqual(r.ev.map(e => e.e), ['strike', 'strike', 'out']); assert.equal(r.runs, 0); // 3 strikes = out
+  r = H(pad('BBBB', 'S'), pad('NNNN', 'N')); assert.deepEqual(r.ev.map(e => e.e), ['bola', 'bola', 'bola', 'base', 'ponche']); assert.equal(r.runs, 1); assert.equal(r.ev[3].balls, 0); // 4 bolas = carrera, contador a 0
+  r = H(pad('BBWBBBBBB', 'B').replace('W', 'B'), pad('NNWNNNNNN', 'N')); assert.equal(r.ev[2].e, 'strike'); assert.equal(r.ev[2].balls, 2); // swing a bola no suma bola
+  r = H('B'.repeat(15), 'NNNNNNNNNNNNNNN'); assert.equal(r.runs, 3); assert.equal(r.ev.length, 15); assert.equal(r.ev[14].balls, 3); // 15 lanzamientos se acaban; reinicio repetible
+  r = H(pad('BSBBBB', 'B'), pad('WWNNNN', 'N')); assert.deepEqual(r.ev.slice(0, 6).map(e => [e.e, e.strikes]), [['strike', 1], ['jonron', 1], ['bola', 1], ['bola', 1], ['bola', 1], ['base', 1]]); assert.equal(r.ev[5].balls, 0); // strikes persisten tras jonrón
+  r = H(pad('BSB', 'B'), pad('WWW', 'W')); assert.deepEqual(r.ev.map(e => e.e), ['strike', 'jonron', 'strike', 'out']); });
+t('béisbol de una entrada: retos, extra, 24 h y plan secreto', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const a = Q.register(Q.newInvite(), 'ba', '1111'), b = Q.register(Q.newInvite(), 'bb', '1111');
+  const c = id => Q.db.prepare('SELECT coins FROM users WHERE id=?').get(id).coins, set = (id, v) => Q.db.prepare('UPDATE users SET coins=? WHERE id=?').run(v, id); set(a, 30000); set(b, 30000);
+  const P = (p, w) => ({ pitch: Array(15).fill(p), bat: Array(15).fill(w) });
+  for (const bad of [9, 25001, 1.5]) assert.throws(() => Q.bbChallenge(a, b, bad), /entre 10/);
+  const g0 = Q.bbChallenge(a, b, 1000).id; assert.equal(c(a), 30000); Q.bbRespond(b, g0, false); assert.equal(c(a), 30000); assert.equal(c(b), 30000);
+  const t0 = Date.now(), g1 = Q.bbChallenge(a, b, 1000, t0).id; Q.bbExpire(t0 + 24 * 3600e3 + 1); assert.equal(Q.bbView(a, g1).status, 'expired'); assert.equal(c(a), 30000); assert.equal(c(b), 30000);
+  const g2 = Q.bbChallenge(a, b, 25000).id; set(a, 10); assert.throws(() => Q.bbRespond(b, g2, true), /retador/); assert.equal(c(b), 30000); set(a, 30000); Q.bbRespond(b, g2, true); assert.equal(c(a), 5000); assert.equal(c(b), 5000);
+  assert.throws(() => Q.bbPlan(a, g2, ['bola'], ['no']), /15/);
+  // a lanza siempre strike, batea siempre swing => jonrón y luego... b lanza bola: a hace swing => strikes => out sin carreras. b batea no-swing a strikes de a => ponche.
+  Q.bbPlan(a, g2, P('strike', 'swing').pitch, P('strike', 'swing').bat); assert.throws(() => Q.bbPlan(a, g2, P('bola', 'no').pitch, P('bola', 'no').bat), /no se puede cambiar/);
+  const vb = Q.bbView(b, g2); assert.equal(vb.rivalSent, true); assert.equal(vb.game, null); assert.ok(!JSON.stringify(vb).includes('strike'));
+  Q.bbPlan(b, g2, P('bola', 'no').pitch, P('bola', 'no').bat); const va = Q.bbView(a, g2); // alta: a batea swing vs bolas -> 3 strikes out (0). baja: b no-swing vs strikes -> ponche (0). empate todas -> devuelve
+  assert.equal(va.status, 'done'); assert.equal(va.result, 'tie'); assert.equal(va.game.innings.length, 16); assert.equal(c(a), 30000); assert.equal(c(b), 30000);
+  // victoria con entrada extra: plan con rotación
+  const g3 = Q.bbChallenge(a, b, 1000).id; Q.bbRespond(b, g3, true); const ap = { pitch: ['strike', ...Array(14).fill('bola')], bat: Array(15).fill('no') }, bp = { pitch: Array(15).fill('bola'), bat: ['swing', ...Array(14).fill('no')] };
+  const sim = C.bbGame(ap, bp); Q.bbPlan(a, g3, ap.pitch, ap.bat); Q.bbPlan(b, g3, bp.pitch, bp.bat); const v3 = Q.bbView(a, g3); assert.equal(v3.game.my, sim.c); assert.ok(sim.c !== sim.o);
+  assert.equal(c(a) + c(b), 60000); assert.equal(c(sim.c > sim.o ? a : b), 30000 + 1000);
+  // 24 h tras aceptar: quien no mandó plan pierde
+  const t1 = Date.now(), g4 = Q.bbChallenge(b, a, 500, t1).id; Q.bbRespond(a, g4, true, t1); Q.bbPlan(a, g4, ap.pitch, ap.bat, t1 + 5); const before = c(a);
+  Q.bbExpire(t1 + 24 * 3600e3 - 1); assert.equal(Q.bbView(a, g4).status, 'accepted'); Q.bbExpire(t1 + 24 * 3600e3 + 1); const v4 = Q.bbView(a, g4); assert.equal(v4.result, 'won'); assert.equal(v4.reason, 'abandono'); assert.equal(c(a), before + 1000); });
+t('béisbol: empate en la primera entrada va a entrada extra', () => { const ap = { pitch: Array(15).fill('bola'), bat: ['no', 'no', 'no', 'no', ...Array(11).fill('swing')] }, bp = { pitch: Array(15).fill('bola'), bat: ['no', 'no', 'no', 'no', 'swing', 'swing', 'swing', 'no', 'no', 'no', 'no', 'no', 'no', 'no', 'no'] };
+  const g = C.bbGame(ap, bp); assert.equal(g.innings[0].top.runs, g.innings[0].bot.runs); assert.ok(g.innings.length >= 2); });
 console.log(`\n${n} pruebas OK`);
