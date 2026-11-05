@@ -128,9 +128,22 @@ t('migración idempotente users', () => { const f = require('os').tmpdir() + '/l
   open(f).db.close(); const Q = open(f); assert.ok(Q.db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'display_name') && Q.db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'facial_hair') && Q.db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'avatar_cfg')); Q.db.close(); require('fs').unlinkSync(f); });
 t('tienda: compra, saldo, duplicado, color', () => { const S = open(':memory:'); S.setupAdmin('angel', '1234'); const s = S.register(S.newInvite(), 'compra', '1111'); const sc = () => S.db.prepare('SELECT coins FROM users WHERE id=?').get(s).coins;
   assert.throws(() => S.buyItem(s, 'nada'), /no existe/); assert.throws(() => S.buyItem(s, 'car_deportivo'), /suficientes/); assert.equal(sc(), 50000);
-  assert.throws(() => S.buyItem(s, 'jet_basico', 'rojo'), /Color/); assert.equal(S.buyItem(s, 'jet_basico').coins, 38000); assert.equal(S.owned(s)[0].color, '#3b82f6');
+  assert.throws(() => S.buyItem(s, 'jet_basico', '#3b82f6'), /Color/); assert.throws(() => S.buyItem(s, 'jet_basico', 'oro'), /Color/);
+  assert.equal(S.buyItem(s, 'jet_basico').coins, 38000); assert.equal(S.owned(s)[0].color, 'azul');
   S.db.prepare('UPDATE users SET coins=110000 WHERE id=?').run(s); assert.throws(() => S.buyItem(s, 'jet_basico'), /Ya es tuyo/); assert.equal(sc(), 110000);
-  S.setItemColor(s, 'jet_basico', '#ABCDEF'); assert.equal(S.owned(s)[0].color, '#ABCDEF'); assert.throws(() => S.setItemColor(s, 'jet_basico', '#12345'), /Color/); assert.throws(() => S.setItemColor(s, 'moto_naked', '#123456'), /No es tuyo/);
-  assert.equal(S.buyItem(s, 'moto_scooter', '#000000').coins, 90000); assert.equal(S.owned(s).length, 2);
-  assert.ok(require('./public/store').render('yate_blanco', '#123456').includes('#123456')); open(':memory:'); });
+  S.setItemColor(s, 'jet_basico', 'dorado'); assert.equal(S.owned(s)[0].color, 'dorado');
+  for (const bad of ['#ABCDEF', 'morado', '', null, 'plata']) assert.throws(() => S.setItemColor(s, 'jet_basico', bad), /Color/);
+  assert.throws(() => S.setItemColor(s, 'moto_naked', 'rojo'), /No es tuyo/);
+  assert.equal(S.buyItem(s, 'moto_scooter', 'negro').coins, 90000); assert.equal(S.owned(s).length, 2);
+  assert.equal(S.buyItem(s, 'cad_oro', 'esmeralda').coins, 72000); assert.throws(() => S.setItemColor(s, 'cad_oro', 'rojo'), /Color/);
+  S.db.prepare("UPDATE purchases SET color='#ef4444' WHERE item_id='jet_basico'").run(); assert.equal(S.owned(s).find(o => o.item_id === 'jet_basico').color, 'rojo');
+  S.db.prepare("UPDATE purchases SET color='xx' WHERE item_id='jet_basico'").run(); assert.equal(S.owned(s).find(o => o.item_id === 'jet_basico').color, 'azul');
+  assert.ok(require('./public/store').render('yate_blanco', 'negro').includes('img/store/yate_blanco_negro.jpg')); });
+t('tienda: catálogo, departamentos, fotos', () => { const ST = require('./public/store'), fs = require('fs');
+  assert.equal(new Set(ST.ITEMS.map(i => i.id)).size, ST.ITEMS.length);
+  for (const i of ST.ITEMS) { assert.ok(ST.CATS.some(c => c[0] === i.cat), i.id); assert.ok(i.colors.includes(i.color), i.id); assert.equal(i.colors.length, 6);
+    for (const c of i.colors) assert.ok(fs.existsSync(__dirname + '/public/' + ST.img(i.id, c)), i.id + c); }
+  const ropa = ST.ITEMS.filter(i => i.cat === 'ropa'); assert.equal(ropa.length, 24); for (const i of ropa) { assert.ok(i.price <= 25000, i.id); assert.ok(ST.SUBS.some(s => s[0] === i.sub), i.id); }
+  assert.deepEqual(['casa_familiar', 'casa_moderna', 'casa_residencia'].map(id => ST.byId(id).price), [300000, 600000, 1000000]);
+  assert.equal(ST.norm('car_gt', '#1e40af'), 'azul'); assert.equal(ST.norm('cad_oro', '#c0c0c0'), 'plata'); });
 console.log(`\n${n} pruebas OK`);

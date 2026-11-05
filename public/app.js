@@ -128,13 +128,18 @@ async function adminView(B) {
   act('#inv', () => api('/admin/invites', {}));
 }
 start();
+let storeCat = '';
 async function storeView(B, garage) { const d = await api('/store'); const own = new Map(d.owned.map(o => [o.item_id, o.color])); const pick = {};
-  const sw = id => `<div class="sw">${Store.COLORS.map(c => `<button class="swb" style="background:${c}" data-sw="${id}" data-c="${c}" title="${c}"></button>`).join('')}<input type="color" data-cc="${id}" value="${own.get(id) || Store.byId(id).color}"></div>`;
-  const cats = garage ? [['', '']] : Store.CATS, list = k => d.items.filter(i => garage ? own.has(i.id) : i.cat === k);
-  B.innerHTML = (garage ? `<h2>🚗 Mi garaje</h2>${own.size ? '' : '<div class="small">Aún no tienes nada. Pásate por la Tienda.</div>'}` : `<div class="card"><h2>🛍️ Tienda</h2><div class="small">Solo cosméticos para presumir: no dan ventajas en las apuestas. Prueba colores gratis antes de comprar.</div></div>`) +
-    cats.map(([k, v]) => `${v ? `<h2>${v}</h2>` : ''}<div class="shop">${list(k).map(i => `<div class="card item ${own.has(i.id) ? 'owned' : ''} ${i.price >= 2000000 ? 'exclusive' : i.price >= 1000000 ? 'premium' : ''}">${i.price >= 2000000 ? '<span class="tag">💎 Exclusivo</span>' : i.price >= 1000000 ? '<span class="tag">⭐ Premium</span>' : ''}<div class="isvg" id="sv_${i.id}">${Store.render(i.id, own.get(i.id))}</div><b>${esc(i.name)}</b><div>🪙 ${fmt(i.price)}</div>${sw(i.id)}${own.has(i.id) ? `<div class="small">✅ Tuyo</div><button class="alt" data-savec="${i.id}">Guardar color</button>` : `<button data-buy="${i.id}" ${me.coins < i.price ? 'disabled' : ''}>Comprar</button>`}</div>`).join('')}</div>`).join('');
-  const set = (id, c) => { pick[id] = c; $('#sv_' + id).innerHTML = Store.render(id, c); };
+  const sw = i => `<div class="swr">${i.colors.map(c => `<button class="swb ${(own.get(i.id) || i.color) === c ? 'on' : ''}" style="background:${Store.PALETTE[c]}" data-sw="${i.id}" data-c="${c}" title="${Store.NAMES[c]}" aria-label="${Store.NAMES[c]}"></button>`).join('')}</div>`;
+  const tier = i => i.id === 'avion_jet' ? ['exclusive', '💎 Exclusivo'] : i.price >= 1000000 ? ['premium', '⭐ Premium'] : ['', ''];
+  const card = i => { const [cl, tg] = tier(i); return `<div class="card item ${own.has(i.id) ? 'owned' : ''} ${cl}">${tg ? `<span class="tag">${tg}</span>` : ''}<div class="ph"><img loading="lazy" id="im_${i.id}" src="${Store.img(i.id, own.get(i.id))}" alt="${esc(i.name)}"></div><b>${esc(i.name)}</b><div>🪙 ${fmt(i.price)}</div>${sw(i)}${own.has(i.id) ? `<div class="small">✅ Tuyo</div><button class="alt" data-savec="${i.id}">Guardar color</button>` : `<button data-buy="${i.id}" ${me.coins < i.price ? 'disabled' : ''}>Comprar</button>`}</div>`; };
+  const grid = xs => `<div class="shop">${xs.map(card).join('')}</div>`;
+  const section = (k, v, xs) => !xs.length ? '' : k !== 'ropa' ? `<h2>${v}</h2>${grid(xs)}` : `<h2>${v}</h2>` + Store.SUBS.map(([s, n]) => { const ys = xs.filter(i => i.sub === s); return ys.length ? `<h3>${n}</h3>${grid(ys)}` : ''; }).join('');
+  const pool = garage ? d.items.filter(i => own.has(i.id)) : d.items, cats = garage || !storeCat ? Store.CATS : Store.CATS.filter(c => c[0] === storeCat);
+  B.innerHTML = (garage ? `<h2>🚗 Mi garaje</h2>${own.size ? '' : '<div class="small">Aún no tienes nada. Pásate por la Tienda.</div>'}` : `<div class="card"><h2>🛍️ Tienda</h2><div class="small">Solo cosméticos para presumir: no dan ventajas en las apuestas. Prueba colores gratis antes de comprar.</div></div><div class="chips depts">${[['', 'Todo'], ...Store.CATS].map(([k, v]) => `<button class="chip ${storeCat === k ? 'on' : 'alt'}" data-dep="${k}">${v}</button>`).join('')}</div>`) +
+    cats.map(([k, v]) => section(k, v, pool.filter(i => i.cat === k))).join('');
+  B.querySelectorAll('[data-dep]').forEach(b => b.onclick = () => { storeCat = b.dataset.dep; storeView(B, garage); });
+  const set = (id, c) => { pick[id] = c; $('#im_' + id).src = Store.img(id, c); B.querySelectorAll(`[data-sw="${id}"]`).forEach(x => x.classList.toggle('on', x.dataset.c === c)); };
   B.querySelectorAll('[data-sw]').forEach(b => b.onclick = () => set(b.dataset.sw, b.dataset.c));
-  B.querySelectorAll('[data-cc]').forEach(b => b.oninput = () => set(b.dataset.cc, b.value));
   B.querySelectorAll('[data-buy]').forEach(b => b.onclick = async () => { const i = Store.byId(b.dataset.buy); if (!confirm(`¿Comprar ${i.name} por ${fmt(i.price)} monedas?`)) return; try { await api('/store/buy', { itemId: i.id, ...(pick[i.id] ? { color: pick[i.id] } : {}) }); render(); } catch (e) { flash(e.message); } });
   B.querySelectorAll('[data-savec]').forEach(b => b.onclick = async () => { const id = b.dataset.savec; if (!pick[id]) return flash('Elige un color primero'); try { await api('/store/color', { itemId: id, color: pick[id] }); flash('Color guardado'); } catch (e) { flash(e.message); } }); }

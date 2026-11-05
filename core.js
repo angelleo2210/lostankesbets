@@ -66,14 +66,14 @@ function open(file = 'data.db') {
   const tx = fn => { db.exec('BEGIN'); try { const r = fn(); db.exec('COMMIT'); return r; } catch (e) { db.exec('ROLLBACK'); throw e; } };
   const err = m => { const e = new Error(m); e.user = true; throw e; };
   const api = {
-    owned: uid => db.prepare('SELECT item_id, color, price, created FROM purchases WHERE user_id=? ORDER BY created').all(Number(uid)),
+    owned: uid => db.prepare('SELECT item_id, color, price, created FROM purchases WHERE user_id=? ORDER BY created').all(Number(uid)).map(o => ({ ...o, color: ST.norm(o.item_id, o.color) })),
     buyItem: (uid, itemId, color) => { const i = ST.byId(itemId); if (!i) err('Artículo no existe');
-      if (color != null && !ST.HEX.test(color)) err('Color inválido');
+      if (color != null && !ST.valid(itemId, color)) err('Color inválido');
       return tx(() => { if (db.prepare('SELECT 1 FROM purchases WHERE user_id=? AND item_id=?').get(uid, itemId)) err('Ya es tuyo');
         const r = db.prepare('UPDATE users SET coins=coins-? WHERE id=? AND coins>=?').run(i.price, uid, i.price); if (!r.changes) err('No tienes monedas suficientes');
         db.prepare('INSERT INTO purchases(user_id,item_id,price,color) VALUES(?,?,?,?)').run(uid, itemId, i.price, color || i.color);
         return { coins: db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins }; }); },
-    setItemColor: (uid, itemId, color) => { if (!ST.HEX.test(color || '')) err('Color inválido');
+    setItemColor: (uid, itemId, color) => { if (!ST.valid(itemId, color)) err('Color inválido');
       if (!db.prepare('UPDATE purchases SET color=? WHERE user_id=? AND item_id=?').run(color, uid, itemId).changes) err('No es tuyo'); return { ok: true }; },
     db,
     hasAdmin: () => !!db.prepare('SELECT 1 FROM users WHERE is_admin=1').get(),
