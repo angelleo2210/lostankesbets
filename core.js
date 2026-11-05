@@ -45,13 +45,14 @@ function hash(pin, salt = crypto.randomBytes(16).toString('hex')) {
 const PEN = ['izquierda', 'centro', 'derecha'], PEN_MS = 24 * 3600e3, PEN_ROUNDS = 5;
 // Béisbol de una entrada: cada jugador manda una vez 15 lanzamientos (bola/strike) y 15 decisiones (swing/no).
 const BB_N = 15, BB_EXTRA = 15;
-const bbHalf = (pitch, bat, off = 0) => { let runs = 0, balls = 0, strikes = 0; const ev = [];
+const BB_OUTS = 3; // TRES outs terminan la media entrada; cada strike es un out (no hay cuenta de strikes aparte)
+const bbHalf = (pitch, bat, off = 0) => { let runs = 0, balls = 0, outs = 0; const ev = [];
   for (let i = 0; i < BB_N; i++) { const p = pitch[(i + off) % BB_N], b = bat[(i + off) % BB_N]; let e;
-    if (p === 'strike' && b === 'swing') { runs++; balls = 0; e = 'jonron'; }
-    else if (p === 'strike') e = 'ponche';
-    else if (b === 'swing') { strikes++; e = strikes >= 3 ? 'out' : 'strike'; }
-    else { balls++; e = 'bola'; if (balls >= 4) { runs++; balls = 0; e = 'base'; } }
-    ev.push({ p, b, e, runs, balls, strikes }); if (e === 'ponche' || e === 'out') break; }
+    if (p === 'strike' && b === 'swing') { runs++; e = 'jonron'; } // jonrón: +1, no es out
+    else if (p === 'strike') { outs++; e = 'ponche'; } // strike sin swing = out
+    else if (b === 'swing') { outs++; e = 'out'; } // swing a bola = strike = out
+    else { balls++; e = 'bola'; if (balls >= 4) { runs++; balls = 0; e = 'base'; } } // 4 bolas = +1, contador a 0
+    ev.push({ p, b, e, runs, balls, outs }); if (outs >= BB_OUTS) break; }
   return { runs, ev }; };
 const bbGame = (cp, op) => { const innings = []; let c = 0, o = 0;
   for (let k = 0; k <= BB_EXTRA; k++) { const top = bbHalf(op.pitch, cp.bat, k), bot = bbHalf(cp.pitch, op.bat, k); c += top.runs; o += bot.runs; innings.push({ n: k + 1, top, bot });
