@@ -31,7 +31,7 @@ async function start() {
   <h2>${mode === 'setup' ? 'Crear administrador' : mode === 'register' ? 'Unirte con invitación' : 'Entrar'}</h2>
   ${mode === 'register' ? `<input id="code" placeholder="Código de invitación" value="${esc(code)}">` : ''}
   <input id="u" placeholder="Usuario" autocapitalize="none"><input id="p" type="password" placeholder="PIN (mín. 4)" inputmode="numeric">
-  ${mode === 'register' ? '<details><summary class="small">🎨 Arma tu muñeco (opcional)</summary><div style="text-align:center" id="rpv"></div><div id="rbl"></div></details>' : ''}
+  ${mode === 'register' ? '<details><summary class="small">🎨 Arma tu muñeco (opcional)</summary><div class="avpv" id="rpv"></div><div id="rbl"></div></details>' : ''}
   <button id="go">${mode === 'login' ? 'Entrar' : 'Crear cuenta'}</button>
   ${mode === 'login' ? '<p class="small">¿Tienes invitación? Abre el link que te mandaron.</p>' : ''}<p id="msg" class="err"></p></div>`;
   const rcfg = { ...Avatar.DEFAULT }; let touched = false;
@@ -63,7 +63,7 @@ async function render() {
   if (tab === 'perfil') { let av = me.avatar || '', fs = me.facialHair?.style || 'ninguno', cos = { ...(me.cosmetics || {}) }, acfg = { ...me.avatarCfg }; const mine = new Set((me.unlocks || []).map(u => u.item_id));
     B.innerHTML = `<div class="card"><h2>Mi perfil</h2><div class="small">Usuario: @${esc(me.username)}</div>
     <div style="display:flex;flex-wrap:wrap;gap:4px;margin:8px 0">${EMOJIS.map(e => `<button class="${e === av ? '' : 'alt'}" style="width:44px;padding:6px" data-em="${e}">${e}</button>`).join('')}<button class="alt" style="width:auto;padding:6px" data-em="">Sin avatar</button></div>
-    <div class="card" style="text-align:center" id="bigpv"></div>
+    <div class="card avpv" id="bigpv"></div>
     <h2>Tu muñeco</h2><div id="bld"></div>
     <h2>Vello facial</h2><select id="fh">${Object.entries(FH).map(([k, v]) => `<option value="${k}" ${k === fs ? 'selected' : ''}>${v[0]}</option>`).join('')}</select>
     <div class="row"><label class="small"><input type="checkbox" id="fcu" style="width:auto" ${me.facialHair?.color ? 'checked' : ''}> Color</label><input type="color" id="fc" value="${esc(me.facialHair?.color || '#5b3a1e')}" style="height:42px"></div>
