@@ -5,8 +5,9 @@ body{font-family:system-ui,sans-serif;margin:0;background:#0f172a;color:#e2e8f0}
 input,button,select{font-size:16px;padding:10px;border-radius:8px;border:0;margin:3px 0;width:100%;box-sizing:border-box}
 button{background:#22c55e;color:#041;font-weight:700}button.alt{background:#334155;color:#e2e8f0}button.red{background:#ef4444;color:#fff}
 nav{display:flex;gap:4px;flex-wrap:wrap}
-.avpv{position:sticky;top:6px;z-index:20;text-align:center;background:#1e293b;border:1px solid #334155;border-radius:12px;box-shadow:0 6px 16px #000a;padding:6px;margin:8px 0;max-height:38vh;overflow:hidden}
-.avpv svg{max-height:calc(38vh - 14px);width:auto;height:auto;max-width:100%}
-@media(min-width:700px){.avpv{max-height:45vh}.avpv svg{max-height:calc(45vh - 14px)}}nav button{flex:1;padding:8px;font-size:14px}.row{display:flex;gap:6px}.row>*{flex:1}
+.avpv{position:fixed;right:10px;bottom:10px;z-index:50;pointer-events:none;width:125px;text-align:center;background:#1e293bee;border:1px solid #475569;border-radius:14px;box-shadow:0 6px 18px #000b;padding:4px;margin:0}
+.avpv svg{width:100%;height:auto;max-height:32vh}
+#bld,#rbl{padding-bottom:min(45vh,240px)}
+@media(min-width:700px){.avpv{width:160px;right:20px;bottom:20px}}nav button{flex:1;padding:8px;font-size:14px}.row{display:flex;gap:6px}.row>*{flex:1}
 .opt{display:flex;justify-content:space-between;align-items:center;gap:6px}.small{font-size:13px;color:#94a3b8}.err{color:#f87171}.chips{display:flex;flex-wrap:wrap;gap:4px}.chip{width:auto;padding:6px 9px;font-size:13px}.sw{width:30px;height:30px;padding:0;border:2px solid #475569;border-radius:50%}.sw.on{border:3px solid #fff;box-shadow:0 0 0 2px #22c55e}h1 svg{margin-right:4px}summary{cursor:pointer;padding:6px 0}
 </style></head><body><main id="app"></main><script src="avatar.js"></script><script src="app.js"></script></body></html>
