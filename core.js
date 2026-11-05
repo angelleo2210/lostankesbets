@@ -1,5 +1,6 @@
 const { DatabaseSync } = require('node:sqlite');
 const crypto = require('node:crypto');
+const AV = require('./public/avatar');
 const START_COINS = 50000; const MAX_TOPUP = 10000000;
 
 function profit(stake, odds) {
@@ -25,11 +26,17 @@ const REWARDS = [
   { id: 'diamante', kind: 'accessory', name: 'Diamante', icon: '💎', minRank: 1 },
   { id: 'trofeo', kind: 'accessory', name: 'Trofeo', icon: '🏆', minRank: 2 },
   { id: 'medalla', kind: 'accessory', name: 'Medalla', icon: '🎖️', minRank: 3 },
+  { id: 'camiseta_dorada', kind: 'outfit', name: 'Camiseta dorada', icon: '👕', minRank: 1 },
+  { id: 'pantalon_dorado', kind: 'outfit', name: 'Pantalón dorado', icon: '👖', minRank: 1 },
+  { id: 'medias_doradas', kind: 'outfit', name: 'Medias doradas', icon: '🧦', minRank: 2 },
+  { id: 'zapatos_oro', kind: 'outfit', name: 'Zapaticos de oro', icon: '👟', minRank: 1 },
+  { id: 'zapatos_plata', kind: 'outfit', name: 'Zapaticos de plata', icon: '👟', minRank: 2 },
+  { id: 'zapatos_bronce', kind: 'outfit', name: 'Zapaticos de bronce', icon: '👟', minRank: 3 },
 ];
 const BADGES = { 1: '🥇', 2: '🥈', 3: '🥉' };
 const FACIAL = ['ninguno', 'bigote', 'barba_corta', 'barba_larga', 'candado', 'perilla', 'patillas'];
-const deco = (r, id, rk) => { if (!r) return r; const { cosmetics, ...o } = fhOut(r); let c = {}; try { c = cosmetics ? JSON.parse(cosmetics) : {}; } catch {}
-  const rank = rk && rk.get(id) || null; return { ...o, cosmetics: c, rank, badge: rank ? BADGES[rank] : null }; };
+const deco = (r, id, rk) => { if (!r) return r; const { cosmetics, avatar_cfg, ...o } = fhOut(r); let c = {}, ac = null; try { c = cosmetics ? JSON.parse(cosmetics) : {}; } catch {} try { ac = avatar_cfg ? JSON.parse(avatar_cfg) : null; } catch {}
+  const rank = rk && rk.get(id) || null; return { ...o, avatarCfg: AV.norm(ac), cosmetics: c, rank, badge: rank ? BADGES[rank] : null }; };
 const fhOut = r => { if (!r) return r; const { facial_hair, ...o } = r; let f = null; try { f = facial_hair ? JSON.parse(facial_hair) : null; } catch {} return { ...o, facialHair: f }; };
 function hash(pin, salt = crypto.randomBytes(16).toString('hex')) {
   return { salt, hash: crypto.scryptSync(String(pin), salt, 32).toString('hex') };
@@ -51,6 +58,7 @@ function open(file = 'data.db') {
   const ucols = db.prepare('PRAGMA table_info(users)').all().map(c => c.name);
   if (!ucols.includes('avatar')) db.exec('ALTER TABLE users ADD COLUMN avatar TEXT');
   if (!ucols.includes('display_name')) db.exec('ALTER TABLE users ADD COLUMN display_name TEXT');
+  if (!ucols.includes('avatar_cfg')) db.exec('ALTER TABLE users ADD COLUMN avatar_cfg TEXT');
   if (!ucols.includes('cosmetics')) db.exec('ALTER TABLE users ADD COLUMN cosmetics TEXT');
   if (!ucols.includes('facial_hair')) db.exec('ALTER TABLE users ADD COLUMN facial_hair TEXT');
   const tx = fn => { db.exec('BEGIN'); try { const r = fn(); db.exec('COMMIT'); return r; } catch (e) { db.exec('ROLLBACK'); throw e; } };
@@ -68,12 +76,13 @@ function open(file = 'data.db') {
     },
     setupAdmin(username, pin) { if (api.hasAdmin()) err('El administrador ya existe'); return api.createUser(username, pin, true); },
     newInvite() { const c = crypto.randomBytes(4).toString('hex'); db.prepare('INSERT INTO invites(code) VALUES(?)').run(c); return c; },
-    listInvites: () => { const rk = api.refreshRanks(); return db.prepare('SELECT i.code, u.username used_by, u.avatar, u.display_name, u.facial_hair, u.cosmetics, u.id uid FROM invites i LEFT JOIN users u ON u.id=i.used_by ORDER BY i.rowid DESC').all().map(r => { const { uid, ...o } = deco(r, uid, rk); return o; }); },
-    register(code, username, pin) {
+    listInvites: () => { const rk = api.refreshRanks(); return db.prepare('SELECT i.code, u.username used_by, u.avatar, u.display_name, u.facial_hair, u.cosmetics, u.avatar_cfg, u.id uid FROM invites i LEFT JOIN users u ON u.id=i.used_by ORDER BY i.rowid DESC').all().map(r => { const { uid, ...o } = deco(r, uid, rk); return o; }); },
+    register(code, username, pin, avatarCfg) {
+      let ac = null; if (avatarCfg != null) { const v = AV.validate(avatarCfg); if (v.error) err(v.error); ac = JSON.stringify(v.cfg); }
       return tx(() => {
         const inv = db.prepare('SELECT * FROM invites WHERE code=?').get(String(code || ''));
         if (!inv) err('Código de invitación inválido'); if (inv.used_by) err('Esa invitación ya se usó');
-        const id = api.createUser(username, pin); db.prepare('UPDATE invites SET used_by=? WHERE code=?').run(id, code); return id;
+        const id = api.createUser(username, pin); db.prepare('UPDATE invites SET used_by=? WHERE code=?').run(id, code); db.prepare('UPDATE users SET avatar_cfg=? WHERE id=?').run(ac || JSON.stringify(AV.DEFAULT), id); return id;
       });
     },
     login(username, pin) {
@@ -81,7 +90,7 @@ function open(file = 'data.db') {
       if (!u || !crypto.timingSafeEqual(Buffer.from(hash(pin, u.salt).hash, 'hex'), Buffer.from(u.pin_hash, 'hex'))) err('Usuario o PIN incorrecto');
       const t = crypto.randomBytes(24).toString('hex'); db.prepare('INSERT INTO sessions VALUES(?,?)').run(t, u.id); return t;
     },
-    userByToken: t => { const u = t && db.prepare('SELECT u.id,u.username,u.coins,u.is_admin,u.avatar,u.display_name,u.facial_hair,u.cosmetics FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?').get(t); if (!u) return u; const rk = api.refreshRanks(); return { ...deco(u, u.id, rk), unlocks: api.unlocksOf(u.id) }; },
+    userByToken: t => { const u = t && db.prepare('SELECT u.id,u.username,u.coins,u.is_admin,u.avatar,u.display_name,u.facial_hair,u.cosmetics,u.avatar_cfg FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?').get(t); if (!u) return u; const rk = api.refreshRanks(); return { ...deco(u, u.id, rk), unlocks: api.unlocksOf(u.id) }; },
     createLine(title, opts, extra = {}) {
       title = String(title || '').trim(); if (!title) err('Falta el título');
       if (!Array.isArray(opts) || opts.length < 2) err('Se necesitan al menos 2 opciones');
@@ -181,12 +190,13 @@ function open(file = 'data.db') {
       });
     },
     myBets: uid => db.prepare('SELECT b.*, l.title, l.kind, o.label FROM bets b JOIN lines l ON l.id=b.line_id JOIN options o ON o.id=b.option_id WHERE b.user_id=? ORDER BY b.id DESC').all(uid),
-    setProfile(uid, avatar, displayName, facialHair, cosmetics) {
-      let cos;
+    setProfile(uid, avatar, displayName, facialHair, cosmetics, avatarCfg) {
+      let cos, acfg;
+      if (avatarCfg !== undefined && avatarCfg !== null) { api.refreshRanks(); const v = AV.validate(avatarCfg, new Set(api.unlocksOf(uid).map(u => u.item_id))); if (v.error) err(v.error); acfg = v.cfg; }
       if (cosmetics !== undefined) {
         cos = {}; if (cosmetics !== null && typeof cosmetics !== 'object') err('Cosméticos inválidos');
         api.refreshRanks(); const mine = new Set(api.unlocksOf(uid).map(u => u.item_id));
-        for (const kind of ['hat', 'color', 'accessory']) { const v = cosmetics?.[kind]; if (v == null || v === '') continue;
+        for (const kind of ['color', 'accessory']) { const v = cosmetics?.[kind]; if (v == null || v === '') continue;
           const it = REWARDS.find(r => r.id === v && r.kind === kind); if (!it) err('Ítem inválido');
           if (!mine.has(v)) err(`Bloqueado: ${it.name} requiere top ${it.minRank}`); cos[kind] = v; }
       }
@@ -206,7 +216,8 @@ function open(file = 'data.db') {
       if (/[\u0000-\u001f\u007f<>]/.test(displayName)) err('El nombre tiene caracteres no permitidos');
       db.prepare('UPDATE users SET avatar=?, display_name=?, facial_hair=? WHERE id=?').run(avatar || null, displayName || null, fh && JSON.stringify(fh), uid);
       if (cos) db.prepare('UPDATE users SET cosmetics=? WHERE id=?').run(JSON.stringify(cos), uid);
-      return { avatar: avatar || null, display_name: displayName || null, facialHair: fh, ...(cos ? { cosmetics: cos } : {}) };
+      if (acfg) db.prepare('UPDATE users SET avatar_cfg=? WHERE id=?').run(JSON.stringify(acfg), uid);
+      return { avatar: avatar || null, display_name: displayName || null, facialHair: fh, ...(cos ? { cosmetics: cos } : {}), ...(acfg ? { avatarCfg: acfg } : {}) };
     },
     topup(adminId, userId, amount) {
       amount = Number(amount);
@@ -219,9 +230,9 @@ function open(file = 'data.db') {
         api.refreshRanks(); return { id, coins: db.prepare('SELECT coins FROM users WHERE id=?').get(Number(userId)).coins };
       });
     },
-    topups: (limit = 20) => db.prepare('SELECT t.id, t.amount, t.created, u.username, u.display_name, u.avatar, a.username admin FROM topups t JOIN users u ON u.id=t.user_id JOIN users a ON a.id=t.admin_id ORDER BY t.id DESC LIMIT ?').all(limit),
-    users: () => { const rk = api.refreshRanks(); return db.prepare('SELECT id, username, avatar, display_name, facial_hair, cosmetics, coins, is_admin FROM users ORDER BY username').all().map(r => deco(r, r.id, rk)); },
-    leaderboard: () => { const rk = api.refreshRanks(); return db.prepare('SELECT id, username, avatar, display_name, facial_hair, cosmetics, coins FROM users ORDER BY coins DESC, username').all().map(r => { const { id, ...o } = deco(r, r.id, rk); return o; }); },
+    topups: (limit = 20) => db.prepare('SELECT t.id, t.amount, t.created, u.username, u.display_name, u.avatar, u.avatar_cfg, u.facial_hair, a.username admin FROM topups t JOIN users u ON u.id=t.user_id JOIN users a ON a.id=t.admin_id ORDER BY t.id DESC LIMIT ?').all(limit).map(r => deco(r)),
+    users: () => { const rk = api.refreshRanks(); return db.prepare('SELECT id, username, avatar, display_name, facial_hair, cosmetics, avatar_cfg, coins, is_admin FROM users ORDER BY username').all().map(r => deco(r, r.id, rk)); },
+    leaderboard: () => { const rk = api.refreshRanks(); return db.prepare('SELECT id, username, avatar, display_name, facial_hair, cosmetics, avatar_cfg, coins FROM users ORDER BY coins DESC, username').all().map(r => { const { id, ...o } = deco(r, r.id, rk); return o; }); },
     ranks() { const m = new Map(); db.prepare('SELECT id FROM users WHERE is_admin=0 AND coins>? ORDER BY coins DESC, username LIMIT 3').all(START_COINS).forEach((u, i) => m.set(u.id, i + 1)); return m; },
     refreshRanks() { const m = api.ranks(); const ins = db.prepare('INSERT OR IGNORE INTO unlocks(user_id,item_id,rank) VALUES(?,?,?)');
       for (const [uid, rank] of m) for (const it of REWARDS) if (rank <= it.minRank) ins.run(uid, it.id, rank); return m; },

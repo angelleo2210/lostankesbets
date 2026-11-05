@@ -9,13 +9,13 @@ const auth = (req) => { const u = C.userByToken(req.get('x-token')); if (!u) { c
 const admin = (req) => { const u = auth(req); if (!u.is_admin) { const e = new Error('Solo el administrador'); e.user = true; throw e; } return u; };
 app.get('/api/status', h(() => ({ hasAdmin: C.hasAdmin() })));
 app.post('/api/setup', h(r => { C.setupAdmin(r.body.username, r.body.pin); return { token: C.login(r.body.username, r.body.pin) }; }));
-app.post('/api/register', h(r => { C.register(r.body.code, r.body.username, r.body.pin); return { token: C.login(r.body.username, r.body.pin) }; }));
+app.post('/api/register', h(r => { C.register(r.body.code, r.body.username, r.body.pin, r.body.avatarCfg); return { token: C.login(r.body.username, r.body.pin) }; }));
 app.post('/api/login', h(r => ({ token: C.login(r.body.username, r.body.pin) })));
 app.get('/api/me', h(r => { const u = auth(r); return { ...u, bets: C.myBets(u.id), parlays: C.myParlays(u.id) }; }));
 app.get('/api/lines', h(r => { auth(r); return C.lines(['open', 'closed']); }));
 app.get('/api/leaderboard', h(r => { auth(r); return C.leaderboard(); }));
 app.post('/api/bet', h(r => { const u = auth(r); C.placeBet(u.id, r.body.optionId, r.body.stake); }));
-app.post('/api/profile', h(r => { const u = auth(r); return C.setProfile(u.id, r.body.avatar, r.body.display_name, r.body.facialHair, r.body.cosmetics); }));
+app.post('/api/profile', h(r => { const u = auth(r); return C.setProfile(u.id, r.body.avatar, r.body.display_name, r.body.facialHair, r.body.cosmetics, r.body.avatarCfg); }));
 app.get('/api/rewards', h(r => { auth(r); return require('./core').REWARDS; }));
 app.post('/api/parlay', h(r => { const u = auth(r); return { id: C.placeParlay(u.id, r.body.optionIds, r.body.stake) }; }));
 app.get('/api/real', h(async r => { auth(r); return odds.upcoming(r.query.sport || 'upcoming'); }));
