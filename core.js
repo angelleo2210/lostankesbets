@@ -70,16 +70,22 @@ function open(file = 'data.db') {
   if (!db.prepare('PRAGMA table_info(purchases)').all().some(c => c.name === 'color')) db.exec('ALTER TABLE purchases ADD COLUMN color TEXT');
   const tx = fn => { db.exec('BEGIN'); try { const r = fn(); db.exec('COMMIT'); return r; } catch (e) { db.exec('ROLLBACK'); throw e; } };
   const err = m => { const e = new Error(m); e.user = true; throw e; };
+  const getCfg = uid => { try { return AV.norm(JSON.parse(db.prepare('SELECT avatar_cfg FROM users WHERE id=?').get(uid)?.avatar_cfg || 'null')); } catch { return AV.norm(null); } };
+  const editWear = (uid, fn) => { const c = getCfg(uid); fn(c.wear); db.prepare('UPDATE users SET avatar_cfg=? WHERE id=?').run(JSON.stringify(c), uid); };
   const api = {
+    // Capas del avatar: solo se equipa lo que el usuario posee; color = el del artículo comprado.
+    _unequip: (uid, itemId) => editWear(uid, w => { for (const k in w) if (w[k].id === itemId) delete w[k]; }),
     owned: uid => db.prepare('SELECT item_id, color, price, created FROM purchases WHERE user_id=? ORDER BY created').all(Number(uid)).map(o => ({ ...o, color: ST.norm(o.item_id, o.color) })),
     buyItem: (uid, itemId, color) => { const i = ST.byId(itemId); if (!i) err('Artículo no existe');
       if (color != null && !ST.valid(itemId, color)) err('Color inválido');
       return tx(() => { if (db.prepare('SELECT 1 FROM purchases WHERE user_id=? AND item_id=?').get(uid, itemId)) err('Ya es tuyo');
         const r = db.prepare('UPDATE users SET coins=coins-? WHERE id=? AND coins>=?').run(i.price, uid, i.price); if (!r.changes) err('No tienes monedas suficientes');
         db.prepare('INSERT INTO purchases(user_id,item_id,price,color) VALUES(?,?,?,?)').run(uid, itemId, i.price, color || i.color);
+        if (AV.LAYERS[itemId]) editWear(uid, w => { w[AV.LAYERS[itemId][0]] = { id: itemId, color: color || i.color }; });
         return { coins: db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins }; }); },
     setItemColor: (uid, itemId, color) => { if (!ST.valid(itemId, color)) err('Color inválido');
-      if (!db.prepare('UPDATE purchases SET color=? WHERE user_id=? AND item_id=?').run(color, uid, itemId).changes) err('No es tuyo'); return { ok: true }; },
+      if (!db.prepare('UPDATE purchases SET color=? WHERE user_id=? AND item_id=?').run(color, uid, itemId).changes) err('No es tuyo');
+      editWear(uid, w => { for (const k in w) if (w[k].id === itemId) w[k].color = color; }); return { ok: true }; },
     // Venta: devuelve 75% de lo pagado y el artículo vuelve a la tienda (atómico).
     sellItem: (uid, itemId) => tx(() => { const p = db.prepare('SELECT price FROM purchases WHERE user_id=? AND item_id=?').get(uid, itemId); if (!p) err('No es tuyo');
       const refund = Math.floor(p.price * 3 / 4); db.prepare('DELETE FROM purchases WHERE user_id=? AND item_id=?').run(uid, itemId);
@@ -251,7 +257,8 @@ function open(file = 'data.db') {
     myBets: uid => db.prepare('SELECT b.*, l.title, l.kind, o.label FROM bets b JOIN lines l ON l.id=b.line_id JOIN options o ON o.id=b.option_id WHERE b.user_id=? ORDER BY b.id DESC').all(uid),
     setProfile(uid, avatar, displayName, facialHair, cosmetics, avatarCfg) {
       let cos, acfg;
-      if (avatarCfg !== undefined && avatarCfg !== null) { api.refreshRanks(); const v = AV.validate(avatarCfg, new Set(api.unlocksOf(uid).map(u => u.item_id))); if (v.error) err(v.error); acfg = v.cfg; }
+      if (avatarCfg !== undefined && avatarCfg !== null) { api.refreshRanks(); const v = AV.validate(avatarCfg, new Set(api.unlocksOf(uid).map(u => u.item_id))); if (v.error) err(v.error); acfg = v.cfg;
+        const own = new Map(api.owned(uid).map(o => [o.item_id, o.color])); for (const k in acfg.wear) { const id = acfg.wear[k].id; if (!own.has(id)) err('No tienes ese artículo: ' + (ST.byId(id)?.name || id)); acfg.wear[k].color = own.get(id); } }
       if (cosmetics !== undefined) {
         cos = {}; if (cosmetics !== null && typeof cosmetics !== 'object') err('Cosméticos inválidos');
         api.refreshRanks(); const mine = new Set(api.unlocksOf(uid).map(u => u.item_id));

@@ -184,4 +184,14 @@ t('piedra papel tijera', () => { const Q = open(':memory:'); Q.setupAdmin('angel
   set(b, 50); assert.throws(() => Q.rpsChallenge(b, a, 51), /suficientes/); assert.equal(c(b), 50);
   const g5 = Q.rpsChallenge(a, b, 100).id; assert.throws(() => Q.rpsRespond(b, g5, true), /suficientes/); assert.equal(c(b), 50);
   assert.throws(() => Q.rpsPick(a, g5, 'piedra'), /no disponible/); assert.equal(Q.rpsView(999, g5), null); });
+t('avatar por capas: equipar al comprar, verificar posesión, quitar al vender', () => { const AV = require('./public/avatar'); const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const q = Q.register(Q.newInvite(), 'capas', '1111');
+  const cfg = () => Q.leaderboard().find(r => r.username === 'capas').avatarCfg; Q.db.prepare('UPDATE users SET coins=100000 WHERE id=?').run(q);
+  Q.buyItem(q, 'top_hoodie', 'rojo'); assert.deepEqual(cfg().wear.arriba, { id: 'top_hoodie', color: 'rojo' }); Q.setItemColor(q, 'top_hoodie', 'azul'); assert.equal(cfg().wear.arriba.color, 'azul');
+  assert.throws(() => Q.setProfile(q, '', '', null, undefined, { wear: { abajo: { id: 'bot_jeans', color: 'negro' } } }), /No tienes/);
+  assert.throws(() => Q.setProfile(q, '', '', null, undefined, { wear: { abajo: { id: 'top_hoodie', color: 'negro' } } }), /Ropa inválida/);
+  Q.setProfile(q, '', '', null, undefined, { body: 'musculoso', face: 'cuadrada', wear: {} }); assert.deepEqual(cfg().wear, {}); assert.equal(cfg().body, 'musculoso');
+  Q.setProfile(q, '', '', null, undefined, { wear: { arriba: { id: 'top_hoodie', color: 'rojo' } } }); assert.equal(cfg().wear.arriba.color, 'azul');
+  Q.sellItem(q, 'top_hoodie'); assert.deepEqual(cfg().wear, {});
+  for (const id in AV.LAYERS) for (const pose of ['', 'cruzado']) { const svg = AV.render({ body: 'gordito', wear: { [AV.LAYERS[id][0]]: { id, color: 'rojo' } } }, { size: 120, pose }); assert.ok(!/undefined|NaN/.test(svg), id); }
+  for (const f in AV.FACES) for (const b in AV.BODIES) assert.ok(!/undefined|NaN/.test(AV.render({ face: f, body: b }))); });
 console.log(`\n${n} pruebas OK`);
