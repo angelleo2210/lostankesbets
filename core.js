@@ -1,7 +1,7 @@
 const { DatabaseSync } = require('node:sqlite');
 const crypto = require('node:crypto');
 const AV = require('./public/avatar'); const ST = require('./public/store');
-const START_COINS = 50000; const MAX_TOPUP = 10000000;
+const START_COINS = 50000; const BONUS = 5000, BONUS_MS = 24 * 3600 * 1000; const MAX_TOPUP = 10000000;
 
 function profit(stake, odds) {
   odds = Number(odds);
@@ -60,6 +60,7 @@ function open(file = 'data.db') {
   if (!ucols.includes('display_name')) db.exec('ALTER TABLE users ADD COLUMN display_name TEXT');
   if (!ucols.includes('avatar_cfg')) db.exec('ALTER TABLE users ADD COLUMN avatar_cfg TEXT');
   if (!ucols.includes('cosmetics')) db.exec('ALTER TABLE users ADD COLUMN cosmetics TEXT');
+  if (!ucols.includes('last_bonus')) db.exec('ALTER TABLE users ADD COLUMN last_bonus INTEGER');
   if (!ucols.includes('facial_hair')) db.exec('ALTER TABLE users ADD COLUMN facial_hair TEXT');
   db.exec('CREATE TABLE IF NOT EXISTS purchases(user_id INTEGER, item_id TEXT, price INTEGER, color TEXT, created TEXT DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(user_id, item_id))');
   if (!db.prepare('PRAGMA table_info(purchases)').all().some(c => c.name === 'color')) db.exec('ALTER TABLE purchases ADD COLUMN color TEXT');
@@ -75,6 +76,16 @@ function open(file = 'data.db') {
         return { coins: db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins }; }); },
     setItemColor: (uid, itemId, color) => { if (!ST.valid(itemId, color)) err('Color inválido');
       if (!db.prepare('UPDATE purchases SET color=? WHERE user_id=? AND item_id=?').run(color, uid, itemId).changes) err('No es tuyo'); return { ok: true }; },
+    // Venta: devuelve 50% de lo pagado y el artículo vuelve a la tienda (atómico).
+    sellItem: (uid, itemId) => tx(() => { const p = db.prepare('SELECT price FROM purchases WHERE user_id=? AND item_id=?').get(uid, itemId); if (!p) err('No es tuyo');
+      const refund = Math.floor(p.price / 2); db.prepare('DELETE FROM purchases WHERE user_id=? AND item_id=?').run(uid, itemId);
+      db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(refund, uid); if (api._unequip) api._unequip(uid, itemId);
+      return { refund, coins: db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins }; }),
+    // Bono diario idempotente: una vez cada 24 h; repetir antes devuelve claimed:false sin sumar.
+    bonusStatus: (uid, now = Date.now()) => { const l = db.prepare('SELECT last_bonus FROM users WHERE id=?').get(uid)?.last_bonus; const next = l ? Number(l) + BONUS_MS : 0;
+      return { amount: BONUS, available: now >= next, nextAt: next > now ? next : null, msLeft: Math.max(0, next - now) }; },
+    claimBonus: (uid, now = Date.now()) => tx(() => { const r = db.prepare('UPDATE users SET coins=coins+?, last_bonus=? WHERE id=? AND (last_bonus IS NULL OR last_bonus<=?)').run(BONUS, now, uid, now - BONUS_MS);
+      const coins = db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins; return { claimed: !!r.changes, coins, ...api.bonusStatus(uid, now) }; }),
     db,
     hasAdmin: () => !!db.prepare('SELECT 1 FROM users WHERE is_admin=1').get(),
     createUser(username, pin, isAdmin = false) {
@@ -243,12 +254,12 @@ function open(file = 'data.db') {
     },
     topups: (limit = 20) => db.prepare('SELECT t.id, t.amount, t.created, u.username, u.display_name, u.avatar, u.avatar_cfg, u.facial_hair, a.username admin FROM topups t JOIN users u ON u.id=t.user_id JOIN users a ON a.id=t.admin_id ORDER BY t.id DESC LIMIT ?').all(limit).map(r => deco(r)),
     users: () => { const rk = api.refreshRanks(); return db.prepare('SELECT id, username, avatar, display_name, facial_hair, cosmetics, avatar_cfg, coins, is_admin FROM users ORDER BY username').all().map(r => deco(r, r.id, rk)); },
-    leaderboard: () => { const rk = api.refreshRanks(); return db.prepare('SELECT id, username, avatar, display_name, facial_hair, cosmetics, avatar_cfg, coins FROM users ORDER BY coins DESC, username').all().map(r => { const { id, ...o } = deco(r, r.id, rk); return o; }); },
-    ranks() { const m = new Map(); db.prepare('SELECT id FROM users WHERE is_admin=0 AND coins>? ORDER BY coins DESC, username LIMIT 3').all(START_COINS).forEach((u, i) => m.set(u.id, i + 1)); return m; },
+    leaderboard: () => { const rk = api.refreshRanks(); return db.prepare('SELECT id, username, avatar, display_name, facial_hair, cosmetics, avatar_cfg, coins, (SELECT COUNT(*) FROM bets b WHERE b.user_id=users.id AND b.status=\'won\') + (SELECT COUNT(*) FROM parlays p WHERE p.user_id=users.id AND p.status=\'won\') wins FROM users ORDER BY wins DESC, coins DESC, username').all().map(r => { const { id, ...o } = deco(r, r.id, rk); return o; }); },
+    ranks() { const m = new Map(); db.prepare('SELECT id, (SELECT COUNT(*) FROM bets b WHERE b.user_id=users.id AND b.status=\'won\') + (SELECT COUNT(*) FROM parlays p WHERE p.user_id=users.id AND p.status=\'won\') wins FROM users WHERE is_admin=0 AND wins>0 ORDER BY wins DESC, coins DESC, username LIMIT 3').all().forEach((u, i) => m.set(u.id, i + 1)); return m; },
     refreshRanks() { const m = api.ranks(); const ins = db.prepare('INSERT OR IGNORE INTO unlocks(user_id,item_id,rank) VALUES(?,?,?)');
       for (const [uid, rank] of m) for (const it of REWARDS) if (rank <= it.minRank) ins.run(uid, it.id, rank); return m; },
     unlocksOf: uid => db.prepare('SELECT item_id, rank, created FROM unlocks WHERE user_id=? ORDER BY created').all(uid),
   };
   return api;
 }
-module.exports = { open, FACIAL, REWARDS, profit, dec, toAmerican, START_COINS };
+module.exports = { open, BONUS, FACIAL, REWARDS, profit, dec, toAmerican, START_COINS };

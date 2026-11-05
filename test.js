@@ -146,4 +146,18 @@ t('tienda: catálogo, departamentos, fotos', () => { const ST = require('./publi
   const ropa = ST.ITEMS.filter(i => i.cat === 'ropa'); assert.equal(ropa.length, 24); for (const i of ropa) { assert.ok(i.price <= 25000, i.id); assert.ok(ST.SUBS.some(s => s[0] === i.sub), i.id); }
   assert.deepEqual(['casa_familiar', 'casa_moderna', 'casa_residencia'].map(id => ST.byId(id).price), [300000, 600000, 1000000]);
   assert.equal(ST.norm('car_gt', '#1e40af'), 'azul'); assert.equal(ST.norm('cad_oro', '#c0c0c0'), 'plata'); });
+t('monedas: bono diario idempotente 24h', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const q = Q.register(Q.newInvite(), 'bono', '1111'); const T = 1e12;
+  assert.equal(Q.bonusStatus(q, T).available, true); const r = Q.claimBonus(q, T); assert.equal(r.claimed, true); assert.equal(r.coins, 55000);
+  const r2 = Q.claimBonus(q, T + 1000); assert.equal(r2.claimed, false); assert.equal(r2.coins, 55000); assert.ok(r2.msLeft > 0 && r2.msLeft <= 86400000);
+  assert.equal(Q.claimBonus(q, T + 86400000 - 1).claimed, false); assert.equal(Q.claimBonus(q, T + 86400000).coins, 60000); });
+t('monedas: vender al 50%', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const q = Q.register(Q.newInvite(), 'vende', '1111'); const c = () => Q.db.prepare('SELECT coins FROM users WHERE id=?').get(q).coins;
+  Q.buyItem(q, 'moto_naked'); assert.equal(c(), 20000); assert.throws(() => Q.sellItem(q, 'moto_pista'), /No es tuyo/);
+  assert.deepEqual(Q.sellItem(q, 'moto_naked'), { refund: 15000, coins: 35000 }); assert.equal(Q.owned(q).length, 0); assert.throws(() => Q.sellItem(q, 'moto_naked'), /No es tuyo/);
+  Q.buyItem(q, 'jet_turbo'); assert.equal(Q.sellItem(q, 'jet_turbo').refund, 6750); assert.ok(c() >= 0); });
+t('ranking: apuestas ganadas (parlay=1), desempate monedas, sin artículos', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const [a, b, c] = ['ra', 'rb', 'rc'].map(n => Q.register(Q.newInvite(), n, '1111'));
+  const mk = () => { const id = Q.createLine('X', [{ label: 'S', odds: 100 }, { label: 'N', odds: 100 }]); return [id, ...Q.lines().find(l => l.id === id).options]; };
+  const [L1, S1, N1] = mk(), [L2, S2] = mk(); Q.placeBet(a, S1.id, 100); Q.placeBet(a, S2.id, 100); Q.placeBet(b, N1.id, 9000); Q.placeParlay(c, [S1.id, S2.id], 100);
+  Q.settleLine(L1, S1.id); Q.settleLine(L2, S2.id); Q.db.prepare('UPDATE users SET coins=9000000 WHERE id=?').run(b);
+  const lb = Q.leaderboard().filter(r => r.username.startsWith('r')); assert.deepEqual(lb.map(r => [r.username, r.wins]), [['ra', 2], ['rc', 1], ['rb', 0]]);
+  Q.db.prepare('UPDATE users SET coins=200000 WHERE id=?').run(c); Q.buyItem(c, 'car_deportivo'); assert.equal(Q.leaderboard().filter(r => r.username.startsWith('r'))[1].username, 'rc'); });
 console.log(`\n${n} pruebas OK`);

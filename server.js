@@ -18,6 +18,9 @@ app.post('/api/bet', h(r => { const u = auth(r); C.placeBet(u.id, r.body.optionI
 app.post('/api/profile', h(r => { const u = auth(r); return C.setProfile(u.id, r.body.avatar, r.body.display_name, r.body.facialHair, r.body.cosmetics, r.body.avatarCfg); }));
 app.get('/api/store', h(r => { const u = auth(r); return { items: require('./public/store').ITEMS, owned: C.owned(u.id) }; }));
 app.post('/api/store/buy', h(r => { const u = auth(r); return C.buyItem(u.id, r.body.itemId, r.body.color); }));
+app.post('/api/store/sell', h(r => { const u = auth(r); return C.sellItem(u.id, r.body.itemId); }));
+app.get('/api/bonus', h(r => C.bonusStatus(auth(r).id)));
+app.post('/api/bonus', h(r => C.claimBonus(auth(r).id)));
 app.post('/api/store/color', h(r => { const u = auth(r); return C.setItemColor(u.id, r.body.itemId, r.body.color); }));
 app.get('/api/rewards', h(r => { auth(r); return require('./core').REWARDS; }));
 app.post('/api/parlay', h(r => { const u = auth(r); return { id: C.placeParlay(u.id, r.body.optionIds, r.body.stake) }; }));
