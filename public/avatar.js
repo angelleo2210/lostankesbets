@@ -36,7 +36,11 @@
       const need = CAT[k].lock && CAT[k].lock[c[k]]; if (need && !unlocked.has(need)) return { error: `Bloqueado: ${CAT[k].name} ${c[k]} es exclusivo del top 3`, locked: need }; }
     return { cfg: { ...DEFAULT, ...c } };
   }
-  const S = 'stroke="#1e1b2e" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"';
+  // Estilo "soft 3D": contornos suaves, degradados por pieza, brillos y sombra de contacto. IDs únicos por render.
+  const S = 'stroke="#2a1e4d" stroke-opacity=".28" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"';
+  const mix = (hex, t) => { const n = parseInt(hex.slice(1), 16), to = t > 0 ? 255 : 0, a = Math.abs(t);
+    return '#' + [n >> 16, (n >> 8) & 255, n & 255].map(v => Math.round(v + (to - v) * a).toString(16).padStart(2, '0')).join(''); };
+  let seq = 0;
   function render(c, opt = {}) {
     c = norm(c); const fh = opt.facialHair; const sk = c.skin;
     const gold = METAL.oro, shirtC = c.shirt === 'dorada' ? gold : c.shirtColor, pantsC = c.pants === 'dorado' ? gold : c.pantsColor;
@@ -51,8 +55,8 @@
       if (c.shoes === 'tenis') g += `<path d="M34 138 H47 M53 138 H66" stroke="#fff" stroke-width="2"/>`; }
     // brazos
     const sleeve = c.shirt !== 'sin_mangas';
-    g += `<path d="M34 72 L24 96" stroke="#1e1b2e" stroke-width="10" stroke-linecap="round"/><path d="M34 72 L24 96" stroke="${sk}" stroke-width="5" stroke-linecap="round"/>`;
-    g += `<path d="M66 72 L76 96" stroke="#1e1b2e" stroke-width="10" stroke-linecap="round"/><path d="M66 72 L76 96" stroke="${sk}" stroke-width="5" stroke-linecap="round"/>`;
+    g += `<path d="M34 72 L24 96" stroke="${mix(sk, -.35)}" stroke-width="9" stroke-linecap="round"/><path d="M34 72 L24 96" stroke="${sk}" stroke-width="5" stroke-linecap="round"/>`;
+    g += `<path d="M66 72 L76 96" stroke="${mix(sk, -.35)}" stroke-width="9" stroke-linecap="round"/><path d="M66 72 L76 96" stroke="${sk}" stroke-width="5" stroke-linecap="round"/>`;
     g += `<path d="M34 66 Q50 60 66 66 L66 98 L34 98 Z" fill="${shirtC}" ${S}/>`;
     if (sleeve) g += `<path d="M34 66 L26 82 L33 85 L37 76 Z M66 66 L74 82 L67 85 L63 76 Z" fill="${shirtC}" ${S}/>`;
     if (c.shirt === 'camisa') g += `<path d="M44 64 L50 72 L56 64 M50 72 V96" fill="none" ${S}/><circle cx="50" cy="80" r="1.3" fill="#1e1b2e"/><circle cx="50" cy="88" r="1.3" fill="#1e1b2e"/>`;
@@ -67,11 +71,11 @@
     if (c.earrings !== 'ninguno') hd += c.earrings === 'aro' ? `<circle cx="24" cy="46" r="4" fill="none" stroke="${gold}" stroke-width="2.5"/><circle cx="76" cy="46" r="4" fill="none" stroke="${gold}" stroke-width="2.5"/>` : `<circle cx="24" cy="44" r="2.6" fill="${gold}" stroke="#1e1b2e" stroke-width="1"/><circle cx="76" cy="44" r="2.6" fill="${gold}" stroke="#1e1b2e" stroke-width="1"/>`;
     hd += `<circle cx="25" cy="36" r="5" fill="${sk}" ${S}/><circle cx="75" cy="36" r="5" fill="${sk}" ${S}/><circle cx="50" cy="34" r="26" fill="${sk}" ${S}/>`;
     hd += `<ellipse cx="36" cy="44" rx="4" ry="2.5" fill="#f87171" opacity=".5"/><ellipse cx="64" cy="44" rx="4" ry="2.5" fill="#f87171" opacity=".5"/>`;
-    const eye = (x, m) => ({ normales: `<ellipse cx="${x}" cy="33" rx="5" ry="6.5" fill="#fff" ${S.replace('3', '2')}/><circle cx="${x + 1}" cy="34" r="3" fill="#1e1b2e"/><circle cx="${x + 2}" cy="32.5" r="1" fill="#fff"/>`,
+    const eye = (x, m) => ({ normales: `<ellipse cx="${x}" cy="33" rx="5" ry="6.5" fill="#fff" ${S.replace('3', '2')}/><circle cx="${x + 1}" cy="34" r="3.2" fill="#1e1b2e"/><circle cx="${x + 2.2}" cy="32.3" r="1.4" fill="#fff"/><circle cx="${x - .2}" cy="35.6" r=".6" fill="#fff" opacity=".8"/>`,
       felices: `<path d="M${x - 5} 35 Q${x} 27 ${x + 5} 35" fill="none" ${S}/>`,
-      'guiño': m ? `<path d="M${x - 5} 33 H${x + 5}" ${S}/>` : `<ellipse cx="${x}" cy="33" rx="5" ry="6.5" fill="#fff" ${S.replace('3', '2')}/><circle cx="${x + 1}" cy="34" r="3" fill="#1e1b2e"/>`,
-      sorprendidos: `<circle cx="${x}" cy="33" r="7" fill="#fff" ${S.replace('3', '2')}/><circle cx="${x}" cy="33" r="2" fill="#1e1b2e"/>`,
-      enojados: `<ellipse cx="${x}" cy="34" rx="5" ry="5" fill="#fff" ${S.replace('3', '2')}/><circle cx="${x}" cy="35" r="2.6" fill="#1e1b2e"/><path d="M${x - 6} ${m ? 24 : 28} L${x + 6} ${m ? 28 : 24}" ${S}/>`,
+      'guiño': m ? `<path d="M${x - 5} 33 H${x + 5}" ${S}/>` : `<ellipse cx="${x}" cy="33" rx="5" ry="6.5" fill="#fff" ${S.replace('3', '2')}/><circle cx="${x + 1}" cy="34" r="3.2" fill="#1e1b2e"/><circle cx="${x + 2.2}" cy="32.3" r="1.4" fill="#fff"/>`,
+      sorprendidos: `<circle cx="${x}" cy="33" r="7" fill="#fff" ${S.replace('3', '2')}/><circle cx="${x}" cy="33" r="2.2" fill="#1e1b2e"/><circle cx="${x + 1}" cy="32" r=".8" fill="#fff"/>`,
+      enojados: `<ellipse cx="${x}" cy="34" rx="5" ry="5" fill="#fff" ${S.replace('3', '2')}/><circle cx="${x}" cy="35" r="2.6" fill="#1e1b2e"/><circle cx="${x + 1}" cy="34" r=".9" fill="#fff"/><path d="M${x - 6} ${m ? 24 : 28} L${x + 6} ${m ? 28 : 24}" ${S}/>`,
       estrellas: `<path d="M${x} 26 l2 5 5 .5 -4 3.5 1.3 5 -4.3 -2.7 -4.3 2.7 1.3 -5 -4 -3.5 5 -.5z" fill="#facc15" ${S.replace('3', '1.5')}/>` })[c.eyes];
     hd += eye(40, 0) + eye(60, 1);
     hd += ({ sonrisa: `<path d="M41 45 Q50 54 59 45" fill="none" ${S}/>`, carcajada: `<path d="M40 44 Q50 60 60 44 Z" fill="#7f1d1d" ${S}/><path d="M44 52 Q50 56 56 52" fill="#f87171"/>`,
@@ -96,9 +100,31 @@
       corona: `<path d="M28 22 L28 2 L38 12 L50 -4 L62 12 L72 2 L72 22Z" fill="${gold}" ${S}/><circle cx="50" cy="13" r="3" fill="#ef4444" stroke="#1e1b2e" stroke-width="1.5"/>`,
       sombrero_dorado: `<rect x="16" y="18" width="68" height="6" rx="3" fill="${gold}" ${S}/><rect x="32" y="-6" width="36" height="26" rx="3" fill="${gold}" ${S}/><rect x="32" y="12" width="36" height="5" fill="#1e1b2e"/>`,
       gorra_campeon: `<path d="M24 26 Q26 4 50 4 Q74 4 76 26Z" fill="${METAL.bronce}" ${S}/><path d="M50 26 H88 Q88 20 76 20" fill="${METAL.bronce}" ${S}/><path d="M45 16 l5 -8 5 8z" fill="#fff"/>` })[c.hat];
+    // volumen: brillo de pelo, pliegues de ropa, sombra bajo la cabeza
+    const hl = 'stroke="#fff" stroke-opacity=".38" fill="none" stroke-linecap="round"';
+    const hairTop = c.hat === 'ninguno' && c.hair !== 'calvo';
+    if (hairTop) hd += ({ corto: `<path d="M34 13 Q44 8 58 10" ${hl} stroke-width="3"/>`, puntas: `<path d="M36 14 L39 8 M50 6 L52 12 M62 9 L63 15" ${hl} stroke-width="2"/>`,
+      largo: `<path d="M33 14 Q44 8 60 10" ${hl} stroke-width="3"/><path d="M24 40 Q23 52 24 58" ${hl} stroke-width="2"/>`, afro: `<path d="M28 18 Q36 4 52 2" ${hl} stroke-width="4"/>`,
+      cresta: `<path d="M48 16 Q47 4 50 1" ${hl} stroke-width="2"/>` })[c.hair] || '';
+    if (c.hat !== 'ninguno') hd += `<path d="M34 10 Q44 4 58 6" ${hl} stroke-width="2.5"/>`;
+    hd = `<ellipse cx="50" cy="60" rx="15" ry="4" fill="#000" opacity=".15"/>` + hd.replace(`<circle cx="50" cy="34" r="26" fill="${sk}" ${S}/>`, `<circle cx="50" cy="34" r="26" fill="${sk}" ${S}/><ellipse cx="42" cy="18" rx="11" ry="6" fill="#fff" opacity=".22"/>`);
+    g += `<path d="M40 84 Q44 90 41 97 M60 82 Q56 90 59 97 M44 70 Q50 73 56 70" stroke="#000" stroke-opacity=".16" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M38 70 Q42 66 48 66" ${hl} stroke-width="2"/>`;
+    g += `<path d="M44 106 V${legY - 2} M56 106 V${legY - 2}" stroke="#000" stroke-opacity=".14" stroke-width="1.4"/>`;
+    // degradados: cada color sólido pasa a un degradado radial (luz arriba-izquierda)
+    const u = 'av' + (++seq) + '_', gr = {}; let defs = '';
+    const paint = str => str.replace(/fill="(#[0-9a-fA-F]{6})"/g, (m, col) => { const k = col.toLowerCase(); if (k === '#1e1b2e') return m;
+      if (!gr[k]) { gr[k] = u + Object.keys(gr).length; const metal = Object.values(METAL).includes(k);
+        defs += metal ? `<linearGradient id="${gr[k]}" x1="0" y1="0" x2=".6" y2="1"><stop offset="0" stop-color="${mix(k, .6)}"/><stop offset=".45" stop-color="${k}"/><stop offset=".6" stop-color="${mix(k, .35)}"/><stop offset="1" stop-color="${mix(k, -.4)}"/></linearGradient>`
+          : `<radialGradient id="${gr[k]}" cx=".35" cy=".28" r=".85"><stop offset="0" stop-color="${mix(k, .42)}"/><stop offset=".55" stop-color="${k}"/><stop offset="1" stop-color="${mix(k, -.38)}"/></radialGradient>`; }
+      return `fill="url(#${gr[k]})"`; });
+    g = paint(g); hd = paint(hd);
     const size = opt.size || 48;
-    if (opt.head) return `<svg viewBox="16 -8 72 76" width="${size}" height="${size}" style="vertical-align:middle" aria-hidden="true">${hd}</svg>`;
-    return `<svg viewBox="4 -8 92 152" width="${size * 92 / 152}" height="${size}" style="vertical-align:middle" aria-hidden="true">${g}${hd}</svg>`;
+    if (opt.head) return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="16 -8 72 76" width="${size}" height="${size}" style="vertical-align:middle" aria-hidden="true"><defs>${defs}</defs>${hd}</svg>`;
+    const studio = size >= 80 && opt.bg !== false;
+    defs += `<radialGradient id="${u}sh"><stop offset="0" stop-color="#000" stop-opacity=".45"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>`;
+    if (studio) defs += `<radialGradient id="${u}bg" cx=".5" cy=".38" r=".75"><stop offset="0" stop-color="#5b6b8f"/><stop offset=".6" stop-color="#2b3550"/><stop offset="1" stop-color="#151b2b"/></radialGradient>`;
+    const bg = studio ? `<rect x="4" y="-8" width="92" height="152" rx="12" fill="url(#${u}bg)"/><ellipse cx="50" cy="141" rx="40" ry="6" fill="#fff" opacity=".06"/>` : '';
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="4 -8 92 152" width="${size * 92 / 152}" height="${size}" style="vertical-align:middle" aria-hidden="true"><defs>${defs}</defs>${bg}<ellipse cx="50" cy="140.5" rx="25" ry="3.6" fill="url(#${u}sh)"/>${g}${hd}</svg>`;
   }
   const api = { CAT, DEFAULT, COLORS, HAIRC, SKIN, validate, render, norm };
   if (typeof module !== 'undefined') module.exports = api; else root.Avatar = api;
