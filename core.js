@@ -46,11 +46,12 @@ const PEN = ['izquierda', 'centro', 'derecha'], PEN_MS = 24 * 3600e3, PEN_ROUNDS
 // Béisbol de una entrada: cada jugador manda una vez 15 lanzamientos (bola/strike) y 15 decisiones (swing/no).
 const BB_N = 15, BB_EXTRA = 15;
 const BB_OUTS = 3; // TRES outs terminan la media entrada; cada strike es un out (no hay cuenta de strikes aparte)
+const BB_OUTS_SCOPE = 'jugador'; // 'jugador' = 3 outs por media entrada de cada uno. Único lugar a cambiar si se decide otra cosa.
 const bbHalf = (pitch, bat, off = 0) => { let runs = 0, balls = 0, outs = 0; const ev = [];
   for (let i = 0; i < BB_N; i++) { const p = pitch[(i + off) % BB_N], b = bat[(i + off) % BB_N]; let e;
     if (p === 'strike' && b === 'swing') { runs++; e = 'jonron'; } // jonrón: +1, no es out
-    else if (p === 'strike') { outs++; e = 'ponche'; } // strike sin swing = out
-    else if (b === 'swing') { outs++; e = 'out'; } // swing a bola = strike = out
+    else if (p === 'strike') { outs++; balls = 0; e = 'ponche'; } // strike sin swing = out
+    else if (b === 'swing') { outs++; balls = 0; e = 'out'; } // el out reinicia las bolas // swing a bola = strike = out
     else { balls++; e = 'bola'; if (balls >= 4) { runs++; balls = 0; e = 'base'; } } // 4 bolas = +1, contador a 0
     ev.push({ p, b, e, runs, balls, outs }); if (outs >= BB_OUTS) break; }
   return { runs, ev }; };
@@ -126,7 +127,7 @@ function open(file = 'data.db') {
       return last === 'won' && n >= 3 ? { kind: 'fuego', n, intense: n >= 6 } : last === 'lost' && n >= 2 ? { kind: 'hielo', n, intense: n >= 6 } : null; },
     // Piedra/Papel/Tijera entre amigos. Apuestas retenidas al retar/aceptar; ganador se lleva el bote; empate devuelve.
     RPS_MIN, RPS_MAX, RPS_MS,
-    bbHalf, bbGame, BB_N,
+    bbHalf, bbGame, BB_N, BB_OUTS, BB_OUTS_SCOPE,
     bbExpire: (now = Date.now()) => tx(() => {
       db.prepare("UPDATE bb SET status='expired', resolved=? WHERE status='pending' AND created<=?").run(now, now - PEN_MS);
       for (const g of db.prepare("SELECT * FROM bb WHERE status='accepted' AND accepted_at<=?").all(now - PEN_MS)) {

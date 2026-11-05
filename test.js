@@ -242,6 +242,8 @@ t('béisbol de una entrada: reglas por lanzamiento', () => { const H = (p, b) =>
   r = H(pad('BBB', 'B'), pad('WWW', 'W')); assert.deepEqual(r.ev.map(e => e.e), ['out', 'out', 'out']); // bola+swing = out
   r = H(pad('BBBBB', 'S'), pad('NNNNN', 'N')); assert.deepEqual(r.ev.slice(0, 5).map(e => [e.e, e.balls]), [['bola', 1], ['bola', 2], ['bola', 3], ['base', 0], ['bola', 1]]); assert.equal(r.runs, 1); assert.equal(r.ev.length, 8); // 4 bolas = +1 y reinicio
   r = H('B'.repeat(15), 'N'.repeat(15)); assert.equal(r.runs, 3); assert.equal(r.ev.length, 15); assert.equal(r.ev[14].balls, 3); // se acaban los 15 lanzamientos
+  r = H(pad('BBBSBBBB', 'B'), pad('NNNNNNNN', 'N')); assert.deepEqual(r.ev.map(e => [e.e, e.balls, e.outs]).slice(0, 8), [['bola', 1, 0], ['bola', 2, 0], ['bola', 3, 0], ['ponche', 0, 1], ['bola', 1, 1], ['bola', 2, 1], ['bola', 3, 1], ['base', 0, 1]]); assert.equal(r.ev[7].runs, 1); // el out limpia las bolas; 4 bolas sin out = carrera
+  r = H(pad('BBW', 'B').replace('W', 'B'), pad('NNW', 'N')); assert.equal(r.ev[2].e, 'out'); assert.equal(r.ev[2].balls, 0); assert.equal(C.BB_OUTS, 3);
   r = H(pad('SBS', 'B'), pad('NWN', 'N')); assert.equal(r.ev.length, 3); assert.equal(r.ev[2].outs, 3); });
 t('béisbol de una entrada: retos, extra, 24 h y plan secreto', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const a = Q.register(Q.newInvite(), 'ba', '1111'), b = Q.register(Q.newInvite(), 'bb', '1111');
   const c = id => Q.db.prepare('SELECT coins FROM users WHERE id=?').get(id).coins, set = (id, v) => Q.db.prepare('UPDATE users SET coins=? WHERE id=?').run(v, id); set(a, 30000); set(b, 30000);
