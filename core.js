@@ -106,7 +106,7 @@ function open(file = 'data.db') {
     // Racha: apuestas resueltas (ganada/perdida) en orden cronológico; parlay = 1; pendientes/devueltas no cuentan.
     streak: uid => { const rs = db.prepare("SELECT status, COALESCE(ts, CAST(strftime('%s', created) AS INTEGER) * 1000000) o, id FROM bets WHERE user_id=? AND status IN ('won','lost') UNION ALL SELECT status, COALESCE(ts, CAST(strftime('%s', created) AS INTEGER) * 1000000) o, id FROM parlays WHERE user_id=? AND status IN ('won','lost') ORDER BY o, id").all(uid, uid);
       if (!rs.length) return null; const last = rs[rs.length - 1].status; let n = 0; for (let i = rs.length - 1; i >= 0 && rs[i].status === last; i--) n++;
-      return last === 'won' && n >= 3 ? { kind: 'fuego', n } : last === 'lost' && n >= 2 ? { kind: 'hielo', n } : null; },
+      return last === 'won' && n >= 3 ? { kind: 'fuego', n, intense: n >= 6 } : last === 'lost' && n >= 2 ? { kind: 'hielo', n, intense: n >= 6 } : null; },
     // Piedra/Papel/Tijera entre amigos. Apuestas retenidas al retar/aceptar; ganador se lleva el bote; empate devuelve.
     RPS_MIN, RPS_MAX, RPS_MS,
     PEN, PEN_MS, PEN_ROUNDS,

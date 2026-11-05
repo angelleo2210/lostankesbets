@@ -176,10 +176,16 @@ t('racha: fuego, hielo, nada, pendientes ignoradas', () => { const Q = open(':me
   assert.equal(Q.streak(q), null); bet(1); bet(1); assert.equal(Q.streak(q), null);
   const [Lp, Sp] = mk(); Q.placeBet(q, Sp.id, 10); // pendiente: no cuenta
   const [Lc, Sc] = mk(); Q.placeBet(q, Sc.id, 10); Q.cancelLine(Lc); // anulada: no cuenta
-  bet(1); assert.deepEqual(Q.streak(q), { kind: 'fuego', n: 3 });
-  const [A, AS] = mk(), [B2, BS] = mk(); Q.placeParlay(q, [AS.id, BS.id], 10); Q.settleLine(A, AS.id); Q.settleLine(B2, BS.id); assert.deepEqual(Q.streak(q), { kind: 'fuego', n: 4 });
-  bet(0); assert.equal(Q.streak(q), null); bet(0); assert.deepEqual(Q.streak(q), { kind: 'hielo', n: 2 });
-  assert.deepEqual(Q.leaderboard().find(r => r.username === 'racha').streak, { kind: 'hielo', n: 2 }); });
+  bet(1); assert.deepEqual(Q.streak(q), { kind: 'fuego', n: 3, intense: false });
+  const [A, AS] = mk(), [B2, BS] = mk(); Q.placeParlay(q, [AS.id, BS.id], 10); Q.settleLine(A, AS.id); Q.settleLine(B2, BS.id); assert.deepEqual(Q.streak(q), { kind: 'fuego', n: 4, intense: false });
+  bet(0); assert.equal(Q.streak(q), null); bet(0); assert.deepEqual(Q.streak(q), { kind: 'hielo', n: 2, intense: false });
+  assert.deepEqual(Q.leaderboard().find(r => r.username === 'racha').streak, { kind: 'hielo', n: 2, intense: false });
+  for (let i = 3; i <= 5; i++) { bet(0); assert.deepEqual(Q.streak(q), { kind: 'hielo', n: i, intense: false }); } bet(0); assert.deepEqual(Q.streak(q), { kind: 'hielo', n: 6, intense: true });
+  bet(1); bet(1); assert.equal(Q.streak(q), null); bet(1); bet(1); bet(1); assert.equal(Q.streak(q).intense, false); bet(1); assert.deepEqual(Q.streak(q), { kind: 'fuego', n: 6, intense: true }); bet(1); assert.equal(Q.streak(q).intense, true);
+  const vm = require('vm'), src = require('fs').readFileSync(__dirname + '/public/app.js', 'utf8'), pick = k => src.slice(src.indexOf('const ' + k + ' ='), src.indexOf('\n', src.indexOf('const ' + k + ' =')));
+  const ctx = { sq: 0 }; vm.runInNewContext([pick('FIRE'), pick('ICE'), src.slice(src.indexOf('const streakTag ='), src.indexOf('`; };', src.indexOf('const streakTag =')) + 5), 'this.T = streakTag;'].join('\n'), ctx);
+  assert.match(ctx.T({ kind: 'fuego', n: 3 }), /En racha x3/); assert.match(ctx.T({ kind: 'fuego', n: 5 }, true), /En llamas/); assert.doesNotMatch(ctx.T({ kind: 'fuego', n: 5 }), /Imparable/); assert.match(ctx.T({ kind: 'fuego', n: 6 }), /Imparable/);
+  assert.match(ctx.T({ kind: 'hielo', n: 2 }), /Frío x2/); assert.doesNotMatch(ctx.T({ kind: 'hielo', n: 5 }), /Congelado/); assert.match(ctx.T({ kind: 'hielo', n: 6 }), /Congelado/); assert.match(ctx.T({ kind: 'hielo', n: 7 }), /intense/); });
 t('piedra papel tijera', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const a = Q.register(Q.newInvite(), 'ana', '1111'), b = Q.register(Q.newInvite(), 'beto', '1111');
   const c = id => Q.db.prepare('SELECT coins FROM users WHERE id=?').get(id).coins, set = (id, v) => Q.db.prepare('UPDATE users SET coins=? WHERE id=?').run(v, id);
   set(a, 30000); set(b, 30000);
@@ -204,7 +210,7 @@ t('avatar por capas: equipar al comprar, verificar posesión, quitar al vender',
   Q.sellItem(q, 'top_hoodie'); assert.deepEqual(cfg().wear, {});
   for (const id in AV.LAYERS) for (const pose of ['', 'cruzado']) { const svg = AV.render({ body: 'gordito', wear: { [AV.LAYERS[id][0]]: { id, color: 'rojo' } } }, { size: 120, pose }); assert.ok(!/undefined|NaN/.test(svg), id); }
   for (const f in AV.FACES) for (const b in AV.BODIES) assert.ok(!/undefined|NaN/.test(AV.render({ face: f, body: b }))); });
-t('penales', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const a = Q.register(Q.newInvite(), 'pa', '1111'), b = Q.register(Q.newInvite(), 'pb', '1111');
+t('tanda de penaltis', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const a = Q.register(Q.newInvite(), 'pa', '1111'), b = Q.register(Q.newInvite(), 'pb', '1111');
   const c = id => Q.db.prepare('SELECT coins FROM users WHERE id=?').get(id).coins, set = (id, v) => Q.db.prepare('UPDATE users SET coins=? WHERE id=?').run(v, id); set(a, 30000); set(b, 30000);
   for (const bad of [9, 25001, 1.5, 'x']) assert.throws(() => Q.penChallenge(a, b, bad), /entre 10/); assert.throws(() => Q.penChallenge(a, a, 100), /ti mismo/);
   set(a, 50); assert.throws(() => Q.penChallenge(a, b, 100), /suficientes/); set(a, 30000);
