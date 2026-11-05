@@ -408,22 +408,33 @@ function open(file = 'data.db') {
     unlocksOf: uid => db.prepare('SELECT item_id, rank, created FROM unlocks WHERE user_id=? ORDER BY created').all(uid),
   };
   // ---- Three Contest: 5 posiciones × 5 balones, 75 s de reloj del servidor, 40% por tiro ----
-  const POINTS_PER_MAKE = 3, TC_PER = 5, TC_MS = 75000, TC_P = 0.4, TC_EXTRA = 5, TC_POS = ['Esquina izquierda', 'Ala izquierda', 'Centro (cima del arco)', 'Ala derecha', 'Esquina derecha']; const TC_N = TC_POS.length * TC_PER, TC_MAX = TC_N * POINTS_PER_MAKE; // todos los tiros valen igual; el último de cada posición solo se ve dorado
-  api.TC = { ppm: POINTS_PER_MAKE, per: TC_PER, ms: TC_MS, total: TC_N, max: TC_MAX, extra: TC_EXTRA, pos: TC_POS }; api.TC_POS = TC_POS; api.TC_MS = TC_MS; api.tcRand = Math.random;
+  const POINTS_PER_MAKE = 3, TC_PER = 5, TC_MS = 40000, TC_BAR_MS = 1000, TC_POS = ['Esquina izquierda', 'Centro', 'Esquina derecha']; const TC_N = TC_POS.length * TC_PER, TC_MAX = TC_N * POINTS_PER_MAKE; // todos los tiros valen igual; el último de cada posición solo se ve dorado
+  api.TC = { ppm: POINTS_PER_MAKE, per: TC_PER, ms: TC_MS, total: TC_N, max: TC_MAX, bar: TC_BAR_MS, pos: TC_POS }; api.TC_POS = TC_POS; api.TC_MS = TC_MS; api.tcRand = Math.random;
   const tcPts = st => st ? st.shots.reduce((a, x) => a + x.pts, 0) : 0;
   const tcDone = (st, now) => !!st && (st.shots.length >= TC_N || now > st.start + TC_MS || st.fin);
   const tcRow = id => db.prepare('SELECT * FROM tc WHERE id=?').get(Number(id));
-  const tcResolve = (g, now) => { const cs = g.c_st && JSON.parse(g.c_st), os = g.o_st && JSON.parse(g.o_st); if (!tcDone(cs, now) || !tcDone(os, now)) return;
-    let c = tcPts(cs), o = tcPts(os), extra = null;
-    if (c === o) { const r5 = () => Array.from({ length: TC_EXTRA }, () => api.tcRand() < TC_P); extra = { c: r5(), o: r5() }; c += extra.c.filter(Boolean).length * POINTS_PER_MAKE; o += extra.o.filter(Boolean).length * POINTS_PER_MAKE; }
-    const w = c > o ? g.challenger : o > c ? g.opponent : null;
-    if (!db.prepare("UPDATE tc SET status='done', winner=?, reason=?, extra=?, resolved=? WHERE id=? AND status='accepted'").run(w, w ? (extra ? 'extra' : 'puntos') : 'empate', extra && JSON.stringify(extra), now, g.id).changes) return;
+  // Barra de potencia: el servidor mide el tiempo entre 'apuntar' y 'tirar'; la barra va y viene 0→100→0 cada TC_BAR_MS.
+  const tcBar = el => { const t = ((el % TC_BAR_MS) + TC_BAR_MS) % TC_BAR_MS, h = TC_BAR_MS / 2; return Math.round(t < h ? t / h * 100 : (TC_BAR_MS - t) / h * 100); };
+  const tcProb = v => v >= 40 && v <= 60 ? 0.75 : v >= 25 && v <= 75 ? 0.4 : 0.1; api.tcBar = tcBar; api.tcProb = tcProb;
+  const tcRoll = (aim, now) => { const bar = tcBar(now - (aim ?? now)); return { bar, made: api.tcRand() < tcProb(bar) }; };
+  const pay = (g, w, reason, now, extra) => { if (!db.prepare("UPDATE tc SET status='done', winner=?, reason=?, extra=COALESCE(?, extra), resolved=? WHERE id=? AND status='accepted'").run(w, reason, extra ? JSON.stringify(extra) : null, now, g.id).changes) return;
     if (w) db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(2 * g.stake, w); else db.prepare('UPDATE users SET coins=coins+? WHERE id IN (?,?)').run(g.stake, g.challenger, g.opponent); };
+  const tcResolve = (g, now) => { if (g.status !== 'accepted') return; const cs = g.c_st && JSON.parse(g.c_st), os = g.o_st && JSON.parse(g.o_st); if (!tcDone(cs, now) || !tcDone(os, now)) return;
+    const c = tcPts(cs), o = tcPts(os); if (c !== o) return pay(g, c > o ? g.challenger : g.opponent, 'puntos', now);
+    let tb = g.extra && JSON.parse(g.extra); if (!tb) { tb = { r: 1, at: now, c: null, o: null, hist: [] }; db.prepare('UPDATE tc SET extra=? WHERE id=?').run(JSON.stringify(tb), g.id); return; }
+    if (!tb.c || tb.c.made == null || !tb.o || tb.o.made == null) return;
+    tb.hist.push({ c: tb.c.made, o: tb.o.made, cb: tb.c.bar, ob: tb.o.bar });
+    if (tb.c.made !== tb.o.made) return pay(g, tb.c.made ? g.challenger : g.opponent, 'desempate', now, { ...tb, c: null, o: null });
+    Object.assign(tb, { r: tb.r + 1, at: now, c: null, o: null }); db.prepare('UPDATE tc SET extra=? WHERE id=?').run(JSON.stringify(tb), g.id); };
   api.tcExpire = (now = Date.now()) => tx(() => {
     db.prepare("UPDATE tc SET status='expired', resolved=? WHERE status='pending' AND created<=?").run(now, now - PEN_MS);
-    for (const g of db.prepare("SELECT * FROM tc WHERE status='accepted'").all()) { tcResolve(g, now); if (g.accepted_at > now - PEN_MS || tcRow(g.id).status !== 'accepted') continue;
+    for (const g0 of db.prepare("SELECT * FROM tc WHERE status='accepted'").all()) { tcResolve(g0, now); const g = tcRow(g0.id); if (g.status !== 'accepted') continue;
+      const tb = g.extra && JSON.parse(g.extra);
+      if (tb) { if (tb.at > now - PEN_MS) continue; const cs = tb.c && tb.c.made != null, os = tb.o && tb.o.made != null;
+        if (cs || os) pay(g, cs ? g.challenger : g.opponent, 'abandono', now); else { if (db.prepare("UPDATE tc SET status='expired', reason='ninguno jugó', resolved=? WHERE id=? AND status='accepted'").run(now, g.id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id IN (?,?)').run(g.stake, g.challenger, g.opponent); } continue; }
+      if (g.accepted_at > now - PEN_MS) continue;
       if (!g.c_st && !g.o_st) { if (db.prepare("UPDATE tc SET status='expired', reason='ninguno jugó', resolved=? WHERE id=? AND status='accepted'").run(now, g.id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id IN (?,?)').run(g.stake, g.challenger, g.opponent); }
-      else if (!g.c_st || !g.o_st) { const w = g.c_st ? g.challenger : g.opponent; if (db.prepare("UPDATE tc SET status='done', winner=?, reason='abandono', resolved=? WHERE id=? AND status='accepted'").run(w, now, g.id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(2 * g.stake, w); } } });
+      else if (!g.c_st || !g.o_st) pay(g, g.c_st ? g.challenger : g.opponent, 'abandono', now); } });
   api.tcChallenge = (uid, oppId, stake, now = Date.now()) => { stake = Number(stake); oppId = Number(oppId);
     if (!Number.isInteger(stake) || stake < RPS_MIN || stake > RPS_MAX) err(`La apuesta debe ser un entero entre ${RPS_MIN} y ${RPS_MAX.toLocaleString('es')}`);
     if (oppId === uid) err('No puedes retarte a ti mismo'); const o = db.prepare('SELECT id, is_admin FROM users WHERE id=?').get(oppId); if (!o || o.is_admin) err('Ese amigo no existe');
@@ -439,10 +450,17 @@ function open(file = 'data.db') {
   const tcSave = (g, col, st, now) => { db.prepare(`UPDATE tc SET ${col}=? WHERE id=?`).run(JSON.stringify(st), g.id); tcResolve(tcRow(g.id), now); };
   api.tcStart = (uid, id, now = Date.now()) => { api.tcExpire(now); return tx(() => { const { g, col, st } = tcMine(uid, id, now); if (st) err('Ya empezaste tu concurso; solo se hace una vez');
     tcSave(g, col, { start: now, pos: 0, shots: [] }, now); return api.tcView(uid, g.id, now); }); };
-  api.tcShoot = (uid, id, now = Date.now()) => { api.tcExpire(now); return tx(() => { const { g, col, st } = tcMine(uid, id, now); if (!st) err('Primero empieza tu concurso');
-    if (now > st.start + TC_MS) { tcSave(g, col, st, now); err(`Se acabó el tiempo (${TC_MS / 1000} s)`); } if (st.shots.length >= TC_N || st.fin) err('Ya tiraste los 25 balones');
+  const tcTb = (g, uid) => { const tb = g.extra && JSON.parse(g.extra); return tb && { tb, k: g.challenger === uid ? 'c' : 'o' }; };
+  api.tcAim = (uid, id, now = Date.now()) => { api.tcExpire(now); return tx(() => { const { g, col, st } = tcMine(uid, id, now), T = tcTb(g, uid);
+    if (T) { if (T.tb[T.k] && T.tb[T.k].made != null) err('Ya hiciste tu tiro de desempate de esta ronda'); T.tb[T.k] = { aim: now }; db.prepare('UPDATE tc SET extra=? WHERE id=?').run(JSON.stringify(T.tb), g.id); return { aim: now, tiebreak: T.tb.r }; }
+    if (!st) err('Primero empieza tu concurso'); if (now > st.start + TC_MS) { tcSave(g, col, st, now); err(`Se acabó el tiempo (${TC_MS / 1000} s)`); } st.aim = now; tcSave(g, col, st, now); return { aim: now }; }); };
+  api.tcShoot = (uid, id, now = Date.now()) => { api.tcExpire(now); return tx(() => { const { g, col, st } = tcMine(uid, id, now), T = tcTb(g, uid);
+    if (T) { const me = T.tb[T.k]; if (me && me.made != null) err('Ya hiciste tu tiro de desempate de esta ronda'); const r = tcRoll(me && me.aim, now), round = T.tb.r; T.tb[T.k] = { ...r };
+      db.prepare('UPDATE tc SET extra=? WHERE id=?').run(JSON.stringify(T.tb), g.id); tcResolve(tcRow(g.id), now); return { tiebreak: round, shot: { ...r, pts: 0 } }; }
+    if (!st) err('Primero empieza tu concurso');
+    if (now > st.start + TC_MS) { tcSave(g, col, st, now); err(`Se acabó el tiempo (${TC_MS / 1000} s)`); } if (st.shots.length >= TC_N || st.fin) err(`Ya tiraste los ${TC_N} balones`);
     const inPos = st.shots.filter(x => x.pos === st.pos).length; if (inPos >= TC_PER) err(`Ya tiraste los ${TC_PER} balones de esta posición; pasa a la siguiente`);
-    const ball = inPos + 1, money = ball === TC_PER, made = api.tcRand() < TC_P, shot = { pos: st.pos, ball, money, made, pts: made ? POINTS_PER_MAKE : 0, t: now - st.start };
+    const ball = inPos + 1, money = ball === TC_PER, { bar, made } = tcRoll(st.aim, now); st.aim = null; const shot = { pos: st.pos, ball, money, made, bar, pts: made ? POINTS_PER_MAKE : 0, t: now - st.start };
     st.shots.push(shot); tcSave(g, col, st, now); return { shot, points: tcPts(st), left: Math.max(0, st.start + TC_MS - now), done: st.shots.length >= TC_N }; }); };
   api.tcNext = (uid, id, now = Date.now()) => { api.tcExpire(now); return tx(() => { const { g, col, st } = tcMine(uid, id, now); if (!st) err('Primero empieza tu concurso');
     if (now > st.start + TC_MS) { tcSave(g, col, st, now); err(`Se acabó el tiempo (${TC_MS / 1000} s)`); } if (st.pos >= TC_POS.length - 1) err('Ya estás en la última posición');
@@ -453,7 +471,8 @@ function open(file = 'data.db') {
       expires: g.status === 'pending' ? g.created + PEN_MS : g.status === 'accepted' ? g.accepted_at + PEN_MS : null,
       me: ms && { shots: ms.shots, pos: ms.pos, points: tcPts(ms), left: Math.max(0, ms.start + TC_MS - now), finished: tcDone(ms, now) }, rivalFinished: tcDone(rs, now), rivalStarted: !!rs,
       rivalShots: done ? (rs ? rs.shots : []) : null, rivalPoints: done ? tcPts(rs) : null,
-      extra: done && ex ? { my: mine ? ex.c : ex.o, rival: mine ? ex.o : ex.c } : null,
+      tiebreak: ex ? { round: ex.r, active: g.status === 'accepted', iShot: !!(ex[mine ? 'c' : 'o'] && ex[mine ? 'c' : 'o'].made != null), rivalShot: !!(ex[mine ? 'o' : 'c'] && ex[mine ? 'o' : 'c'].made != null),
+        expires: ex.at + PEN_MS, hist: ex.hist.map(h => ({ my: mine ? h.c : h.o, rival: mine ? h.o : h.c, myBar: mine ? h.cb : h.ob, rivalBar: mine ? h.ob : h.cb })) } : null,
       result: done ? (g.winner === uid ? 'won' : g.winner ? 'lost' : 'tie') : null }; };
   api.tcList = (uid, now = Date.now()) => { api.tcExpire(now); return db.prepare('SELECT id FROM tc WHERE challenger=? OR opponent=? ORDER BY id DESC LIMIT 60').all(uid, uid).map(r => api.tcView(uid, r.id, now)); };
 
@@ -470,7 +489,7 @@ function open(file = 'data.db') {
     const last = L.filter(m => m.uid === uid).pop(); if (last && now - last.at < CHAT_GAP) err('Vas muy rápido; espera un segundo');
     const u = db.prepare('SELECT username, display_name FROM users WHERE id=?').get(uid); L.push({ uid, name: u.display_name || u.username, text: escH(text), at: now }); chats.set(k, L); return { ok: true }; };
   api.chatList = (uid, kind, id) => { const k = chatCheck(uid, kind, id); return (chats.get(k) || []).map(m => ({ name: escH(m.name), text: m.text, at: m.at, mine: m.uid === uid })); };
-  for (const f of ['rpsRespond', 'rpsPick', 'rpsExpire', 'penRespond', 'penPlay', 'penExpire', 'bbRespond', 'bbPlan', 'bbExpire', 'tcRespond', 'tcExpire', 'tcStart', 'tcShoot', 'tcNext']) { const o = api[f]; api[f] = (...a) => { try { return o(...a); } finally { if (chats.size) api.chatPurge(); } }; }
+  for (const f of ['rpsRespond', 'rpsPick', 'rpsExpire', 'penRespond', 'penPlay', 'penExpire', 'bbRespond', 'bbPlan', 'bbExpire', 'tcRespond', 'tcExpire', 'tcStart', 'tcShoot', 'tcNext', 'tcAim']) { const o = api[f]; api[f] = (...a) => { try { return o(...a); } finally { if (chats.size) api.chatPurge(); } }; }
   return api;
 }
 module.exports = { open, BONUS, FACIAL, REWARDS, profit, dec, toAmerican, START_COINS };
