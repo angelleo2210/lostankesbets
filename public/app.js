@@ -42,7 +42,7 @@ async function start() {
 }
 async function render() {
   me = await api('/me'); if (!RW.length) RW = await api('/rewards').catch(() => []);
-  const tabs = [['lineas', 'Líneas'], ['reales', 'Reales'], ['mias', 'Mis apuestas'], ['tabla', 'Tabla'], ['tienda', 'Tienda'], ['juegos', 'Juegos'], ['perfil', 'Mi perfil']].concat(me.is_admin ? [['admin', 'Admin']] : []);
+  const tabs = [['lineas', 'Líneas'], ['reales', 'Reales'], ['mias', 'Mis apuestas'], ['tabla', 'Tabla'], ['tienda', 'Tienda'], ['juegos', 'Retos' + (me.retosPend ? ` (${me.retosPend})` : '')], ['perfil', 'Mi perfil']].concat(me.is_admin ? [['admin', 'Admin']] : []);
   A.innerHTML = `<h1>Hola, ${who(me, 56)} · 🪙 ${fmt(me.coins)}</h1><nav>${tabs.map(([k, v]) => `<button class="${k === tab ? '' : 'alt'}" data-t="${k}">${v}</button>`).join('')}</nav>
   <div id="bono" class="bono"></div><p id="msg" class="err"></p><div id="body"></div><button class="alt" id="out">Salir</button>`;
   A.querySelectorAll('nav button').forEach(b => b.onclick = () => { tab = b.dataset.t; render(); });
@@ -89,7 +89,7 @@ async function render() {
     B.querySelectorAll('[data-em]').forEach(b => b.onclick = () => { av = b.dataset.em; B.querySelectorAll('[data-em]').forEach(x => x.className = x.dataset.em === av && av ? '' : 'alt'); pv(); });
     $('#sv').onclick = async () => { try { await api('/profile', { avatar: av, display_name: $('#dn').value, facialHair: fhv() || 'ninguno', cosmetics: cos, avatarCfg: acfg }); render(); } catch (e) { flash(e.message); } }; }
   if (tab === 'tienda') await storeView(B);
-  if (tab === 'juegos') await gamesView(B);
+  if (tab === 'juegos') await (gameSel === 'rps' ? gamesView(B) : gameSel === 'pen' ? penView(B) : retosMenu(B));
   if (tab === 'perfil') { const g = document.createElement('div'); B.append(g); await storeView(g, true); }
   if (tab === 'admin') await adminView(B);
   } catch (e) { flash(e.message); }
@@ -176,7 +176,53 @@ async function storeView(B, garage) { const d = await api('/store'); const own =
   B.querySelectorAll('[data-savec]').forEach(b => b.onclick = async () => { const id = b.dataset.savec; if (!pick[id]) return flash('Elige un color primero'); try { await api('/store/color', { itemId: id, color: pick[id] }); flash('Color guardado'); } catch (e) { flash(e.message); } }); }
 
 // ---- Juegos: Piedra, Papel o Tijera ----
-let rpsScreen = null;
+let rpsScreen = null, gameSel = null, penScreen = null;
+async function retosMenu(B) { const [r, p] = await Promise.all([api('/rps'), api('/pen')]), pend = d => d.games.filter(g => g.status === 'pending' && g.mine === 'received').length, turn = d => d.games.filter(g => g.status === 'accepted' && !(g.myPick || g.iPlayed)).length;
+  const tile = (k, ic, n, d) => `<button class="alt retot" data-gm="${k}">${ic}<b>${n}</b><span class="small">${pend(d) ? `📩 ${pend(d)} reto(s) recibido(s)` : ''}${turn(d) ? ` · 🎯 te toca en ${turn(d)}` : ''}</span></button>`;
+  B.innerHTML = `<div class="card"><h2>⚔️ Retos</h2><p class="small">Elige un minijuego para retar a un amigo con monedas.</p><div class="retos">${tile('rps', HAND('piedra', 70), 'Piedra, papel o tijera', r)}${tile('pen', GOAL(null, null, 90), 'Tanda de penaltis', p)}</div></div>`;
+  B.querySelectorAll('[data-gm]').forEach(b => b.onclick = () => { gameSel = b.dataset.gm; render(); }); }
+// ---- Tanda de penaltis ----
+const ZN = { izquierda: 'Izquierda', centro: 'Centro', derecha: 'Derecha' }, ZX = { izquierda: 55, centro: 120, derecha: 185 };
+const GOAL = (shot, save, w = 240, goal) => `<svg viewBox="0 0 240 150" width="${w}" style="max-width:100%"><defs><linearGradient id="gg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4ade80"/><stop offset="1" stop-color="#15803d"/></linearGradient><pattern id="net" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M0 0L10 10M10 0L0 10" stroke="#fff" stroke-opacity=".25"/></pattern></defs>
+  <rect width="240" height="150" fill="url(#gg)" rx="10"/><rect x="20" y="18" width="200" height="92" fill="url(#net)" stroke="#f8fafc" stroke-width="6" stroke-linejoin="round"/><path d="M86 18V110M153 18V110" stroke="#fff" stroke-opacity=".35" stroke-dasharray="4 4"/>
+  <path d="M10 112H230" stroke="#fff" stroke-width="3"/>${save ? `<g transform="translate(${ZX[save]},62)"><circle r="11" cy="-26" fill="#fde68a"/><rect x="-16" y="-14" width="32" height="40" rx="10" fill="#f97316"/><path d="M-16 -8L-34 -24M16 -8L34 -24" stroke="#f97316" stroke-width="8" stroke-linecap="round"/></g>` : ''}
+  ${shot ? `<g transform="translate(${ZX[shot]},${goal === false ? 40 : 75})"><circle r="10" fill="#fff" stroke="#111" stroke-width="2"/><path d="M-4-3l4-3 4 3-1.5 5h-5z" fill="#111"/></g>` : '<g transform="translate(120,132)"><circle r="10" fill="#fff" stroke="#111" stroke-width="2"/><path d="M-4-3l4-3 4 3-1.5 5h-5z" fill="#111"/></g>'}</svg>`;
+async function penView(B) {
+  const d = await api('/pen'), G = d.games, sel = penScreen && G.find(g => g.id === penScreen), back = () => { penScreen = null; render(); };
+  const left = g => `${Math.max(0, Math.ceil((g.expires - Date.now()) / 3600e3))} h`;
+  const board = g => `<div class="pen-sb"><span>Tú <b>${g.myGoals}</b></span><span>Ronda ${Math.min(g.round, Math.max(5, g.round))}${g.round > 5 ? ' · muerte súbita' : ' de 5'}</span><span><b>${g.rivalGoals}</b> ${esc(g.rival)}</span></div>
+    <div class="pen-dots">${g.rounds.map(r => `<span title="Ronda ${r.n}">${r.myGoal ? '⚽' : '🧤'}</span>`).join('')}</div><div class="pen-dots">${g.rounds.map(r => `<span>${r.rivalGoal ? '⚽' : '🧤'}</span>`).join('')}</div>`;
+  const hist = g => g.rounds.map(r => `<div class="opt ${r.myGoal ? 'won' : 'lost'}"><span class="small">R${r.n} · Tu tiro ${ZN[r.myShot]} vs su atajada ${ZN[r.rivalSave]}: ${r.myGoal ? '⚽ Gol' : '🧤 Atajada'}</span></div><div class="opt ${r.rivalGoal ? 'lost' : 'won'}"><span class="small">R${r.n} · Su tiro ${ZN[r.rivalShot]} vs tu atajada ${ZN[r.mySave]}: ${r.rivalGoal ? '⚽ Gol' : '🧤 ¡Atajaste!'}</span></div>`).reverse().join('');
+  if (sel && sel.status === 'done') { const w = sel.result === 'won', last = sel.rounds[sel.rounds.length - 1];
+    B.innerHTML = `<div class="card rps-res ${w ? 'won' : 'lost'}"><h2>Tanda de penaltis · ${w ? '✅ ¡Ganaste!' : '❌ Perdiste'}</h2>${board(sel)}${last ? GOAL(last.myShot, last.rivalSave, 240, last.myGoal) : ''}
+      <p>${sel.reason === 'abandono' ? (w ? 'Tu rival no jugó a tiempo. ' : 'No jugaste a tiempo (24 h). ') : ''}${w ? `Te llevas el bote: 🪙 ${fmt(sel.stake * 2)}` : `Perdiste 🪙 ${fmt(sel.stake)}`}</p>${hist(sel)}<button id="rb">Volver a Tanda de penaltis</button></div>`;
+    $('#rb').onclick = back; return; }
+  if (sel && sel.status === 'accepted') { let shot = null, save = null;
+    const draw = () => { B.innerHTML = `<div class="card"><h2>Tanda de penaltis vs ${esc(sel.rival)} · bote 🪙 ${fmt(sel.stake * 2)}</h2>${board(sel)}
+      ${sel.iPlayed ? `<p>Ya jugaste esta ronda. Esperando a ${esc(sel.rival)}… (sus elecciones están ocultas). Le quedan ${left(sel)}.</p>${GOAL(null, null)}`
+      : `<p class="small">Elige en secreto dónde tiras y dónde atajas. ${sel.rivalPlayed ? 'Tu rival ya jugó esta ronda.' : ''} Tienes ${left(sel)} o pierdes la serie.</p>${GOAL(shot, save)}
+      <div class="small">⚽ Tu tiro</div><div class="row">${Object.keys(ZN).map(z => `<button class="${shot === z ? '' : 'alt'}" data-sh="${z}">${ZN[z]}</button>`).join('')}</div>
+      <div class="small">🧤 Tu atajada</div><div class="row">${Object.keys(ZN).map(z => `<button class="${save === z ? '' : 'alt'}" data-sv="${z}">${ZN[z]}</button>`).join('')}</div>
+      <button id="pgo" ${shot && save ? '' : 'disabled style="opacity:.5"'}>Confirmar ronda ${sel.round}</button>`}${hist(sel)}<button class="alt" id="rb">Volver</button></div>`;
+      B.querySelectorAll('[data-sh]').forEach(b => b.onclick = () => { shot = b.dataset.sh; draw(); }); B.querySelectorAll('[data-sv]').forEach(b => b.onclick = () => { save = b.dataset.sv; draw(); });
+      if ($('#pgo')) $('#pgo').onclick = async () => { try { await api('/pen/play', { id: sel.id, shot, save }); render(); } catch (e) { flash(e.message); } }; $('#rb').onclick = back; };
+    draw(); return; }
+  const rec = G.filter(g => g.status === 'pending' && g.mine === 'received'), sent = G.filter(g => g.status === 'pending' && g.mine === 'sent'), play = G.filter(g => g.status === 'accepted'), past = G.filter(g => !['pending', 'accepted'].includes(g.status));
+  const ST = { declined: 'Rechazado (sin cobro)', expired: 'Vencido (sin cobro)' };
+  B.innerHTML = `<button class="alt" id="toRetos" style="width:auto">← Retos</button><div class="card"><h2>⚽ Tanda de penaltis</h2><div style="text-align:center">${GOAL('derecha', 'izquierda', 220)}</div>
+    <p class="small">Reta a un amigo. No se cobra nada hasta que acepte (tiene 24 h); al aceptar se descuenta la apuesta de los dos. 5 rondas: en cada una eliges en secreto tiro y atajada (izquierda, centro, derecha). Si empatan, muerte súbita. Quien no juegue su ronda en 24 h pierde la serie. El ganador se lleva todo el bote.</p>
+    <div class="row"><select id="ro">${d.friends.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('')}</select><input id="rs" type="number" min="${d.min}" max="${d.max}" step="1" placeholder="Apuesta (${d.min}–${fmt(d.max)})"><button id="rgo">Retar</button></div>
+    <div class="small">Mínimo 🪙 ${fmt(d.min)} · máximo 🪙 ${fmt(d.max)} · tienes 🪙 ${fmt(me.coins)}</div></div>
+    <div class="card"><h2>Retos recibidos</h2>${rec.map(g => `<div class="opt"><span>${esc(g.rival)} te reta por 🪙 ${fmt(g.stake)} · <span class="small">${left(g)} para aceptar</span></span><span><button data-ac="${g.id}">Aceptar</button> <button class="alt" data-rj="${g.id}">Rechazar</button></span></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
+    <div class="card"><h2>En juego</h2>${play.map(g => `<div class="opt"><span>vs ${esc(g.rival)} · ${g.myGoals}-${g.rivalGoals} · ronda ${g.round} ${g.iPlayed ? '<span class="small">(esperando rival)</span>' : '<b>· te toca</b>'}</span><button data-go="${g.id}">${g.iPlayed ? 'Ver' : 'Jugar'}</button></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
+    <div class="card"><h2>Retos enviados</h2>${sent.map(g => `<div class="opt"><span>A ${esc(g.rival)} por 🪙 ${fmt(g.stake)}</span><span class="small">${left(g)} para aceptar</span></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
+    <div class="card"><h2>Historial</h2>${past.map(g => `<div class="opt ${g.result || ''}"><span>vs ${esc(g.rival)} · 🪙 ${fmt(g.stake)}${g.status === 'done' ? ` · ${g.myGoals}-${g.rivalGoals}` : ''}</span><span>${g.status === 'done' ? `<a href="#" data-go="${g.id}">${g.result === 'won' ? '✅ ¡Ganaste!' : '❌ Perdiste'}</a>` : ST[g.status]}</span></div>`).join('') || '<p class="small">Aún no hay series</p>'}</div>`;
+  $('#toRetos').onclick = () => { gameSel = null; render(); };
+  $('#rgo').onclick = async () => { const v = Number($('#rs').value); if (!Number.isInteger(v) || v < d.min || v > d.max) return flash(`La apuesta debe ser entre ${d.min} y ${fmt(d.max)}`);
+    try { await api('/pen', { opponentId: Number($('#ro').value), stake: v }); flash('Reto de Tanda de penaltis enviado'); render(); } catch (e) { flash(e.message); } };
+  B.querySelectorAll('[data-ac],[data-rj]').forEach(b => b.onclick = async () => { const id = Number(b.dataset.ac || b.dataset.rj);
+    try { await api('/pen/respond', { id, accept: !!b.dataset.ac }); if (b.dataset.ac) penScreen = id; render(); } catch (e) { flash(e.message); } });
+  B.querySelectorAll('[data-go]').forEach(b => b.onclick = e => { e.preventDefault(); penScreen = Number(b.dataset.go); render(); }); }
 const HAND = (k, z = 90) => { const sk = '#f1c27d', d = '#c68642', S = `stroke="#7a4a1f" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"`;
   const g = `<defs><radialGradient id="hg${k}" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#ffe7c2"/><stop offset=".6" stop-color="${sk}"/><stop offset="1" stop-color="${d}"/></radialGradient></defs>`;
   const f = `fill="url(#hg${k})" ${S}`;
@@ -192,7 +238,7 @@ async function gamesView(B) {
     const cl = sel.result === 'ganaste' ? 'won' : sel.result === 'perdiste' ? 'lost' : '';
     B.innerHTML = `<div class="card rps-res ${cl}"><h2>${sel.result === 'ganaste' ? '✅ ¡Ganaste!' : sel.result === 'perdiste' ? '❌ Perdiste' : '🤝 Empate'}</h2>
       <div class="rps-vs"><div>${HAND(sel.myPick, 110)}<div>Tú: ${RPSN[sel.myPick]}</div></div><b>VS</b><div>${HAND(sel.rivalPick, 110)}<div>${esc(sel.rival)}: ${RPSN[sel.rivalPick]}</div></div></div>
-      <p>${sel.result === 'ganaste' ? `Te llevas el bote: 🪙 ${fmt(sel.stake * 2)}` : sel.result === 'perdiste' ? `Perdiste 🪙 ${fmt(sel.stake)}` : `Se devolvió 🪙 ${fmt(sel.stake)} a cada uno`}</p><button id="rb">Volver a Juegos</button></div>`;
+      <p>${sel.result === 'ganaste' ? `Te llevas el bote: 🪙 ${fmt(sel.stake * 2)}` : sel.result === 'perdiste' ? `Perdiste 🪙 ${fmt(sel.stake)}` : `Se devolvió 🪙 ${fmt(sel.stake)} a cada uno`}</p><button id="rb">Volver a Piedra, papel o tijera</button></div>`;
     $('#rb').onclick = () => { rpsScreen = null; render(); }; return; }
   if (sel && sel.status === 'accepted') { // Pantalla 2: elegir
     B.innerHTML = `<div class="card"><h2>Elige contra ${esc(sel.rival)} · 🪙 ${fmt(sel.stake)}</h2>${sel.myPick ? `<p>Elegiste <b>${RPSN[sel.myPick]}</b>. Esperando a ${esc(sel.rival)}… (su elección está oculta)</p><div class="rps-vs">${HAND(sel.myPick, 110)}</div>`
@@ -203,13 +249,14 @@ async function gamesView(B) {
   // Pantalla 1: retar + pendientes + historial
   const rec = G.filter(g => g.status === 'pending' && g.mine === 'received'), sent = G.filter(g => g.status === 'pending' && g.mine === 'sent'), play = G.filter(g => g.status === 'accepted'), hist = G.filter(g => !['pending', 'accepted'].includes(g.status));
   const ST = { done: '', declined: 'Rechazado (devuelto)', expired: 'Vencido (devuelto)' };
-  B.innerHTML = `<div class="card"><h2>✊✋✌️ Piedra, Papel o Tijera</h2><p class="small">Reta a un amigo. Tu apuesta se retiene al retar; tiene 24 h para aceptar. El ganador se lleva todo el bote; empate devuelve.</p>
+  B.innerHTML = `<button class="alt" id="toRetos" style="width:auto">← Retos</button><div class="card"><h2>✊✋✌️ Piedra, papel o tijera</h2><p class="small">Reta a un amigo. Tu apuesta se retiene al retar; tiene 24 h para aceptar. El ganador se lleva todo el bote; empate devuelve.</p>
     <div class="row"><select id="ro">${d.friends.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('')}</select><input id="rs" type="number" min="${d.min}" max="${d.max}" step="1" placeholder="Apuesta (${d.min}–${fmt(d.max)})"><button id="rgo">Retar</button></div>
     <div class="small">Mínimo 🪙 ${fmt(d.min)} · máximo 🪙 ${fmt(d.max)} · tienes 🪙 ${fmt(me.coins)}</div></div>
     <div class="card"><h2>Retos recibidos</h2>${rec.map(g => `<div class="opt"><span>${esc(g.rival)} te reta por 🪙 ${fmt(g.stake)} · <span class="small">${left(g)}</span></span><span><button data-ac="${g.id}">Aceptar</button> <button class="alt" data-rj="${g.id}">Rechazar</button></span></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
     <div class="card"><h2>Por jugar</h2>${play.map(g => `<div class="opt"><span>vs ${esc(g.rival)} · 🪙 ${fmt(g.stake)} ${g.myPick ? '<span class="small">(ya elegiste)</span>' : ''}</span><button data-go="${g.id}">${g.myPick ? 'Ver' : 'Elegir'}</button></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
     <div class="card"><h2>Retos enviados</h2>${sent.map(g => `<div class="opt"><span>A ${esc(g.rival)} por 🪙 ${fmt(g.stake)}</span><span class="small">${left(g)}</span></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
     <div class="card"><h2>Historial</h2>${hist.map(g => `<div class="opt ${g.result === 'ganaste' ? 'won' : g.result === 'perdiste' ? 'lost' : ''}"><span>vs ${esc(g.rival)} · 🪙 ${fmt(g.stake)}</span><span>${g.status === 'done' ? `<a href="#" data-go="${g.id}">${g.result === 'ganaste' ? '✅ ¡Ganaste!' : g.result === 'perdiste' ? '❌ Perdiste' : '🤝 Empate'}</a>` : ST[g.status]}</span></div>`).join('') || '<p class="small">Aún no hay partidas</p>'}</div>`;
+  $('#toRetos').onclick = () => { gameSel = null; render(); };
   $('#rgo').onclick = async () => { const v = Number($('#rs').value); if (!Number.isInteger(v) || v < d.min || v > d.max) return flash(`La apuesta debe ser entre ${d.min} y ${fmt(d.max)}`);
     try { await api('/rps', { opponentId: Number($('#ro').value), stake: v }); render(); } catch (e) { flash(e.message); } };
   B.querySelectorAll('[data-ac],[data-rj]').forEach(b => b.onclick = async () => { const id = Number(b.dataset.ac || b.dataset.rj);

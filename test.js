@@ -204,4 +204,29 @@ t('avatar por capas: equipar al comprar, verificar posesión, quitar al vender',
   Q.sellItem(q, 'top_hoodie'); assert.deepEqual(cfg().wear, {});
   for (const id in AV.LAYERS) for (const pose of ['', 'cruzado']) { const svg = AV.render({ body: 'gordito', wear: { [AV.LAYERS[id][0]]: { id, color: 'rojo' } } }, { size: 120, pose }); assert.ok(!/undefined|NaN/.test(svg), id); }
   for (const f in AV.FACES) for (const b in AV.BODIES) assert.ok(!/undefined|NaN/.test(AV.render({ face: f, body: b }))); });
+t('penales', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const a = Q.register(Q.newInvite(), 'pa', '1111'), b = Q.register(Q.newInvite(), 'pb', '1111');
+  const c = id => Q.db.prepare('SELECT coins FROM users WHERE id=?').get(id).coins, set = (id, v) => Q.db.prepare('UPDATE users SET coins=? WHERE id=?').run(v, id); set(a, 30000); set(b, 30000);
+  for (const bad of [9, 25001, 1.5, 'x']) assert.throws(() => Q.penChallenge(a, b, bad), /entre 10/); assert.throws(() => Q.penChallenge(a, a, 100), /ti mismo/);
+  set(a, 50); assert.throws(() => Q.penChallenge(a, b, 100), /suficientes/); set(a, 30000);
+  // retar no mueve monedas; rechazo y vencimiento: saldos intactos
+  const g0 = Q.penChallenge(a, b, 1000).id; assert.equal(c(a), 30000); Q.penRespond(b, g0, false); assert.equal(c(a), 30000); assert.equal(c(b), 30000); assert.equal(Q.penView(a, g0).status, 'declined');
+  const t0 = Date.now(), g1 = Q.penChallenge(a, b, 1000, t0).id; Q.penExpire(t0 + 24 * 3600e3 + 1); assert.equal(Q.penView(a, g1).status, 'expired'); assert.equal(c(a), 30000); assert.equal(c(b), 30000);
+  assert.throws(() => Q.penRespond(b, g1, true), /no disponible/);
+  // al aceptar, si el retador ya no tiene saldo, falla sin mover nada
+  const g2 = Q.penChallenge(a, b, 25000).id; set(a, 100); assert.throws(() => Q.penRespond(b, g2, true), /retador/); assert.equal(c(a), 100); assert.equal(c(b), 30000); set(a, 30000);
+  Q.penRespond(b, g2, true); assert.equal(c(a), 5000); assert.equal(c(b), 5000);
+  // elecciones ocultas y sin doble elección
+  Q.penPlay(a, g2, 'izquierda', 'centro'); assert.throws(() => Q.penPlay(a, g2, 'derecha', 'derecha'), /Ya jugaste/);
+  const vb = Q.penView(b, g2); assert.equal(vb.rivalPlayed, true); assert.deepEqual(vb.rounds, []); assert.ok(!JSON.stringify(vb).includes('izquierda'));
+  Q.penPlay(b, g2, 'centro', 'izquierda'); let va = Q.penView(a, g2); assert.equal(va.myGoals, 0); assert.equal(va.rivalGoals, 0); assert.equal(va.round, 2); // a atajado, b atajado
+  // rondas 2-5: ambos marcan → 4-4, muerte súbita
+  for (let r = 2; r <= 5; r++) { Q.penPlay(a, g2, 'derecha', 'izquierda'); Q.penPlay(b, g2, 'centro', 'izquierda'); }
+  va = Q.penView(a, g2); assert.equal(va.status, 'accepted'); assert.equal(va.myGoals, 4); assert.equal(va.round, 6);
+  Q.penPlay(a, g2, 'derecha', 'centro'); Q.penPlay(b, g2, 'centro', 'izquierda'); // a gol, b atajado
+  va = Q.penView(a, g2); assert.equal(va.status, 'done'); assert.equal(va.result, 'won'); assert.equal(c(a), 55000); assert.equal(c(b), 5000); assert.throws(() => Q.penPlay(a, g2, 'derecha', 'centro'), /no disponible/);
+  // abandono tras aceptar: quien no juega en 24 h pierde la serie
+  const t1 = Date.now(), g3 = Q.penChallenge(b, a, 500, t1).id; Q.penRespond(a, g3, true, t1); Q.penPlay(a, g3, 'centro', 'centro', t1 + 1000);
+  Q.penExpire(t1 + 24 * 3600e3 - 1); assert.equal(Q.penView(a, g3).status, 'accepted'); Q.penExpire(t1 + 24 * 3600e3 + 5);
+  const v3 = Q.penView(a, g3); assert.equal(v3.status, 'done'); assert.equal(v3.result, 'won'); assert.equal(v3.reason, 'abandono'); assert.equal(c(a), 55500); assert.equal(c(b), 4500);
+  Q.penExpire(t1 + 99 * 3600e3); assert.equal(c(a), 55500); assert.ok(Q.penList(a).length >= 4); });
 console.log(`\n${n} pruebas OK`);

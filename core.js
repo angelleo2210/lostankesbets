@@ -42,6 +42,7 @@ function hash(pin, salt = crypto.randomBytes(16).toString('hex')) {
   return { salt, hash: crypto.scryptSync(String(pin), salt, 32).toString('hex') };
 }
 
+const PEN = ['izquierda', 'centro', 'derecha'], PEN_MS = 24 * 3600e3, PEN_ROUNDS = 5;
 const RPS = ['piedra', 'papel', 'tijera'], BEATS = { piedra: 'tijera', tijera: 'papel', papel: 'piedra' }, RPS_MIN = 10, RPS_MAX = 25000, RPS_MS = 24 * 3600e3;
 function open(file = 'data.db') {
   const db = new DatabaseSync(file);
@@ -56,6 +57,8 @@ function open(file = 'data.db') {
   CREATE TABLE IF NOT EXISTS parlay_legs(id INTEGER PRIMARY KEY, parlay_id INTEGER, line_id INTEGER, option_id INTEGER, odds INTEGER, status TEXT DEFAULT 'open');`);
   db.exec('CREATE TABLE IF NOT EXISTS topups(id INTEGER PRIMARY KEY, user_id INTEGER, admin_id INTEGER, amount INTEGER, created TEXT DEFAULT CURRENT_TIMESTAMP)');
   db.exec('CREATE TABLE IF NOT EXISTS unlocks(user_id INTEGER, item_id TEXT, rank INTEGER, created TEXT DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(user_id, item_id))');
+  db.exec('CREATE TABLE IF NOT EXISTS pen(id INTEGER PRIMARY KEY, challenger INTEGER, opponent INTEGER, stake INTEGER, status TEXT, created INTEGER, round_start INTEGER, winner INTEGER, reason TEXT, resolved INTEGER)');
+  db.exec('CREATE TABLE IF NOT EXISTS pen_rounds(game_id INTEGER, n INTEGER, c_shot TEXT, c_save TEXT, o_shot TEXT, o_save TEXT, c_goal INTEGER, o_goal INTEGER, PRIMARY KEY(game_id, n))');
   db.exec('CREATE TABLE IF NOT EXISTS rps(id INTEGER PRIMARY KEY, challenger INTEGER, opponent INTEGER, stake INTEGER, status TEXT, c_pick TEXT, o_pick TEXT, winner INTEGER, created INTEGER, resolved INTEGER)');
   const ucols = db.prepare('PRAGMA table_info(users)').all().map(c => c.name);
   if (!ucols.includes('avatar')) db.exec('ALTER TABLE users ADD COLUMN avatar TEXT');
@@ -106,6 +109,52 @@ function open(file = 'data.db') {
       return last === 'won' && n >= 3 ? { kind: 'fuego', n } : last === 'lost' && n >= 2 ? { kind: 'hielo', n } : null; },
     // Piedra/Papel/Tijera entre amigos. Apuestas retenidas al retar/aceptar; ganador se lleva el bote; empate devuelve.
     RPS_MIN, RPS_MAX, RPS_MS,
+    PEN, PEN_MS, PEN_ROUNDS,
+    // Penales: nada de monedas se mueve hasta que se acepta; al aceptar se retienen ambas apuestas a la vez.
+    penExpire: (now = Date.now()) => tx(() => {
+      db.prepare("UPDATE pen SET status='expired', resolved=? WHERE status='pending' AND created<=?").run(now, now - PEN_MS);
+      for (const g of db.prepare("SELECT * FROM pen WHERE status='accepted' AND round_start<=?").all(now - PEN_MS)) {
+        const n = db.prepare('SELECT COUNT(*) k FROM pen_rounds WHERE game_id=? AND c_goal IS NOT NULL').get(g.id).k + 1, r = db.prepare('SELECT * FROM pen_rounds WHERE game_id=? AND n=?').get(g.id, n) || {};
+        const cp = !!r.c_shot, op = !!r.o_shot;
+        if (cp === op) { // ninguno jugó: se devuelve a ambos
+          if (db.prepare("UPDATE pen SET status='expired', reason='ninguno jugó', resolved=? WHERE id=? AND status='accepted'").run(now, g.id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id IN (?,?)').run(g.stake, g.challenger, g.opponent);
+        } else { const w = cp ? g.challenger : g.opponent;
+          if (db.prepare("UPDATE pen SET status='done', winner=?, reason='abandono', resolved=? WHERE id=? AND status='accepted'").run(w, now, g.id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(2 * g.stake, w); } } }),
+    penChallenge: (uid, oppId, stake, now = Date.now()) => { stake = Number(stake); oppId = Number(oppId);
+      if (!Number.isInteger(stake) || stake < RPS_MIN || stake > RPS_MAX) err(`La apuesta debe ser un entero entre ${RPS_MIN} y ${RPS_MAX.toLocaleString('es')}`);
+      if (oppId === uid) err('No puedes retarte a ti mismo');
+      const o = db.prepare('SELECT id, is_admin FROM users WHERE id=?').get(oppId); if (!o || o.is_admin) err('Ese amigo no existe');
+      if (db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins < stake) err('No tienes monedas suficientes');
+      return { id: Number(db.prepare("INSERT INTO pen(challenger,opponent,stake,status,created) VALUES(?,?,?,'pending',?)").run(uid, oppId, stake, now).lastInsertRowid) }; },
+    penRespond: (uid, id, accept, now = Date.now()) => { api.penExpire(now); return tx(() => { const g = db.prepare("SELECT * FROM pen WHERE id=? AND opponent=? AND status='pending'").get(id, uid); if (!g) err('Reto no disponible');
+      if (!accept) { db.prepare("UPDATE pen SET status='declined', resolved=? WHERE id=?").run(now, id); return { status: 'declined' }; }
+      const c = id2 => db.prepare('SELECT coins FROM users WHERE id=?').get(id2).coins;
+      if (c(uid) < g.stake) err('No tienes monedas suficientes para aceptar');
+      if (c(g.challenger) < g.stake) err('El retador ya no tiene monedas suficientes; el reto no se puede aceptar');
+      db.prepare('UPDATE users SET coins=coins-? WHERE id IN (?,?)').run(g.stake, uid, g.challenger);
+      db.prepare("UPDATE pen SET status='accepted', round_start=? WHERE id=?").run(now, id); return { status: 'accepted' }; }); },
+    penPlay: (uid, id, shot, save, now = Date.now()) => { if (!PEN.includes(shot) || !PEN.includes(save)) err('Elige tiro y atajada: izquierda, centro o derecha'); api.penExpire(now); return tx(() => {
+      const g = db.prepare("SELECT * FROM pen WHERE id=? AND status='accepted' AND (challenger=? OR opponent=?)").get(id, uid, uid); if (!g) err('Serie no disponible');
+      const n = db.prepare('SELECT COUNT(*) k FROM pen_rounds WHERE game_id=? AND c_goal IS NOT NULL').get(id).k + 1, me = g.challenger === uid ? 'c' : 'o';
+      db.prepare('INSERT OR IGNORE INTO pen_rounds(game_id,n) VALUES(?,?)').run(id, n);
+      if (!db.prepare(`UPDATE pen_rounds SET ${me}_shot=?, ${me}_save=? WHERE game_id=? AND n=? AND ${me}_shot IS NULL`).run(shot, save, id, n).changes) err('Ya jugaste esta ronda; espera a tu rival');
+      const r = db.prepare('SELECT * FROM pen_rounds WHERE game_id=? AND n=?').get(id, n);
+      if (r.c_shot && r.o_shot) { db.prepare('UPDATE pen_rounds SET c_goal=?, o_goal=? WHERE game_id=? AND n=?').run(+(r.c_shot !== r.o_save), +(r.o_shot !== r.c_save), id, n);
+        const t = db.prepare('SELECT SUM(c_goal) c, SUM(o_goal) o FROM pen_rounds WHERE game_id=? AND c_goal IS NOT NULL').get(id);
+        if (n >= PEN_ROUNDS && t.c !== t.o) { const w = t.c > t.o ? g.challenger : g.opponent;
+          if (!db.prepare("UPDATE pen SET status='done', winner=?, reason='goles', resolved=? WHERE id=? AND status='accepted'").run(w, now, id).changes) err('Serie ya resuelta');
+          db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(2 * g.stake, w); }
+        else db.prepare('UPDATE pen SET round_start=? WHERE id=?').run(now, id); }
+      return api.penView(uid, id); }); },
+    penView: (uid, id) => { const g = db.prepare('SELECT p.*, a.username cu, a.display_name cd, b.username ou, b.display_name od FROM pen p JOIN users a ON a.id=p.challenger JOIN users b ON b.id=p.opponent WHERE p.id=?').get(id);
+      if (!g || (g.challenger !== uid && g.opponent !== uid)) err('Serie no encontrada'); const mine = g.challenger === uid, me = mine ? 'c' : 'o', ot = mine ? 'o' : 'c';
+      const rs = db.prepare('SELECT * FROM pen_rounds WHERE game_id=? ORDER BY n').all(id), done = rs.filter(r => r.c_goal !== null), cur = rs.find(r => r.c_goal === null);
+      return { id: g.id, stake: g.stake, status: g.status, reason: g.reason, created: g.created, resolved: g.resolved, mine: mine ? 'sent' : 'received',
+        expires: g.status === 'pending' ? g.created + PEN_MS : g.status === 'accepted' ? g.round_start + PEN_MS : null,
+        rival: mine ? (g.od || g.ou) : (g.cd || g.cu), round: done.length + 1, myGoals: done.reduce((s, r) => s + r[me + '_goal'], 0), rivalGoals: done.reduce((s, r) => s + r[ot + '_goal'], 0),
+        iPlayed: !!(cur && cur[me + '_shot']), rivalPlayed: !!(cur && cur[ot + '_shot']), result: g.status === 'done' ? (g.winner === uid ? 'won' : 'lost') : null,
+        rounds: done.map(r => ({ n: r.n, myShot: r[me + '_shot'], mySave: r[me + '_save'], rivalShot: r[ot + '_shot'], rivalSave: r[ot + '_save'], myGoal: !!r[me + '_goal'], rivalGoal: !!r[ot + '_goal'] })) }; },
+    penList: (uid, now = Date.now()) => { api.penExpire(now); return db.prepare('SELECT id FROM pen WHERE challenger=? OR opponent=? ORDER BY id DESC LIMIT 60').all(uid, uid).map(r => api.penView(uid, r.id)); },
     rpsExpire: (now = Date.now()) => tx(() => { for (const g of db.prepare("SELECT id, challenger, stake FROM rps WHERE status='pending' AND created<=?").all(now - RPS_MS))
       if (db.prepare("UPDATE rps SET status='expired', resolved=? WHERE id=? AND status='pending'").run(now, g.id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(g.stake, g.challenger); }),
     rpsChallenge: (uid, oppId, stake, now = Date.now()) => { stake = Number(stake); oppId = Number(oppId);
