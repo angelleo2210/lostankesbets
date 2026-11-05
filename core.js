@@ -72,6 +72,10 @@ function open(file = 'data.db') {
   const err = m => { const e = new Error(m); e.user = true; throw e; };
   const getCfg = uid => { try { return AV.norm(JSON.parse(db.prepare('SELECT avatar_cfg FROM users WHERE id=?').get(uid)?.avatar_cfg || 'null')); } catch { return AV.norm(null); } };
   const editWear = (uid, fn) => { const c = getCfg(uid); fn(c.wear); db.prepare('UPDATE users SET avatar_cfg=? WHERE id=?').run(JSON.stringify(c), uid); };
+  // Migración: la Gorra antigua (acc_gorra) pasa a la Gorra Casual nueva; si ya la tenía, se devuelve lo pagado. Sin pérdidas.
+  tx(() => { for (const o of db.prepare("SELECT user_id, price FROM purchases WHERE item_id='acc_gorra'").all()) {
+    if (db.prepare("SELECT 1 FROM purchases WHERE user_id=? AND item_id='head_gorra_casual'").get(o.user_id)) { db.prepare("DELETE FROM purchases WHERE user_id=? AND item_id='acc_gorra'").run(o.user_id); db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(o.price || 0, o.user_id); }
+    else db.prepare("UPDATE purchases SET item_id='head_gorra_casual' WHERE user_id=? AND item_id='acc_gorra'").run(o.user_id); } });
   const api = {
     // Capas del avatar: solo se equipa lo que el usuario posee; color = el del artículo comprado.
     _unequip: (uid, itemId) => editWear(uid, w => { for (const k in w) if (w[k].id === itemId) delete w[k]; }),

@@ -123,6 +123,16 @@ t('avatar cuerpo completo', () => {
   for (const k in AV.CAT) for (const v of AV.CAT[k].opts) assert.ok(!/undefined/.test(AV.render({ [k]: v }, { facialHair: { style: 'perilla' } })), k + v);
   assert.ok(AV.render(AV.DEFAULT, { head: true }).includes('viewBox="16'));
 });
+t('gorras y sombreros: 9 ítems, fotos 6 colores, capa de avatar', () => { const AV = require('./public/avatar'), fs = require('fs'); const ST = require('./public/store'); const hs = ST.ITEMS.filter(i => i.sub === 'gorras'); assert.equal(hs.length, 9);
+  for (const i of hs) { assert.ok(AV.LAYERS[i.id] && AV.LAYERS[i.id][0] === 'cabeza', i.id); assert.deepEqual(i.colors, ['rojo', 'azul', 'verde', 'dorado', 'blanco', 'negro']);
+    for (const c of i.colors) assert.ok(fs.statSync(__dirname + '/public/img/store/' + i.id + '_' + c + '.jpg').size > 5000, i.id + c);
+    const svg = AV.render({ wear: { cabeza: { id: i.id, color: 'rojo' } } }, { size: 120 }); assert.ok(!/undefined|NaN/.test(svg), i.id); } });
+t('migración acc_gorra → head_gorra_casual sin perder nada', () => { const f = require('os').tmpdir() + '/ltb-gor-' + process.pid + '.db'; let Q = open(f); Q.setupAdmin('angel', '1234');
+  Q.register(Q.newInvite(), 'g1', '1111'); Q.register(Q.newInvite(), 'g2', '1111'); const uid = n => Q.db.prepare('SELECT id FROM users WHERE username=?').get(n).id, a = uid('g1'), b = uid('g2'), c = id => Q.db.prepare('SELECT coins FROM users WHERE id=?').get(id).coins;
+  Q.db.prepare("INSERT INTO purchases(user_id,item_id,price,color) VALUES(?,'acc_gorra',5000,'azul'),(?,'acc_gorra',5000,'rojo'),(?,'head_gorra_casual',5000,'negro')").run(a, b, b);
+  const ca = c(a), cb = c(b); Q.db.close(); Q = open(f); open(f).db.close();
+  const own = id => Q.db.prepare('SELECT item_id, color FROM purchases WHERE user_id=? ORDER BY item_id').all(id).map(r => r.item_id + ':' + r.color);
+  assert.deepEqual(own(a), ['head_gorra_casual:azul']); assert.deepEqual(own(b), ['head_gorra_casual:negro']); assert.equal(c(a), ca); assert.equal(c(b), cb + 5000); Q.db.close(); require('fs').unlinkSync(f); });
 t('migración idempotente users', () => { const f = require('os').tmpdir() + '/ltb-mig-' + process.pid + '.db';
   const { DatabaseSync } = require('node:sqlite'); const d = new DatabaseSync(f); d.exec('CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT UNIQUE COLLATE NOCASE, pin_hash TEXT, salt TEXT, coins INTEGER, is_admin INTEGER DEFAULT 0)'); d.close();
   open(f).db.close(); const Q = open(f); assert.ok(Q.db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'display_name') && Q.db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'facial_hair') && Q.db.prepare('PRAGMA table_info(users)').all().some(c => c.name === 'avatar_cfg')); Q.db.close(); require('fs').unlinkSync(f); });
@@ -143,7 +153,7 @@ t('tienda: catálogo, departamentos, fotos', () => { const ST = require('./publi
   assert.equal(new Set(ST.ITEMS.map(i => i.id)).size, ST.ITEMS.length);
   for (const i of ST.ITEMS) { assert.ok(ST.CATS.some(c => c[0] === i.cat), i.id); assert.ok(i.colors.includes(i.color), i.id); assert.equal(i.colors.length, 6);
     for (const c of i.colors) assert.ok(fs.existsSync(__dirname + '/public/' + ST.img(i.id, c)), i.id + c); }
-  const ropa = ST.ITEMS.filter(i => i.cat === 'ropa'); assert.equal(ropa.length, 24); for (const i of ropa) { assert.ok(i.price <= 25000, i.id); assert.ok(ST.SUBS.some(s => s[0] === i.sub), i.id); }
+  const ropa = ST.ITEMS.filter(i => i.cat === 'ropa'); assert.equal(ropa.length, 32); assert.ok(!ST.byId('acc_gorra')); for (const i of ropa) { assert.ok(i.price <= 25000, i.id); assert.ok(ST.SUBS.some(s => s[0] === i.sub), i.id); }
   assert.deepEqual(['casa_familiar', 'casa_moderna', 'casa_residencia'].map(id => ST.byId(id).price), [300000, 600000, 1000000]);
   assert.equal(ST.norm('car_gt', '#1e40af'), 'azul'); assert.equal(ST.norm('cad_oro', '#c0c0c0'), 'plata'); });
 t('monedas: bono diario idempotente 24h', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const q = Q.register(Q.newInvite(), 'bono', '1111'); const T = 1e12;

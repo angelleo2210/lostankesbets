@@ -5,7 +5,7 @@
   const NAMES = { rojo: 'Rojo', azul: 'Azul', verde: 'Verde', dorado: 'Dorado', blanco: 'Blanco', negro: 'Negro', oro: 'Oro', plata: 'Plata', rosa: 'Oro rosa', esmeralda: 'Esmeralda', zafiro: 'Zafiro' };
   const COLORS = ['rojo', 'azul', 'verde', 'dorado', 'blanco', 'negro'], J = ['oro', 'plata', 'rosa', 'negro', 'esmeralda', 'zafiro'];
   const CATS = [['carros', '🏎️ Carros'], ['motos', '🏍️ Motos'], ['barcos', '🛥️ Barcos'], ['aviones', '✈️ Aviones'], ['relojes', '⌚ Relojes'], ['casas', '🏠 Casas'], ['ropa', '👕 Ropa y accesorios']];
-  const SUBS = [['arriba', 'Arriba'], ['abajo', 'Abajo'], ['zapatos', 'Zapatos'], ['medias', 'Medias'], ['cadenas', 'Cadenas'], ['joyas', 'Joyas'], ['accesorios', 'Accesorios']];
+  const SUBS = [['arriba', 'Arriba'], ['abajo', 'Abajo'], ['zapatos', 'Zapatos'], ['medias', 'Medias'], ['cadenas', 'Cadenas'], ['joyas', 'Joyas'], ['gorras', 'Gorras y sombreros'], ['accesorios', 'Accesorios']];
   const it = (id, cat, name, price, color, sub, colors = COLORS) => ({ id, cat, name, price, color, colors, ...(sub ? { sub } : {}) });
   const ITEMS = [
     it('car_deportivo', 'carros', 'Deportivo Rojo', 200000, 'rojo'), it('car_gt', 'carros', 'Gran Turismo Azul', 500000, 'azul'), it('car_super', 'carros', 'Superdeportivo L', 600000, 'dorado'), it('car_hiper', 'carros', 'Hiperauto Galáctico', 1000000, 'negro'),
@@ -36,7 +36,15 @@
     it('joy_anillo', 'ropa', "Anillo de Oro", 12000, 'oro', 'joyas', J),
     it('joy_aretes', 'ropa', "Aretes de Diamante", 18000, 'oro', 'joyas', J),
     it('joy_pulsera', 'ropa', "Pulsera de Diamantes", 25000, 'oro', 'joyas', J),
-    it('acc_gorra', 'ropa', "Gorra", 5000, 'negro', 'accesorios'),
+    it('head_gorra_sport', 'ropa', "Gorra Deportiva", 3000, 'negro', 'gorras'),
+    it('head_gorro_sport', 'ropa', "Gorro Técnico", 4000, 'negro', 'gorras'),
+    it('head_visera', 'ropa', "Visera", 5000, 'negro', 'gorras'),
+    it('head_gorra_casual', 'ropa', "Gorra Casual", 5000, 'negro', 'gorras'),
+    it('head_gorro_casual', 'ropa', "Gorro de Lana", 6000, 'negro', 'gorras'),
+    it('head_bucket', 'ropa', "Sombrero Bucket", 8000, 'negro', 'gorras'),
+    it('head_gorra_lujo', 'ropa', "Gorra de Cuero", 15000, 'negro', 'gorras'),
+    it('head_gorro_lujo', 'ropa', "Gorro de Cachemira", 18000, 'negro', 'gorras'),
+    it('head_fedora', 'ropa', "Sombrero Fedora", 25000, 'negro', 'gorras'),
     it('acc_lentes', 'ropa', "Lentes de Sol", 20000, 'negro', 'accesorios'),
     it('acc_cinturon', 'ropa', "Cinturón", 15000, 'negro', 'accesorios'),
     it('acc_mochila', 'ropa', "Mochila de Lujo", 25000, 'negro', 'accesorios')
