@@ -112,9 +112,9 @@ t('recarga admin', () => {
 });
 t('avatar cuerpo completo', () => {
   const AV = require('./public/avatar'); const Q = open(':memory:'); Q.setupAdmin('angel', '1234');
-  const d = Q.register(Q.newInvite(), 'def', '1111'); assert.deepEqual(Q.leaderboard().find(r => r.username === 'def').avatarCfg, AV.DEFAULT);
-  const cfg = { skin: AV.SKIN[4], eyes: 'estrellas', mouth: 'lengua', hair: 'afro', hairColor: AV.HAIRC[4], hat: 'vaquero', hatColor: AV.COLORS[2], glasses: 'sol', earrings: 'aro', necklace: 'perlas', shirt: 'camisa', shirtColor: AV.COLORS[0], pants: 'chores', pantsColor: AV.COLORS[3], socks: 'largas', socksColor: AV.COLORS[8], shoes: 'botas', shoesColor: AV.COLORS[9] };
-  const q = Q.register(Q.newInvite(), 'cfg', '1111', cfg); assert.deepEqual(Q.leaderboard().find(r => r.username === 'cfg').avatarCfg, cfg);
+  const d = Q.register(Q.newInvite(), 'def', '1111'); assert.deepEqual(Q.leaderboard().find(r => r.username === 'def').avatarCfg, { ...AV.DEFAULT, wear: {} });
+  const cfg = { skin: AV.SKIN[2], eyes: 'estrellas', mouth: 'lengua', hair: 'afro', hairColor: AV.HAIRC[4], hat: 'vaquero', hatColor: AV.COLORS[2], glasses: 'sol', earrings: 'aro', necklace: 'perlas', shirt: 'camisa', shirtColor: AV.COLORS[0], pants: 'chores', pantsColor: AV.COLORS[3], socks: 'largas', socksColor: AV.COLORS[8], shoes: 'botas', shoesColor: AV.COLORS[9] };
+  const q = Q.register(Q.newInvite(), 'cfg', '1111', cfg); assert.deepEqual(Q.leaderboard().find(r => r.username === 'cfg').avatarCfg, { ...AV.DEFAULT, ...cfg, wear: {} });
   assert.throws(() => Q.register(Q.newInvite(), 'bad', '1111', { hat: 'corona' }), /Bloqueado/);
   for (const bad of [{ eyes: 'laser' }, { shirtColor: 'red' }, { foo: 1 }, { hairColor: '#123456' }, [1]]) assert.throws(() => Q.setProfile(q, '', '', null, undefined, bad), /inválid|desconocida/);
   Q.setProfile(q, '🦁', 'Leo', { style: 'bigote' }, undefined, { glasses: 'ninguno' }); const me = Q.leaderboard().find(r => r.username === 'cfg');

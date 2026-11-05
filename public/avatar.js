@@ -1,15 +1,34 @@
 // LosTankesBets: avatar de cuerpo completo estilo caricatura (SVG inline). Compartido navegador + servidor.
 (function (root) {
   const COLORS = ['#ef4444', '#f97316', '#facc15', '#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#ffffff', '#1f2937'];
-  const HAIRC = ['#1f1300', '#5b3a1e', '#a0522d', '#f5c542', '#e25822', '#9ca3af', '#ffffff', '#3b82f6', '#ec4899'];
-  const SKIN = ['#ffe0bd', '#f1c27d', '#e0ac69', '#c68642', '#8d5524', '#5c3a1e'];
+  const HAIRC = ['#1f1300', '#5b3a1e', '#a0522d', '#f5c542', '#9ca3af', '#e25822'];
+  const SKIN = ['#f1c27d', '#c68642', '#6b4226'];
+  // 10 caras (forma de cabeza): [rx, alto arriba, alto abajo, ancho de mandíbula, curva]
+  const FACES = { redonda: [26, 26, 26, 14, .55], ovalada: [23, 27, 29, 10, .6], cuadrada: [26, 25, 25, 22, .85], corazon: [27, 26, 26, 5, .45], alargada: [22, 28, 31, 11, .65],
+    ancha: [29, 24, 24, 18, .6], diamante: [23, 26, 28, 4, .3], pera: [24, 23, 27, 22, .85], triangular: [27, 26, 28, 7, .25], suave: [25, 25, 27, 16, .7] };
+  // 10 cuerpos: sw hombro, ww cintura, belly barriga, lw ancho de pierna, aw grosor de brazo
+  const BODIES = { promedio: { sw: 16, ww: 14, belly: 0, lw: 10, aw: 5 }, gordito: { sw: 18, ww: 21, belly: 7, lw: 12, aw: 6 }, flaquito: { sw: 12, ww: 10, belly: 0, lw: 7, aw: 3.5 },
+    fuertecito: { sw: 19, ww: 15, belly: 1, lw: 11, aw: 6.5 }, atletico: { sw: 18, ww: 13, belly: 0, lw: 10, aw: 5.5 }, corpulento: { sw: 21, ww: 20, belly: 4, lw: 13, aw: 7 },
+    delgado: { sw: 14, ww: 11, belly: 0, lw: 8, aw: 4 }, musculoso: { sw: 23, ww: 14, belly: 0, lw: 12, aw: 8 }, alto: { sw: 15, ww: 12, belly: 0, lw: 9, aw: 4.5 }, robusto: { sw: 20, ww: 18, belly: 3, lw: 12, aw: 6.5 } };
+  // Capas de ropa compradas en la Tienda: id -> [ranura, línea, tipo]
+  const LAYERS = { top_camiseta: ['arriba', 'casual', 'tee'], top_hoodie: ['arriba', 'sport', 'hoodie'], top_chaqueta: ['arriba', 'casual', 'jacket'], top_abrigo: ['arriba', 'lujo', 'coat'],
+    bot_jeans: ['abajo', 'casual', 'jeans'], bot_joggers: ['abajo', 'sport', 'joggers'], bot_cargo: ['abajo', 'casual', 'cargo'], bot_vestir: ['abajo', 'lujo', 'dress'],
+    zap_sport: ['zapatos', 'sport', 'sneaker'], zap_casual: ['zapatos', 'casual', 'loafer'], zap_vestir: ['zapatos', 'lujo', 'oxford'],
+    med_deportivas: ['medias', 'sport', 'sock'], med_disenador: ['medias', 'casual', 'sock'], med_seda: ['medias', 'lujo', 'sock'],
+    cad_plata: ['cadenas', 'sport', 'chain'], cad_oro: ['cadenas', 'casual', 'chain'], cad_diamantes: ['cadenas', 'lujo', 'chain'], joy_pulsera: ['pulseras', 'lujo', 'bracelet'], acc_mochila: ['mochila', 'lujo', 'bag'],
+    head_gorra_sport: ['cabeza', 'sport', 'cap'], head_gorro_sport: ['cabeza', 'sport', 'beanie'], head_visera: ['cabeza', 'sport', 'visor'], head_gorra_casual: ['cabeza', 'casual', 'cap'], head_gorro_casual: ['cabeza', 'casual', 'beanie'],
+    head_bucket: ['cabeza', 'casual', 'bucket'], head_gorra_lujo: ['cabeza', 'lujo', 'cap'], head_gorro_lujo: ['cabeza', 'lujo', 'beanie'], head_fedora: ['cabeza', 'lujo', 'fedora'] };
+  const SLOTS = ['arriba', 'abajo', 'zapatos', 'medias', 'cadenas', 'pulseras', 'mochila', 'cabeza'];
+  const CNAMES = { rojo: '#dc2626', azul: '#1d4ed8', verde: '#16a34a', dorado: '#d4a017', blanco: '#f1f5f9', negro: '#1f2937', oro: '#ffcc33', plata: '#d9dde3', rosa: '#e7a3a8', esmeralda: '#10b981', zafiro: '#1e40af' };
   const METAL = { oro: '#ffcc33', plata: '#d9dde3', bronce: '#d0874a' };
   // lock = id de recompensa (top 3) necesaria
   const CAT = {
     skin: { name: 'Piel', opts: SKIN, color: true },
+    face: { name: 'Cara', opts: Object.keys(FACES) },
+    body: { name: 'Cuerpo', opts: Object.keys(BODIES) },
     eyes: { name: 'Ojos', opts: ['normales', 'felices', 'guiño', 'sorprendidos', 'enojados', 'estrellas'] },
     mouth: { name: 'Boca', opts: ['sonrisa', 'carcajada', 'seria', 'lengua', 'sorpresa'] },
-    hair: { name: 'Pelo', opts: ['calvo', 'corto', 'puntas', 'afro', 'largo', 'cresta'], colorKey: 'hairColor' },
+    hair: { name: 'Pelo', opts: ['calvo', 'corto', 'puntas', 'afro', 'largo', 'cresta', 'rapado', 'mohicano', 'coleta', 'moño', 'rizos', 'flequillo', 'raya_lado', 'hacia_atras', 'mullet', 'trenzas', 'rastas', 'ondulado', 'militar', 'emo'], colorKey: 'hairColor' },
     hairColor: { name: 'Color de pelo', opts: HAIRC, color: true },
     hat: { name: 'Sombrero', opts: ['ninguno', 'gorra', 'gorro', 'vaquero', 'corona', 'sombrero_dorado', 'gorra_campeon'], colorKey: 'hatColor', lock: { corona: 'corona', sombrero_dorado: 'sombrero_dorado', gorra_campeon: 'gorra_campeon' } },
     hatColor: { name: 'Color de sombrero', opts: COLORS, color: true },
@@ -25,16 +44,24 @@
     shoes: { name: 'Zapaticos', opts: ['ninguno', 'tenis', 'botas', 'oro', 'plata', 'bronce'], colorKey: 'shoesColor', lock: { oro: 'zapatos_oro', plata: 'zapatos_plata', bronce: 'zapatos_bronce' } },
     shoesColor: { name: 'Color zapaticos', opts: COLORS, color: true },
   };
-  const DEFAULT = { skin: SKIN[1], eyes: 'normales', mouth: 'sonrisa', hair: 'corto', hairColor: HAIRC[0], hat: 'ninguno', hatColor: COLORS[0], glasses: 'ninguno', earrings: 'ninguno', necklace: 'ninguno',
+  const DEFAULT = { skin: SKIN[0], face: 'redonda', body: 'promedio', eyes: 'normales', mouth: 'sonrisa', hair: 'corto', hairColor: HAIRC[0], hat: 'ninguno', hatColor: COLORS[0], glasses: 'ninguno', earrings: 'ninguno', necklace: 'ninguno',
     shirt: 'camiseta', shirtColor: COLORS[5], pants: 'largo', pantsColor: COLORS[9], socks: 'ninguno', socksColor: COLORS[8], shoes: 'tenis', shoesColor: COLORS[0] };
-  const norm = c => { const o = { ...DEFAULT }; if (c && typeof c === 'object') for (const k in CAT) if (CAT[k].opts.includes(c[k])) o[k] = c[k]; return o; };
+  const hexd = (a, b) => { const x = parseInt(a.slice(1), 16), y = parseInt(b.slice(1), 16); return [16, 8, 0].reduce((s, k) => s + (((x >> k) & 255) - ((y >> k) & 255)) ** 2, 0); };
+  const near = (v, list) => list.reduce((b, o) => hexd(v, o) < hexd(v, b) ? o : b, list[0]);
+  // wear: { ranura: { id, color } } con colores por nombre. La propiedad se revisa en el servidor.
+  const normWear = w => { const o = {}; if (w && typeof w === 'object' && !Array.isArray(w)) for (const sl of SLOTS) { const x = w[sl];
+    if (x && typeof x === 'object' && LAYERS[x.id] && LAYERS[x.id][0] === sl && CNAMES[x.color]) o[sl] = { id: x.id, color: x.color }; } return o; };
+  const norm = c => { const o = { ...DEFAULT, wear: {} }; if (c && typeof c === 'object') { for (const k in CAT) { if (CAT[k].opts.includes(c[k])) o[k] = c[k];
+        else if ((k === 'skin' || k === 'hairColor') && /^#[0-9a-f]{6}$/i.test(c[k] || '')) o[k] = near(c[k].toLowerCase(), CAT[k].opts); } // compat: tonos antiguos -> el más cercano
+      o.wear = normWear(c.wear); } return o; };
   // Valida; devuelve {cfg} o {error}. unlocked: Set de ids de recompensa
   function validate(c, unlocked = new Set()) {
     if (!c || typeof c !== 'object' || Array.isArray(c)) return { error: 'Avatar inválido' };
-    for (const k of Object.keys(c)) if (!CAT[k]) return { error: 'Categoría desconocida: ' + k };
-    for (const k in c) { if (!CAT[k].opts.includes(c[k])) return { error: `Valor inválido en ${CAT[k].name}` };
+    for (const k of Object.keys(c)) if (!CAT[k] && k !== 'wear') return { error: 'Categoría desconocida: ' + k };
+    if (c.wear !== undefined && (typeof c.wear !== 'object' || Array.isArray(c.wear) || !c.wear || Object.keys(c.wear).some(k => !SLOTS.includes(k)) || Object.keys(normWear(c.wear)).length !== Object.values(c.wear).filter(Boolean).length)) return { error: 'Ropa inválida' };
+    for (const k in c) { if (k === 'wear') continue; if (!CAT[k].opts.includes(c[k])) return { error: `Valor inválido en ${CAT[k].name}` };
       const need = CAT[k].lock && CAT[k].lock[c[k]]; if (need && !unlocked.has(need)) return { error: `Bloqueado: ${CAT[k].name} ${c[k]} es exclusivo del top 3`, locked: need }; }
-    return { cfg: { ...DEFAULT, ...c } };
+    return { cfg: { ...DEFAULT, wear: {}, ...c, wear: normWear(c.wear) } };
   }
   // Estilo "soft 3D": contornos suaves, degradados por pieza, brillos y sombra de contacto. IDs únicos por render.
   const S = 'stroke="#2a1e4d" stroke-opacity=".28" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"';
@@ -93,7 +120,21 @@
       puntas: `<path d="M24 30 L26 12 L34 18 L38 4 L46 14 L52 2 L58 14 L66 4 L68 18 L76 12 L76 30 Q66 18 50 20 Q34 18 24 30Z" fill="${c.hairColor}" ${S}/>`,
       largo: `<path d="M24 30 Q26 6 50 7 Q74 6 76 30 Q60 16 40 22 Q30 24 24 30Z" fill="${c.hairColor}" ${S}/>`,
       afro: '', calvo: `<path d="M38 14 Q44 11 50 12" stroke="#fff" stroke-width="2" fill="none" opacity=".6"/>`,
-      cresta: `<path d="M44 20 Q42 0 50 -2 Q58 0 56 20Z" fill="${c.hairColor}" ${S}/>` })[c.hair];
+      cresta: `<path d="M44 20 Q42 0 50 -2 Q58 0 56 20Z" fill="${c.hairColor}" ${S}/>`,
+      rapado: `<path d="M25 28 Q27 9 50 9 Q73 9 75 28 Q64 20 50 21 Q36 20 25 28Z" fill="${c.hairColor}" opacity=".55"/>`,
+      mohicano: `<path d="M45 22 L43 0 L50 6 L52 -4 L56 6 L58 22Z" fill="${c.hairColor}" ${S}/>`,
+      coleta: `<path d="M24 30 Q26 6 50 7 Q74 6 76 30 Q66 16 50 18 Q34 16 24 30Z M74 22 Q90 30 84 54 Q80 40 72 34Z" fill="${c.hairColor}" ${S}/>`,
+      'moño': `<circle cx="50" cy="2" r="9" fill="${c.hairColor}" ${S}/><path d="M24 30 Q26 8 50 8 Q74 8 76 30 Q66 18 50 20 Q34 18 24 30Z" fill="${c.hairColor}" ${S}/>`,
+      rizos: `<circle cx="28" cy="24" r="7" fill="${c.hairColor}" ${S}/><circle cx="36" cy="14" r="7" fill="${c.hairColor}" ${S}/><circle cx="46" cy="9" r="7" fill="${c.hairColor}" ${S}/><circle cx="56" cy="9" r="7" fill="${c.hairColor}" ${S}/><circle cx="66" cy="14" r="7" fill="${c.hairColor}" ${S}/><circle cx="73" cy="24" r="7" fill="${c.hairColor}" ${S}/>`,
+      flequillo: `<path d="M24 32 Q24 6 50 6 Q76 6 76 32 L68 22 L62 30 L56 21 L50 30 L44 21 L38 30 L32 22Z" fill="${c.hairColor}" ${S}/>`,
+      raya_lado: `<path d="M24 32 Q24 6 50 6 Q76 6 76 30 Q70 20 40 18 Q30 22 24 32Z" fill="${c.hairColor}" ${S}/><path d="M40 8 Q38 14 40 18" stroke="#000" stroke-opacity=".25" fill="none"/>`,
+      hacia_atras: `<path d="M25 26 Q28 4 50 4 Q72 4 75 26 Q62 12 50 12 Q38 12 25 26Z" fill="${c.hairColor}" ${S}/>`,
+      mullet: `<path d="M24 30 Q26 6 50 7 Q74 6 76 30 L78 50 L70 44 Q66 18 50 20 Q34 18 30 44 L22 50Z" fill="${c.hairColor}" ${S}/>`,
+      trenzas: `<path d="M24 30 Q26 6 50 7 Q74 6 76 30 Q66 18 50 20 Q34 18 24 30Z" fill="${c.hairColor}" ${S}/><circle cx="22" cy="40" r="3.5" fill="${c.hairColor}" ${S}/><circle cx="22" cy="47" r="3.5" fill="${c.hairColor}" ${S}/><circle cx="22" cy="54" r="3.5" fill="${c.hairColor}" ${S}/><circle cx="22" cy="61" r="3.5" fill="${c.hairColor}" ${S}/><circle cx="78" cy="40" r="3.5" fill="${c.hairColor}" ${S}/><circle cx="78" cy="47" r="3.5" fill="${c.hairColor}" ${S}/><circle cx="78" cy="54" r="3.5" fill="${c.hairColor}" ${S}/><circle cx="78" cy="61" r="3.5" fill="${c.hairColor}" ${S}/>`,
+      rastas: `<path d="M24 30 Q26 6 50 7 Q74 6 76 30 Q66 18 50 20 Q34 18 24 30Z" fill="${c.hairColor}" ${S}/><path d="M24 28 V60 M29 24 V56 M71 24 V56 M76 28 V60" stroke="${c.hairColor}" stroke-width="4" stroke-linecap="round"/>`,
+      ondulado: `<path d="M23 34 Q20 20 30 12 Q40 2 50 8 Q60 2 70 12 Q80 20 77 34 Q72 24 64 24 Q58 18 50 22 Q42 18 36 24 Q28 24 23 34Z" fill="${c.hairColor}" ${S}/>`,
+      militar: `<path d="M26 26 Q28 10 50 10 Q72 10 74 26 Q62 18 50 18 Q38 18 26 26Z" fill="${c.hairColor}" ${S}/>`,
+      emo: `<path d="M24 32 Q24 6 50 6 Q76 6 76 30 Q66 18 58 20 L46 46 L40 26 Q30 26 24 32Z" fill="${c.hairColor}" ${S}/>`, })[c.hair];
     else hd += ({ gorra: `<path d="M24 26 Q26 4 50 4 Q74 4 76 26Z" fill="${hatC}" ${S}/><path d="M50 26 H88 Q88 20 76 20" fill="${hatC}" ${S}/>`,
       gorro: `<path d="M24 26 Q24 0 50 0 Q76 0 76 26Z" fill="${hatC}" ${S}/><rect x="22" y="20" width="56" height="9" rx="4" fill="#fff" ${S}/><circle cx="50" cy="-2" r="6" fill="#fff" ${S}/>`,
       vaquero: `<path d="M12 22 Q50 34 88 22 Q80 30 50 30 Q20 30 12 22Z M32 22 Q32 0 50 2 Q68 0 68 22Z" fill="${hatC}" ${S}/>`,
