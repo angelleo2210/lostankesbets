@@ -103,6 +103,8 @@ t('retos: solo RPS en menú; HAND SVG detallado; sin tiles pen/bb/tc nuevos', ()
   assert.ok(!menu.includes("tile('pen'") || menu.includes('antiguo'));
   // no advertising new pen/bb/tc as primary tiles without legacy filter
   assert.ok(menu.includes('Por ahora el reto disponible'));
+  assert.ok(menu.includes('img/rps/game-icon.jpg') || menu.includes('/img/rps/game-icon.jpg'));
+  assert.ok(fs.existsSync(path.join(__dirname, 'public/img/rps/game-icon.jpg')));
   assert.ok(src.includes('DISABLED') || src.includes('ya no se pueden crear') || src.includes('Ya no se pueden crear'));
   const h = src.slice(src.indexOf('const HAND ='), src.indexOf('const RPSN'));
   assert.ok(h.includes('viewBox="0 0 128 128"'));

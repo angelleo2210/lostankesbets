@@ -530,7 +530,7 @@ async function retosMenu(B) {
   const legacyTiles = [['pen', 'Tanda de penaltis (antiguo)', p], ['bb', 'Béisbol (antiguo)', q], ['tc', 'Three Contest (antiguo)', z]]
     .filter(([, , d]) => live(d).length).map(([k, n, d]) => tile(k, '<span class="legacy-dot">⏳</span>', n, d, true)).join('');
   B.innerHTML = `<div class="card"><h2>⚔️ Retos</h2><p class="small">Por ahora el reto disponible es Piedra, papel o tijera.</p>
-    <div class="retos retos-solo">${tile('rps', `<div class="rps-trio">${HAND('piedra', 52)}${HAND('papel', 52)}${HAND('tijera', 52)}</div>`, 'Piedra, papel o tijera', r, false)}</div>
+    <div class="retos retos-solo">${tile('rps', `<img class="rps-game-icon" src="/img/rps/game-icon.jpg" width="148" height="148" alt="Piedra papel o tijera" decoding="async">`, 'Piedra, papel o tijera', r, false)}</div>
     ${legacyTiles ? `<div class="small" style="margin-top:10px">Retos antiguos aún abiertos (solo para terminar o responder; ya no se pueden crear nuevos):</div><div class="retos">${legacyTiles}</div>` : ''}
   </div>`;
   B.querySelectorAll('[data-gm]').forEach(b => b.onclick = () => { gameSel = b.dataset.gm; render(); });
