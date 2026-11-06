@@ -205,10 +205,9 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
 }
 // Group independently settled market lines into one event card; legacy custom lines stay unchanged.
 function marketCards(ls) {
-  const groups = new Map(), legacy = [];
+  const groups = new Map();
   for (const l of ls) {
-    if (!l.event_id) { legacy.push(l); continue; }
-    const key = l.kind + ':' + l.event_id;
+    const key = l.event_id ? l.kind + ':' + l.event_id : 'legacy:' + l.id;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(l);
   }
@@ -218,18 +217,20 @@ function marketCards(ls) {
     const winner = by.h2h;
     const teams = base.home ? [base.home, base.away] : (winner?.options || []).filter(o => !['Draw','Empate'].includes(o.outcome || o.label)).map(o => o.outcome || o.label);
     const cell = (l, o) => {
-      if (!l || !o) return '<span class="market-unavailable" aria-label="No disponible">—</span>';
+      if (!l || !o) return '<span class="market-unavailable" aria-label="No disponible" title="Sin cuota disponible">—</span>';
       const on = boleto.some(b => b.id === o.id), key = l.market || 'h2h';
       const content = `${key !== 'h2h' ? `<span class="market-point">${esc(Markets.threshold(key, o))}</span>` : ''}<span class="odds-n">${od(o.odds)}</span>`;
       return l.status === 'open' ? `<button type="button" class="odds ${on ? 'on' : ''}" data-add="${o.id}" aria-pressed="${on}" aria-label="${esc(o.label)} ${od(o.odds)}">${content}</button>` : `<div class="odds off" aria-label="Cerrada">${content}</div>`;
     };
     const row = (name, i) => `<div class="event-team">${esc(name)}</div>${cell(by.spreads, by.spreads?.options.find(o => o.outcome === name))}${cell(by.totals, by.totals?.options.find(o => o.outcome === (i === 0 ? 'Over' : 'Under')))}${cell(winner, winner?.options.find(o => (o.outcome || o.label) === name))}`;
     const draw = winner?.options.find(o => ['Draw','Empate'].includes(o.outcome || o.label));
-    return `<div class="card line"><div class="line-hd"><h2>${esc(base.title)}</h2><div class="small">${base.kind === 'real' ? 'Real' : 'Ficticia'} · Mercados independientes${base.starts ? ' · ' + new Date(base.starts).toLocaleString('es-US') : ''}</div></div>
+    return `<div class="card line"><div class="line-hd"><h2>${esc(base.title)}</h2><div class="small">${base.kind === 'real' ? 'Real' : 'Ficticia'}</div></div>
       <div class="event-market-grid"><span class="market-head">Equipo</span><span class="market-head">Hándicap</span><span class="market-head">Total${base.unit ? '<br>' + esc(base.unit) : ''}</span><span class="market-head">Ganador</span>
-      ${teams.slice(0,2).map(row).join('')}${draw ? `<span class="event-team">Empate</span><span></span><span></span>${cell(winner, draw)}` : ''}</div>
-      ${me?.is_admin ? `<button type="button" class="alt" data-market-config="${(winner || base).id}">Agregar hándicap / total</button>` : ''}<div class="small">— Sin cuota configurada; no se puede seleccionar. Una selección por evento en parlay. ${group.filter(l => l.bookmaker).map(l => `${Markets.NAMES[l.market]}: ${esc(l.bookmaker)}`).join(' · ')}</div></div>`;
-  }).join('') + legacy.map(lineCard).join('');
+      ${teams.map(row).join('')}${draw ? `<span class="event-team">Empate</span><span></span><span></span>${cell(winner, draw)}` : ''}</div>
+      <div class="event-date small">${base.starts ? esc(new Date(base.starts).toLocaleString('es-US')) : 'Fecha no indicada'}</div>
+      <div class="market-note small">— No disponible · Una selección por evento en parlay</div>
+      ${me?.is_admin ? `<details class="market-admin"><summary>Configurar mercados</summary><button type="button" class="alt" data-market-config="${(winner || base).id}">Agregar hándicap / total</button><div class="small">${group.filter(l => l.bookmaker).map(l => `${Markets.NAMES[l.market]}: ${esc(l.bookmaker)}`).join(' · ')}</div></details>` : ''}</div>`;
+  }).join('');
 }
 function lineCard(l) {
   const open = l.status === 'open';

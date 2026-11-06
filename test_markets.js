@@ -87,6 +87,18 @@ t('legacy winner-only add handicap+total keeps old bets, creates selectable inde
  assert.ok(html.includes('O 3')&&html.includes('U 3')&&html.includes('+1')&&html.includes('-1'));
  R.settleLine(id,oldOptions[0].id);assert.equal(R.lines().find(l=>l.id===total).status,'open');
 });
+t('legacy cards retain three equal market columns with compact nonoverflowing mobile CSS',()=>{
+ const fs=require('node:fs'),vm=require('node:vm');const src=fs.readFileSync('public/app.js','utf8'),css=fs.readFileSync('public/index.html','utf8');
+ const ctx={Markets:M,me:{is_admin:true},boleto:[{id:100}],esc:String,od:String};
+ vm.runInNewContext(src.slice(src.indexOf('function marketCards('),src.indexOf('function boletoCard('))+'\nthis.cards=marketCards;',ctx);
+ const html=ctx.cards([{id:50,title:'Synthetic legacy',status:'open',kind:'custom',options:[{id:100,label:'Atlético de Madrid',odds:125},{id:101,label:'Barcelona',odds:-140},{id:102,label:'Empate',odds:230}]}]);
+ assert.match(html,/event-market-grid/);assert.match(html,/Hándicap/);assert.match(html,/Total/);assert.match(html,/Ganador/);
+ assert.equal((html.match(/class="market-unavailable"/g)||[]).length,4);assert.match(html,/>Empate<\/span><span><\/span><span><\/span>/);
+ assert.match(html,/class="odds on"/);assert.match(html,/<details class="market-admin">/);assert.ok(html.indexOf('event-date')>html.indexOf('event-market-grid'));
+ assert.match(css,/repeat\(3,minmax\(0,1fr\)\)/);assert.match(css,/width:100%!important;min-width:0!important;max-width:none!important/);
+ assert.ok(css.includes('button.odds.on{background:#38bdf855'));
+ for(const width of [390,470]){const content=width-48, gap=4*3, col=(content-gap)/4.5;assert.ok(col>60);assert.ok(col*4.5+gap<=content);}
+});
 (async()=>{
  const orig=global.fetch,old=process.env.ODDS_API_KEY;process.env.ODDS_API_KEY='test-only';
  try {global.fetch=async url=>{assert.match(url,/markets=h2h,spreads,totals/);return {ok:true,json:async()=>[fixture]};};assert.equal((await upcoming()).events[0].markets.length,3);

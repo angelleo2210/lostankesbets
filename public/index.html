@@ -202,5 +202,14 @@ button.odds.on{background:#38bdf855;border-color:#7dd3fc;color:#e0f2fe;box-shado
 .tb-list{overflow:visible}
 .tb-row{overflow:hidden}
 .rps-character{display:inline-block;object-fit:contain;object-position:center;background:#fff;border-radius:12px;max-width:100%;vertical-align:middle}.rps-pick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.rps-pick button{min-width:0;min-height:148px;padding:10px 6px}.rps-pick .rps-character{width:100%;height:auto;aspect-ratio:1}.rps-game-icon{width:min(220px,72vw)}
-.event-market-grid{display:grid;grid-template-columns:minmax(72px,1.4fr) repeat(3,minmax(52px,1fr));gap:6px;align-items:center;margin:12px 0}.event-market-grid .odds{width:100%;min-width:0;min-height:52px;padding:6px 2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}.market-head{font-size:11px;text-align:center;color:#94a3b8}.event-team{font-size:13px;overflow-wrap:anywhere}.market-point{font-size:12px;color:#e2e8f0}.market-unavailable{text-align:center;color:#64748b}.event-market-grid .odds-n{font-size:14px}@media(max-width:380px){.event-market-grid{gap:4px;grid-template-columns:minmax(60px,1.2fr) repeat(3,minmax(46px,1fr))}.event-team{font-size:12px}}
+/* Compact sportsbook matrix; override legacy 92px !important odds width. */
+.event-market-grid{display:grid;grid-template-columns:minmax(0,1.5fr) repeat(3,minmax(0,1fr));column-gap:4px;row-gap:4px;align-items:stretch;margin:10px 0 8px;width:100%;min-width:0}
+.event-market-grid .odds,.event-market-grid button.odds{width:100%!important;min-width:0!important;max-width:none!important;min-height:56px;margin:0;padding:5px 2px!important;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border-radius:6px;box-sizing:border-box}
+.market-head{font-size:11px;text-align:center;color:#94a3b8;align-self:end;line-height:1.2;margin-bottom:3px;min-width:0}.market-head:first-child{text-align:left}
+.event-team{font-size:13px;line-height:1.25;overflow-wrap:anywhere;white-space:normal;min-width:0;display:flex;align-items:center;padding:4px 8px 4px 0}
+.market-point{font-size:13px;font-weight:600;color:#e2e8f0;line-height:1.05}.event-market-grid .odds-n{font-size:15px;line-height:1.1;white-space:nowrap}
+.market-unavailable{display:flex;align-items:center;justify-content:center;min-height:56px;border-radius:6px;background:#0f172a66;border:1px solid #263247;color:#64748b;font-size:17px;box-sizing:border-box}
+.event-date{margin-top:6px;font-size:11px;color:#94a3b8}.market-note{font-size:10px;color:#64748b;margin-top:3px}.market-admin{margin-top:7px;border-top:1px solid #263247;padding-top:5px}.market-admin summary{font-size:11px;color:#94a3b8;cursor:pointer}.market-admin button{font-size:12px;padding:6px 8px;width:auto}
+@media(max-width:380px){.event-team{font-size:12px;padding-right:5px}.event-market-grid .odds-n{font-size:14px}.market-point{font-size:12px}}
+
 </style></head><body><main id="app"></main><script src="avatar.js"></script><script src="store.js"></script><script src="markets.js"></script><script src="app.js"></script></body></html>
