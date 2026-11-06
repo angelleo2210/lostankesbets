@@ -36,3 +36,7 @@ Usan The Odds API (https://the-odds-api.com). Pon tu clave en `ODDS_API_KEY`. Si
 - Parlay: como máximo una selección por evento, aun entre mercados distintos. Las apuestas simples a mercados independientes sí se permiten.
 - Migración aditiva e idempotente; no cambia cuentas, PINs, saldos ni apuestas existentes.
 - Pruebas: `node test.js && node test_av3d.js && node test_markets.js`.
+
+### Partidos antiguos solo con Ganador
+
+En la tarjeta del partido (admin), **Agregar hándicap / total** abre Admin. En **Agregar mercados a un evento existente**, selecciona el partido, verifica nombres exactos de equipos, elige Hándicap o Total, escribe umbral y ambas cuotas americanas y pulsa **Agregar mercado al partido**. Repite para el otro mercado. No hay valores prellenados ni cambios de cuotas/apuestas antiguas. Las líneas antiguas quedan vinculadas al evento solo al enviar este formulario, sin cambios financieros. Si un mercado ya existe, se rechaza el intento de sobrescribirlo. Para líneas reales se puede reimportar desde el proveedor si ofrece estos mercados.

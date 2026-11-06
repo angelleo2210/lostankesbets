@@ -294,6 +294,25 @@ function open(file = 'data.db') {
         return api.createLine(event.title, m.options, { kind, event_id: String(event.id), starts: event.starts, market: m.key, home: event.home, away: event.away, unit: event.unit, bookmaker: m.bookmaker });
       }));
     },
+    addEventMarket(lineId, market, options, home, away, unit = '') {
+      return tx(() => {
+        const source = db.prepare('SELECT * FROM lines WHERE id=?').get(Number(lineId));
+        if (!source || source.status !== 'open') err('El evento debe tener una línea abierta');
+        if (!['spreads','totals'].includes(market)) err('Solo se pueden agregar hándicap o total');
+        home = String(home || '').trim(); away = String(away || '').trim();
+        if (source.home && (source.home !== home || source.away !== away)) err('No se pueden cambiar los equipos del evento');
+        if (!source.market) {
+          const original = db.prepare('SELECT label,odds FROM options WHERE line_id=?').all(source.id);
+          try { Markets.validate('h2h', original.map(o => ({ ...o, label: o.label === 'Empate' ? 'Draw' : o.label })), home, away); } catch { err('Los equipos deben coincidir exactamente con las opciones ganadoras existentes'); }
+        }
+        try { Markets.validate(market, options, home, away); } catch(e) { err(e.message); }
+        const eventId = source.event_id || `legacy:${source.id}`;
+        if (db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND market=?").get(eventId, source.kind, market)) err('Este mercado ya existe; no se sobrescriben cuotas ni apuestas');
+        // Explicit admin action upgrades grouping metadata only. Original options/bets/odds untouched.
+        db.prepare("UPDATE lines SET event_id=?,home=?,away=?,unit=?,market=COALESCE(market,'h2h') WHERE id=?").run(eventId, home, away, source.unit || String(unit || ''), source.id);
+        return api.createLine(source.title, options, { kind: source.kind, event_id: eventId, starts: source.starts, market, home, away, unit: source.unit || String(unit || '') });
+      });
+    },
     pushLine(id) {
       return tx(() => {
         const l = db.prepare('SELECT * FROM lines WHERE id=?').get(Number(id));

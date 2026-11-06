@@ -44,7 +44,7 @@ t('all void parlay refund exactly once; half point cannot push; legacy bets inta
 });
 t('grouped mobile markup missing cells, order handicap/total/winner and draw only winner',()=>{
  const fs=require('node:fs'),vm=require('node:vm');const src=fs.readFileSync('public/app.js','utf8');
- const ctx={Markets:M,boleto:[],esc:s=>String(s),od:n=>n>0?'+'+n:String(n)};
+ const ctx={Markets:M,me:{is_admin:false},boleto:[],esc:s=>String(s),od:n=>n>0?'+'+n:String(n)};
  vm.runInNewContext(src.slice(src.indexOf('function marketCards('),src.indexOf('function boletoCard('))+'\nthis.cards=marketCards;',ctx);
  const lines=Q.lines().filter(l=>l.event_id==='half');const html=ctx.cards(lines);assert.ok(html.indexOf('Hándicap')<html.indexOf('Total'));assert.ok(html.indexOf('Total')<html.indexOf('Ganador'));assert.match(html,/O 2.5/);assert.match(html,/U 2.5/);assert.match(html,/No disponible/);assert.ok(!html.includes('>Empate<'));assert.match(html,/event-market-grid/);
  const draw=ctx.cards(Q.lines().filter(l=>l.event_id==='x'));assert.match(draw,/>Empate<\/span><span><\/span><span><\/span>/);assert.match(fs.readFileSync('public/index.html','utf8'),/markets.js/);
@@ -62,6 +62,30 @@ t('slip updates keep fixture DOM/viewport and stake; no render, focus, or forced
  buttons[0].onclick();assert.equal(top,200);assert.equal(ctx.boleto.length,1);assert.equal(ctx.boletoStake,'125');assert.equal(html,'<div class="slip">new</div>');
  buttons[1].onclick();assert.equal(top,200);assert.equal(ctx.boleto.length,1);assert.equal(ctx.boleto[0].id,2);buttons[1].onclick();assert.equal(ctx.boleto.length,0);assert.equal(top,200);assert.equal(ctx.boletoStake,'125');
  assert.equal(corrections.length,3);assert.ok(!block.includes('scrollIntoView')&&!block.includes('.focus(')&&!block.includes('scrollTo('));
+});
+t('legacy winner-only add handicap+total keeps old bets, creates selectable independent markets',()=>{
+ const R=open(':memory:');R.setupAdmin('admin','1234');const u=R.register(R.newInvite(),'tester','1234');
+ const id=R.createLine('Synthetic legacy fixture',[{label:'Local',odds:120},{label:'Visita',odds:-140},{label:'Empate',odds:230}]);
+ const oldOptions=R.lines()[0].options;const bet=R.placeBet(u,oldOptions[0].id,25);const oldBet=R.myBets(u).find(b=>b.id===bet);
+ const balance=R.db.prepare('SELECT coins FROM users WHERE id=?').get(u).coins;
+ assert.throws(()=>R.addEventMarket(id,'spreads',options.spreads,'Incorrecto','Visita'),/coincidir/);
+ assert.equal(R.lines()[0].event_id,null);
+ const sp=R.addEventMarket(id,'spreads',options.spreads,'Local','Visita','goles');const total=R.addEventMarket(id,'totals',options.totals,'Local','Visita','goles');
+ assert.equal(R.db.prepare('SELECT coins FROM users WHERE id=?').get(u).coins,balance);
+ assert.deepEqual(R.lines().find(l=>l.id===id).options,oldOptions);assert.deepEqual(R.myBets(u).find(b=>b.id===bet),oldBet);
+ assert.equal(R.lines().length,3);assert.equal(new Set(R.lines().map(l=>l.event_id)).size,1);
+ assert.throws(()=>R.addEventMarket(id,'totals',options.totals,'Local','Visita'),/ya existe/);
+ // Each offered handicap and total outcome is a valid single selection.
+ for(const lineId of [sp,total]) for(const o of R.lines().find(l=>l.id===lineId).options) assert.ok(R.placeBet(u,o.id,10));
+ assert.throws(()=>R.placeParlay(u,[oldOptions[0].id,R.lines().find(l=>l.id===total).options[0].id],10),/evento/);
+ const other=R.createLine('Other fixture',[{label:'A',odds:110},{label:'B',odds:-120}]);
+ assert.ok(R.placeParlay(u,[R.lines().find(l=>l.id===sp).options[0].id,R.lines().find(l=>l.id===other).options[0].id],10));
+ const fs=require('node:fs'),vm=require('node:vm'),src=fs.readFileSync('public/app.js','utf8');const ctx={Markets:M,me:{is_admin:true},boleto:[],esc:String,od:String};
+ vm.runInNewContext(src.slice(src.indexOf('function marketCards('),src.indexOf('function boletoCard('))+'\nthis.cards=marketCards;',ctx);
+ const html=ctx.cards(R.lines().filter(l=>l.event_id));
+ for(const lineId of [sp,total]) for(const o of R.lines().find(l=>l.id===lineId).options) assert.ok(html.includes(`data-add="${o.id}"`));
+ assert.ok(html.includes('O 3')&&html.includes('U 3')&&html.includes('+1')&&html.includes('-1'));
+ R.settleLine(id,oldOptions[0].id);assert.equal(R.lines().find(l=>l.id===total).status,'open');
 });
 (async()=>{
  const orig=global.fetch,old=process.env.ODDS_API_KEY;process.env.ODDS_API_KEY='test-only';
