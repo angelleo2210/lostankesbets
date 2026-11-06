@@ -1,12 +1,12 @@
-// LosTankesBets: 9 avatares fijos (imagen). Sin capas ni colores.
+// LosTankesBets: 11 avatares fijos (imagen). Sin capas ni colores.
 (function (root) {
-  const N = 9;
+  const N = 11;
   const DEFAULT = { pick: 1 };
   const LAYERS = {}; // ropa por capas eliminada
   const SLOTS = [];
   const CAT = {};
   const src = (pick, head) => `img/avatars/${Math.min(N, Math.max(1, pick|0))}${head ? '_head' : ''}.webp`;
-  /** Solo pick=1 por ahora: foto de racha en vez de marco. W3/W5/L2/L3. */
+  /** Foto de racha W3/W5/L2/L3 para todos los picks (sin marco). */
   const streakKey = (st) => {
     if (!st || !st.kind) return null;
     if (st.kind === 'fuego') return st.intense ? 'w5' : 'w3';
@@ -15,9 +15,9 @@
   };
   const streakSrc = (pick, st, head) => {
     const p = Math.min(N, Math.max(1, pick|0));
-    if (p !== 1 || head) return null; // head crops: sin variantes aún
+    if (head) return null; // head crops: sin variantes aún
     const k = streakKey(st);
-    return k ? `img/avatars/1_${k}.webp` : null;
+    return k ? `img/avatars/${p}_${k}.webp` : null;
   };
   const norm = c => {
     let p = 1;
@@ -32,7 +32,7 @@
     if (typeof c !== 'object' || Array.isArray(c)) return { error: 'Avatar inválido' };
     if (c.pick != null || c.id != null) {
       const p = c.pick != null ? +c.pick : +c.id;
-      if (!Number.isFinite(p) || p < 1 || p > N) return { error: 'Elige un avatar del 1 al 9' };
+      if (!Number.isFinite(p) || p < 1 || p > N) return { error: 'Elige un avatar del 1 al 11' };
       return { cfg: { pick: p | 0 } };
     }
     // configs viejas (body/wear/hat/shirt/…) → pick 1
