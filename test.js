@@ -228,7 +228,7 @@ t('avatar pick: guardar 1..9; comprar ropa legacy no toca avatarCfg', () => { co
   Q.setProfile(q, '', '', null, undefined, { pick: 9 }); assert.deepEqual(cfg(), { pick: 9 });
   Q.sellItem(q, 'top_hoodie'); assert.deepEqual(cfg(), { pick: 9 }); assert.equal(Q.owned(q).length, 0);
   for (const n of AV.PICKS) assert.ok(AV.imgTag(n).includes('avatars/' + n + '.webp')); });
-t('tanda de penaltis', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const a = Q.register(Q.newInvite(), 'pa', '1111'), b = Q.register(Q.newInvite(), 'pb', '1111');
+t('tanda de penaltis', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); Q._testAllowDisabled = true; const a = Q.register(Q.newInvite(), 'pa', '1111'), b = Q.register(Q.newInvite(), 'pb', '1111');
   const c = id => Q.db.prepare('SELECT coins FROM users WHERE id=?').get(id).coins, set = (id, v) => Q.db.prepare('UPDATE users SET coins=? WHERE id=?').run(v, id); set(a, 30000); set(b, 30000);
   for (const bad of [9, 25001, 1.5, 'x']) assert.throws(() => Q.penChallenge(a, b, bad), /entre 10/); assert.throws(() => Q.penChallenge(a, a, 100), /ti mismo/);
   set(a, 50); assert.throws(() => Q.penChallenge(a, b, 100), /suficientes/); set(a, 30000);
@@ -263,7 +263,7 @@ t('béisbol de una entrada: reglas por lanzamiento', () => { const H = (p, b) =>
   r = H(pad('BBBSBBBB', 'B'), pad('NNNNNNNN', 'N')); assert.deepEqual(r.ev.map(e => [e.e, e.balls, e.outs]).slice(0, 8), [['bola', 1, 0], ['bola', 2, 0], ['bola', 3, 0], ['ponche', 0, 1], ['bola', 1, 1], ['bola', 2, 1], ['bola', 3, 1], ['base', 0, 1]]); assert.equal(r.ev[7].runs, 1); // el out limpia las bolas; 4 bolas sin out = carrera
   r = H(pad('BBW', 'B').replace('W', 'B'), pad('NNW', 'N')); assert.equal(r.ev[2].e, 'out'); assert.equal(r.ev[2].balls, 0); assert.equal(C.BB_OUTS, 3);
   r = H(pad('SBS', 'B'), pad('NWN', 'N')); assert.equal(r.ev.length, 3); assert.equal(r.ev[2].outs, 3); });
-t('béisbol de una entrada: retos, extra, 24 h y plan secreto', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const a = Q.register(Q.newInvite(), 'ba', '1111'), b = Q.register(Q.newInvite(), 'bb', '1111');
+t('béisbol de una entrada: retos, extra, 24 h y plan secreto', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); Q._testAllowDisabled = true; const a = Q.register(Q.newInvite(), 'ba', '1111'), b = Q.register(Q.newInvite(), 'bb', '1111');
   const c = id => Q.db.prepare('SELECT coins FROM users WHERE id=?').get(id).coins, set = (id, v) => Q.db.prepare('UPDATE users SET coins=? WHERE id=?').run(v, id); set(a, 30000); set(b, 30000);
   const P = (p, w) => ({ pitch: Array(15).fill(p), bat: Array(15).fill(w) });
   for (const bad of [9, 25001, 1.5]) assert.throws(() => Q.bbChallenge(a, b, bad), /entre 10/);
@@ -285,7 +285,7 @@ t('béisbol de una entrada: retos, extra, 24 h y plan secreto', () => { const Q 
   Q.bbExpire(t1 + 24 * 3600e3 - 1); assert.equal(Q.bbView(a, g4).status, 'accepted'); Q.bbExpire(t1 + 24 * 3600e3 + 1); const v4 = Q.bbView(a, g4); assert.equal(v4.result, 'won'); assert.equal(v4.reason, 'abandono'); assert.equal(c(a), before + 1000); });
 t('béisbol: empate en la primera entrada va a entrada extra', () => { const ap = { pitch: Array(15).fill('bola'), bat: ['no', 'no', 'no', 'no', ...Array(11).fill('swing')] }, bp = { pitch: Array(15).fill('bola'), bat: ['no', 'no', 'no', 'no', 'swing', 'swing', 'swing', 'no', 'no', 'no', 'no', 'no', 'no', 'no', 'no'] };
   const g = C.bbGame(ap, bp); assert.equal(g.innings[0].top.runs, g.innings[0].bot.runs); assert.ok(g.innings.length >= 2); });
-t('mensajes dentro de retos', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const a = Q.register(Q.newInvite(), 'ca', '1111'), b = Q.register(Q.newInvite(), 'cb', '1111'), x = Q.register(Q.newInvite(), 'cx', '1111');
+t('mensajes dentro de retos', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); Q._testAllowDisabled = true; const a = Q.register(Q.newInvite(), 'ca', '1111'), b = Q.register(Q.newInvite(), 'cb', '1111'), x = Q.register(Q.newInvite(), 'cx', '1111');
   const g = Q.penChallenge(a, b, 100).id; assert.throws(() => Q.chatSend(a, 'pen', g, 'hola'), /aceptado/); Q.penRespond(b, g, true);
   const t0 = 1e12; Q.chatSend(a, 'pen', g, 'hola <b>x</b>', t0); assert.throws(() => Q.chatSend(a, 'pen', g, 'otra', t0 + 500), /rápido/); Q.chatSend(b, 'pen', g, 'qué tal', t0 + 600);
   const L = Q.chatList(b, 'pen', g); assert.equal(L.length, 2); assert.equal(L[0].text, 'hola &lt;b&gt;x&lt;/b&gt;'); assert.equal(L[0].mine, false); assert.equal(L[1].mine, true);
@@ -297,7 +297,7 @@ t('mensajes dentro de retos', () => { const Q = open(':memory:'); Q.setupAdmin('
   // reto de béisbol: rechazo cierra; aceptado y luego vencido borra
   const h = Q.bbChallenge(a, b, 100, 1000).id; Q.bbRespond(b, h, true, 2000); Q.chatSend(a, 'bb', h, 'suerte', 3000); assert.equal(Q.chatList(b, 'bb', h).length, 1);
   Q.bbExpire(2000 + 24 * 3600e3 + 1); assert.throws(() => Q.chatList(b, 'bb', h), /aceptado/); });
-t('Three Contest', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const a = Q.register(Q.newInvite(), 'ta', '1111'), b = Q.register(Q.newInvite(), 'tb', '1111');
+t('Three Contest', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); Q._testAllowDisabled = true; const a = Q.register(Q.newInvite(), 'ta', '1111'), b = Q.register(Q.newInvite(), 'tb', '1111');
   const coins = u => Q.users().find(x => x.id === u).coins, A0 = coins(a), B0 = coins(b); let seq = []; Q.tcRand = () => seq.length ? seq.shift() : 0.99;
   assert.deepEqual(Q.TC_POS, ['Esquina izquierda', 'Centro', 'Esquina derecha']); assert.equal(Q.TC.total, 15); assert.equal(Q.TC.ms, 75000);
   assert.throws(() => Q.tcChallenge(a, b, 5), /entre/); const d = Q.tcChallenge(a, b, 100, 0).id; Q.tcRespond(b, d, false, 1); assert.equal(coins(a), A0); assert.equal(Q.tcView(a, d).status, 'declined');
@@ -464,6 +464,32 @@ t('tabla: admin incluido en lista; 0 bets ok; admin elegible al podio', () => {
   t = Q.tabla('temporada');
   assert.deepEqual(t.podium.map(r => r.username), ['amigo', 'angel']); // amigo 3W0L vs angel 2W1L
   assert.equal(t.rows.length, 2);
+});
+
+
+t('minijuegos: nuevos retos pen/bb/tc bloqueados; RPS sigue; legacy resoluble', () => {
+  const Q = open(':memory:'); Q.setupAdmin('angel', '1234');
+  const a = Q.register(Q.newInvite(), 'na', '1111'), b = Q.register(Q.newInvite(), 'nb', '1111');
+  assert.ok(Q.DISABLED_NEW_MINIGAMES.has('pen') && Q.DISABLED_NEW_MINIGAMES.has('bb') && Q.DISABLED_NEW_MINIGAMES.has('tc'));
+  for (const fn of ['penChallenge', 'bbChallenge', 'tcChallenge']) assert.throws(() => Q[fn](a, b, 100), /ya no está disponible/);
+  // RPS still works
+  const g = Q.rpsChallenge(a, b, 100).id; Q.rpsRespond(b, g, true); Q.rpsPick(a, g, 'piedra'); assert.equal(Q.rpsPick(b, g, 'tijera').result, 'perdiste');
+  // legacy resolve still works when game already exists (via test hook for insert path)
+  Q._testAllowDisabled = true;
+  const p = Q.penChallenge(a, b, 50).id; Q._testAllowDisabled = false;
+  // cannot create another while disabled
+  assert.throws(() => Q.penChallenge(a, b, 50), /ya no está disponible/);
+  // but existing pending can still be declined / accepted and resolved
+  Q.penRespond(b, p, false); assert.equal(Q.penView(a, p).status, 'declined');
+  Q._testAllowDisabled = true; const p2 = Q.penChallenge(a, b, 100).id; Q._testAllowDisabled = false;
+  Q.penRespond(b, p2, true);
+  // a scores, b saved every round → decisive after 5
+  for (let r = 0; r < 5; r++) { Q.penPlay(a, p2, 'derecha', 'centro'); Q.penPlay(b, p2, 'centro', 'izquierda'); }
+  assert.equal(Q.penView(a, p2).status, 'done');
+  Q._testAllowDisabled = true; const bb = Q.bbChallenge(a, b, 100).id; Q._testAllowDisabled = false;
+  Q.bbRespond(b, bb, false); assert.equal(Q.bbView(a, bb).status, 'declined');
+  Q._testAllowDisabled = true; const tc = Q.tcChallenge(a, b, 100, 0).id; Q._testAllowDisabled = false;
+  Q.tcRespond(b, tc, false, 1); assert.equal(Q.tcView(a, tc).status, 'declined');
 });
 
 console.log(`\n${n} pruebas OK`);

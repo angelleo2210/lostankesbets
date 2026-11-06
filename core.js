@@ -61,6 +61,8 @@ const bbGame = (cp, op) => { const innings = []; let c = 0, o = 0;
     if (c !== o) break; }
   return { c, o, innings }; };
 const RPS = ['piedra', 'papel', 'tijera'], BEATS = { piedra: 'tijera', tijera: 'papel', papel: 'piedra' }, RPS_MIN = 10, RPS_MAX = 25000, RPS_MS = 24 * 3600e3;
+// Nuevos retos bloqueados (pen/bb/tc); respond/play/expire siguen por monedas legacy.
+const DISABLED_NEW_MINIGAMES = new Set(['pen', 'bb', 'tc']);
 function open(file = 'data.db') {
   const db = new DatabaseSync(file);
   db.exec(`PRAGMA foreign_keys=ON;
@@ -135,6 +137,7 @@ function open(file = 'data.db') {
         if (!g.c_plan && !g.o_plan) { if (db.prepare("UPDATE bb SET status='expired', reason='ninguno jugó', resolved=? WHERE id=? AND status='accepted'").run(now, g.id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id IN (?,?)').run(g.stake, g.challenger, g.opponent); }
         else { const w = g.c_plan ? g.challenger : g.opponent; if (db.prepare("UPDATE bb SET status='done', winner=?, reason='abandono', resolved=? WHERE id=? AND status='accepted'").run(w, now, g.id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(2 * g.stake, w); } } }),
     bbChallenge: (uid, oppId, stake, now = Date.now()) => { stake = Number(stake); oppId = Number(oppId);
+      if (DISABLED_NEW_MINIGAMES.has('bb') && !api._testAllowDisabled) err('Este minijuego ya no está disponible');
       if (!Number.isInteger(stake) || stake < RPS_MIN || stake > RPS_MAX) err(`La apuesta debe ser un entero entre ${RPS_MIN} y ${RPS_MAX.toLocaleString('es')}`);
       if (oppId === uid) err('No puedes retarte a ti mismo');
       const o = db.prepare('SELECT id, is_admin FROM users WHERE id=?').get(oppId); if (!o || o.is_admin) err('Ese amigo no existe');
@@ -174,6 +177,7 @@ function open(file = 'data.db') {
         } else { const w = cp ? g.challenger : g.opponent;
           if (db.prepare("UPDATE pen SET status='done', winner=?, reason='abandono', resolved=? WHERE id=? AND status='accepted'").run(w, now, g.id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(2 * g.stake, w); } } }),
     penChallenge: (uid, oppId, stake, now = Date.now()) => { stake = Number(stake); oppId = Number(oppId);
+      if (DISABLED_NEW_MINIGAMES.has('pen') && !api._testAllowDisabled) err('Este minijuego ya no está disponible');
       if (!Number.isInteger(stake) || stake < RPS_MIN || stake > RPS_MAX) err(`La apuesta debe ser un entero entre ${RPS_MIN} y ${RPS_MAX.toLocaleString('es')}`);
       if (oppId === uid) err('No puedes retarte a ti mismo');
       const o = db.prepare('SELECT id, is_admin FROM users WHERE id=?').get(oppId); if (!o || o.is_admin) err('Ese amigo no existe');
@@ -491,6 +495,7 @@ function open(file = 'data.db') {
       if (!g.c_st && !g.o_st) { if (db.prepare("UPDATE tc SET status='expired', reason='ninguno jugó', resolved=? WHERE id=? AND status='accepted'").run(now, g.id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id IN (?,?)').run(g.stake, g.challenger, g.opponent); }
       else if (!g.c_st || !g.o_st) pay(g, g.c_st ? g.challenger : g.opponent, 'abandono', now); } });
   api.tcChallenge = (uid, oppId, stake, now = Date.now()) => { stake = Number(stake); oppId = Number(oppId);
+    if (DISABLED_NEW_MINIGAMES.has('tc') && !api._testAllowDisabled) err('Este minijuego ya no está disponible');
     if (!Number.isInteger(stake) || stake < RPS_MIN || stake > RPS_MAX) err(`La apuesta debe ser un entero entre ${RPS_MIN} y ${RPS_MAX.toLocaleString('es')}`);
     if (oppId === uid) err('No puedes retarte a ti mismo'); const o = db.prepare('SELECT id, is_admin FROM users WHERE id=?').get(oppId); if (!o || o.is_admin) err('Ese amigo no existe');
     if (db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins < stake) err('No tienes monedas suficientes');
@@ -546,6 +551,8 @@ function open(file = 'data.db') {
   api.chatList = (uid, kind, id) => { const k = chatCheck(uid, kind, id); return (chats.get(k) || []).map(m => ({ name: escH(m.name), text: m.text, at: m.at, mine: m.uid === uid })); };
   for (const f of ['rpsRespond', 'rpsPick', 'rpsExpire', 'penRespond', 'penPlay', 'penExpire', 'bbRespond', 'bbPlan', 'bbExpire', 'tcRespond', 'tcExpire', 'tcStart', 'tcShoot', 'tcNext', 'tcAim']) { const o = api[f]; api[f] = (...a) => { try { return o(...a); } finally { if (chats.size) api.chatPurge(); } }; }
   api.PODIUM_MIN_SETTLED = PODIUM_MIN_SETTLED;
+  api.DISABLED_NEW_MINIGAMES = DISABLED_NEW_MINIGAMES;
+  api._testAllowDisabled = false;
   return api;
 }
 module.exports = { open, BONUS, FACIAL, REWARDS, profit, dec, toAmerican, START_COINS, PODIUM_MIN_SETTLED };

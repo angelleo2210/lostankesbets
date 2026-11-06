@@ -455,17 +455,13 @@ async function tcView(B) {
     B.innerHTML = `<div class="card"><h2>🏀 Three Contest vs ${esc(sel.rival)}</h2><div class="tc-big"><div><span class="small">Tus puntos</span><b>${me.points}</b></div><div><span class="small">${esc(sel.rival)}</span><b>?</b></div></div><p>Terminaste tu concurso. Esperando a ${esc(sel.rival)}; su marcador está oculto hasta que ambos terminen. Le quedan ${left(sel)}.</p><div class="opt"><span class="small">${posTxt(me.shots)}</span></div>${chatBox('tc', sel.id)}<button class="alt" id="rb">Volver</button></div>`; $('#rb').onclick = back; mountChat(); return; }
   const rec = G.filter(g => g.status === 'pending' && g.mine === 'received'), sent = G.filter(g => g.status === 'pending' && g.mine === 'sent'), play = G.filter(g => g.status === 'accepted'), past = G.filter(g => !['pending', 'accepted'].includes(g.status));
   const ST = { declined: 'Rechazado (sin cobro)', expired: 'Vencido (sin cobro)' }, todo = g => g.tiebreak && g.tiebreak.active ? (g.tiebreak.iShot ? '(desempate: esperando rival)' : '<b>· ¡desempate! tira</b>') : !g.me ? '<b>· haz tu concurso</b>' : g.me.finished ? '(esperando rival)' : '<b>· en curso</b>';
-  B.innerHTML = `<button class="alt" id="toRetos" style="width:auto">← Retos</button><div class="card"><h2>🏀 Three Contest</h2><div style="text-align:center">${COURT(-1, 300, T.pos)}</div>
-    <p class="small">Reta a un amigo. No se cobra nada hasta que acepte (24 h); al aceptar se descuenta la apuesta de los dos. ${rules} Gana quien sume más; si empatan, desempate a un tiro hasta que haya ganador. Si no haces tu concurso en 24 h tras aceptar, pierdes.</p>
-    <div class="row"><select id="ro">${d.friends.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('')}</select><input id="rs" type="number" min="${d.min}" max="${d.max}" step="1" placeholder="Apuesta (${d.min}–${fmt(d.max)})"><button id="rgo">Retar</button></div>
-    <div class="small">Mínimo 🪙 ${fmt(d.min)} · máximo 🪙 ${fmt(d.max)} · tienes 🪙 ${fmt(me.coins)}</div></div>
+  B.innerHTML = `<button class="alt" id="toRetos" style="width:auto">← Retos</button><div class="card"><h2>🏀 Three Contest (antiguo)</h2>
+    <p class="small">Ya no se pueden crear retos nuevos de este minijuego. Aquí solo puedes responder o terminar partidas que ya estaban abiertas.</p></div>
     <div class="card"><h2>Retos recibidos</h2>${rec.map(g => `<div class="opt"><span>${esc(g.rival)} te reta por 🪙 ${fmt(g.stake)} · <span class="small">${left(g)} para aceptar</span></span><span><button data-ac="${g.id}">Aceptar</button> <button class="alt" data-rj="${g.id}">Rechazar</button></span></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
     <div class="card"><h2>En juego</h2>${play.map(g => `<div class="opt"><span>vs ${esc(g.rival)} · 🪙 ${fmt(g.stake)} ${todo(g)}</span><button data-go="${g.id}">Abrir</button></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
     <div class="card"><h2>Retos enviados</h2>${sent.map(g => `<div class="opt"><span>A ${esc(g.rival)} por 🪙 ${fmt(g.stake)}</span><span class="small">${left(g)} para aceptar</span></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
     <div class="card"><h2>Historial</h2>${past.map(g => `<div class="opt ${g.result === 'won' ? 'won' : g.result === 'lost' ? 'lost' : ''}"><span>vs ${esc(g.rival)} · 🪙 ${fmt(g.stake)}${g.status === 'done' ? ` · ${g.me ? g.me.points : 0}-${g.rivalPoints ?? 0}` : ''}</span><span>${g.status === 'done' ? `<a href="#" data-go="${g.id}">${g.result === 'won' ? '✅ ¡Ganaste!' : g.result === 'lost' ? '❌ Perdiste' : '🤝 Empate'}</a>` : ST[g.status]}</span></div>`).join('') || '<p class="small">Aún no hay concursos</p>'}</div>`;
   $('#toRetos').onclick = () => { gameSel = null; render(); };
-  $('#rgo').onclick = async () => { const v = Number($('#rs').value); if (!Number.isInteger(v) || v < d.min || v > d.max) return flash(`La apuesta debe ser entre ${d.min} y ${fmt(d.max)}`);
-    try { await api('/tc', { opponentId: Number($('#ro').value), stake: v }); flash('Reto de Three Contest enviado'); render(); } catch (e) { flash(e.message); } };
   B.querySelectorAll('[data-ac],[data-rj]').forEach(b => b.onclick = async () => { const id = Number(b.dataset.ac || b.dataset.rj);
     try { await api('/tc/respond', { id, accept: !!b.dataset.ac }); if (b.dataset.ac) tcScreen = id; render(); } catch (e) { flash(e.message); } });
   B.querySelectorAll('[data-go]').forEach(b => b.onclick = e => { e.preventDefault(); tcScreen = Number(b.dataset.go); render(); }); }
@@ -515,24 +511,30 @@ async function bbView(B) {
     draw(); return; }
   const rec = G.filter(g => g.status === 'pending' && g.mine === 'received'), sent = G.filter(g => g.status === 'pending' && g.mine === 'sent'), play = G.filter(g => g.status === 'accepted'), past = G.filter(g => !['pending', 'accepted'].includes(g.status));
   const ST = { declined: 'Rechazado (sin cobro)', expired: 'Vencido (sin cobro)' };
-  B.innerHTML = `<button class="alt" id="toRetos" style="width:auto">← Retos</button><div class="card"><h2>⚾ Béisbol de una entrada</h2><div style="text-align:center">${bbField('intro', { balls: 0, outs: 0, runs: 0 })}</div>
-    <p class="small">Reta a un amigo. No se cobra nada hasta que acepte (24 h); al aceptar se descuenta la apuesta de los dos. Cada uno manda una vez un plan secreto de 15 lanzamientos (bola/strike) y 15 decisiones (swing/no swing). ${BB_RULES} Gana quien anote más carreras; si empatan, entrada extra completa. Si no mandas tu plan en 24 h tras aceptar, pierdes.</p>
-    <div class="row"><select id="ro">${d.friends.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('')}</select><input id="rs" type="number" min="${d.min}" max="${d.max}" step="1" placeholder="Apuesta (${d.min}–${fmt(d.max)})"><button id="rgo">Retar</button></div>
-    <div class="small">Mínimo 🪙 ${fmt(d.min)} · máximo 🪙 ${fmt(d.max)} · tienes 🪙 ${fmt(me.coins)}</div></div>
+  B.innerHTML = `<button class="alt" id="toRetos" style="width:auto">← Retos</button><div class="card"><h2>⚾ Béisbol (antiguo)</h2>
+    <p class="small">Ya no se pueden crear retos nuevos de este minijuego. Aquí solo puedes responder o terminar partidas que ya estaban abiertas.</p></div>
     <div class="card"><h2>Retos recibidos</h2>${rec.map(g => `<div class="opt"><span>${esc(g.rival)} te reta por 🪙 ${fmt(g.stake)} · <span class="small">${left(g)} para aceptar</span></span><span><button data-ac="${g.id}">Aceptar</button> <button class="alt" data-rj="${g.id}">Rechazar</button></span></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
     <div class="card"><h2>En juego</h2>${play.map(g => `<div class="opt"><span>vs ${esc(g.rival)} · 🪙 ${fmt(g.stake)} ${g.iSent ? '<span class="small">(esperando rival)</span>' : '<b>· manda tu plan</b>'}</span><button data-go="${g.id}">${g.iSent ? 'Ver' : 'Jugar'}</button></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
     <div class="card"><h2>Retos enviados</h2>${sent.map(g => `<div class="opt"><span>A ${esc(g.rival)} por 🪙 ${fmt(g.stake)}</span><span class="small">${left(g)} para aceptar</span></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
     <div class="card"><h2>Historial</h2>${past.map(g => `<div class="opt ${g.result === 'won' ? 'won' : g.result === 'lost' ? 'lost' : ''}"><span>vs ${esc(g.rival)} · 🪙 ${fmt(g.stake)}${g.game ? ` · ${g.game.my}-${g.game.rival}` : ''}</span><span>${g.status === 'done' ? `<a href="#" data-go="${g.id}">${g.result === 'won' ? '✅ ¡Ganaste!' : g.result === 'lost' ? '❌ Perdiste' : '🤝 Empate'}</a>` : ST[g.status]}</span></div>`).join('') || '<p class="small">Aún no hay partidos</p>'}</div>`;
   $('#toRetos').onclick = () => { gameSel = null; render(); };
-  $('#rgo').onclick = async () => { const v = Number($('#rs').value); if (!Number.isInteger(v) || v < d.min || v > d.max) return flash(`La apuesta debe ser entre ${d.min} y ${fmt(d.max)}`);
-    try { await api('/bb', { opponentId: Number($('#ro').value), stake: v }); flash('Reto de Béisbol enviado'); render(); } catch (e) { flash(e.message); } };
   B.querySelectorAll('[data-ac],[data-rj]').forEach(b => b.onclick = async () => { const id = Number(b.dataset.ac || b.dataset.rj);
     try { await api('/bb/respond', { id, accept: !!b.dataset.ac }); if (b.dataset.ac) bbScreen = id; render(); } catch (e) { flash(e.message); } });
   B.querySelectorAll('[data-go]').forEach(b => b.onclick = e => { e.preventDefault(); bbScreen = Number(b.dataset.go); render(); }); }
-async function retosMenu(B) { const [r, p, q, z] = await Promise.all([api('/rps'), api('/pen'), api('/bb'), api('/tc')]), pend = d => d.games.filter(g => g.status === 'pending' && g.mine === 'received').length, turn = d => d.games.filter(g => g.status === 'accepted' && !(g.myPick || g.iPlayed || g.iSent || (g.me && g.me.finished && !(g.tiebreak && g.tiebreak.active && !g.tiebreak.iShot)))).length;
-  const tile = (k, ic, n, d) => `<button class="alt retot" data-gm="${k}">${ic}<b>${n}</b><span class="small">${pend(d) ? `📩 ${pend(d)} reto(s) recibido(s)` : ''}${turn(d) ? ` · 🎯 te toca en ${turn(d)}` : ''}</span></button>`;
-  B.innerHTML = `<div class="card"><h2>⚔️ Retos</h2><p class="small">Elige un minijuego para retar a un amigo con monedas.</p><div class="retos">${tile('rps', HAND('piedra', 70), 'Piedra, papel o tijera', r)}${tile('pen', GOAL(null, null, 90), 'Tanda de penaltis', p)}${tile('bb', `<svg viewBox="0 0 60 60" width="64"><circle cx="30" cy="30" r="24" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/><path d="M14 14q10 16 0 32M46 14q-10 16 0 32" stroke="#ef4444" stroke-width="2.5" fill="none" stroke-dasharray="3 2"/></svg>`, 'Béisbol', q)}${tile('tc', COURT(-1, 64), 'Three Contest', z)}</div></div>`;
-  B.querySelectorAll('[data-gm]').forEach(b => b.onclick = () => { gameSel = b.dataset.gm; render(); }); }
+async function retosMenu(B) {
+  const [r, p, q, z] = await Promise.all([api('/rps'), api('/pen'), api('/bb'), api('/tc')]);
+  const pend = d => d.games.filter(g => g.status === 'pending' && g.mine === 'received').length;
+  const live = d => d.games.filter(g => g.status === 'pending' || g.status === 'accepted');
+  const turn = d => d.games.filter(g => g.status === 'accepted' && !(g.myPick || g.iPlayed || g.iSent || (g.me && g.me.finished && !(g.tiebreak && g.tiebreak.active && !g.tiebreak.iShot)))).length;
+  const tile = (k, ic, n, d, legacy) => `<button class="alt retot${legacy ? ' legacy' : ''}" data-gm="${k}">${ic}<b>${n}</b><span class="small">${pend(d) ? `📩 ${pend(d)} reto(s) recibido(s)` : ''}${turn(d) ? ` · 🎯 te toca en ${turn(d)}` : (!pend(d) && live(d).length ? ` · ${live(d).length} en curso` : '')}</span></button>`;
+  const legacyTiles = [['pen', 'Tanda de penaltis (antiguo)', p], ['bb', 'Béisbol (antiguo)', q], ['tc', 'Three Contest (antiguo)', z]]
+    .filter(([, , d]) => live(d).length).map(([k, n, d]) => tile(k, '<span class="legacy-dot">⏳</span>', n, d, true)).join('');
+  B.innerHTML = `<div class="card"><h2>⚔️ Retos</h2><p class="small">Por ahora el reto disponible es Piedra, papel o tijera.</p>
+    <div class="retos retos-solo">${tile('rps', `<div class="rps-trio">${HAND('piedra', 52)}${HAND('papel', 52)}${HAND('tijera', 52)}</div>`, 'Piedra, papel o tijera', r, false)}</div>
+    ${legacyTiles ? `<div class="small" style="margin-top:10px">Retos antiguos aún abiertos (solo para terminar o responder; ya no se pueden crear nuevos):</div><div class="retos">${legacyTiles}</div>` : ''}
+  </div>`;
+  B.querySelectorAll('[data-gm]').forEach(b => b.onclick = () => { gameSel = b.dataset.gm; render(); });
+}
 // ---- Tanda de penaltis ----
 const ZN = { izquierda: 'Izquierda', centro: 'Centro', derecha: 'Derecha' }, ZX = { izquierda: 55, centro: 120, derecha: 185 };
 const GOAL = (shot, save, w = 240, goal) => `<svg viewBox="0 0 240 150" width="${w}" style="max-width:100%"><defs><linearGradient id="gg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4ade80"/><stop offset="1" stop-color="#15803d"/></linearGradient><pattern id="net" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M0 0L10 10M10 0L0 10" stroke="#fff" stroke-opacity=".25"/></pattern></defs>
@@ -563,27 +565,69 @@ async function penView(B) {
     draw(); return; }
   const rec = G.filter(g => g.status === 'pending' && g.mine === 'received'), sent = G.filter(g => g.status === 'pending' && g.mine === 'sent'), play = G.filter(g => g.status === 'accepted'), past = G.filter(g => !['pending', 'accepted'].includes(g.status));
   const ST = { declined: 'Rechazado (sin cobro)', expired: 'Vencido (sin cobro)' };
-  B.innerHTML = `<button class="alt" id="toRetos" style="width:auto">← Retos</button><div class="card"><h2>⚽ Tanda de penaltis</h2><div style="text-align:center">${GOAL('derecha', 'izquierda', 220)}</div>
-    <p class="small">Reta a un amigo. No se cobra nada hasta que acepte (tiene 24 h); al aceptar se descuenta la apuesta de los dos. 5 rondas: en cada una eliges en secreto tiro y atajada (izquierda, centro, derecha). Si empatan, muerte súbita. Quien no juegue su ronda en 24 h pierde la serie. El ganador se lleva todo el bote.</p>
-    <div class="row"><select id="ro">${d.friends.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('')}</select><input id="rs" type="number" min="${d.min}" max="${d.max}" step="1" placeholder="Apuesta (${d.min}–${fmt(d.max)})"><button id="rgo">Retar</button></div>
-    <div class="small">Mínimo 🪙 ${fmt(d.min)} · máximo 🪙 ${fmt(d.max)} · tienes 🪙 ${fmt(me.coins)}</div></div>
+  B.innerHTML = `<button class="alt" id="toRetos" style="width:auto">← Retos</button><div class="card"><h2>⚽ Tanda de penaltis (antiguo)</h2>
+    <p class="small">Ya no se pueden crear retos nuevos de este minijuego. Aquí solo puedes responder o terminar partidas que ya estaban abiertas.</p></div>
     <div class="card"><h2>Retos recibidos</h2>${rec.map(g => `<div class="opt"><span>${esc(g.rival)} te reta por 🪙 ${fmt(g.stake)} · <span class="small">${left(g)} para aceptar</span></span><span><button data-ac="${g.id}">Aceptar</button> <button class="alt" data-rj="${g.id}">Rechazar</button></span></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
     <div class="card"><h2>En juego</h2>${play.map(g => `<div class="opt"><span>vs ${esc(g.rival)} · ${g.myGoals}-${g.rivalGoals} · ronda ${g.round} ${g.iPlayed ? '<span class="small">(esperando rival)</span>' : '<b>· te toca</b>'}</span><button data-go="${g.id}">${g.iPlayed ? 'Ver' : 'Jugar'}</button></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
     <div class="card"><h2>Retos enviados</h2>${sent.map(g => `<div class="opt"><span>A ${esc(g.rival)} por 🪙 ${fmt(g.stake)}</span><span class="small">${left(g)} para aceptar</span></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
     <div class="card"><h2>Historial</h2>${past.map(g => `<div class="opt ${g.result || ''}"><span>vs ${esc(g.rival)} · 🪙 ${fmt(g.stake)}${g.status === 'done' ? ` · ${g.myGoals}-${g.rivalGoals}` : ''}</span><span>${g.status === 'done' ? `<a href="#" data-go="${g.id}">${g.result === 'won' ? '✅ ¡Ganaste!' : '❌ Perdiste'}</a>` : ST[g.status]}</span></div>`).join('') || '<p class="small">Aún no hay series</p>'}</div>`;
   $('#toRetos').onclick = () => { gameSel = null; render(); };
-  $('#rgo').onclick = async () => { const v = Number($('#rs').value); if (!Number.isInteger(v) || v < d.min || v > d.max) return flash(`La apuesta debe ser entre ${d.min} y ${fmt(d.max)}`);
-    try { await api('/pen', { opponentId: Number($('#ro').value), stake: v }); flash('Reto de Tanda de penaltis enviado'); render(); } catch (e) { flash(e.message); } };
   B.querySelectorAll('[data-ac],[data-rj]').forEach(b => b.onclick = async () => { const id = Number(b.dataset.ac || b.dataset.rj);
     try { await api('/pen/respond', { id, accept: !!b.dataset.ac }); if (b.dataset.ac) penScreen = id; render(); } catch (e) { flash(e.message); } });
   B.querySelectorAll('[data-go]').forEach(b => b.onclick = e => { e.preventDefault(); penScreen = Number(b.dataset.go); render(); }); }
-const HAND = (k, z = 90) => { const sk = '#f1c27d', d = '#c68642', S = `stroke="#7a4a1f" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"`;
-  const g = `<defs><radialGradient id="hg${k}" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="#ffe7c2"/><stop offset=".6" stop-color="${sk}"/><stop offset="1" stop-color="${d}"/></radialGradient></defs>`;
-  const f = `fill="url(#hg${k})" ${S}`;
-  const body = { piedra: `<rect x="22" y="38" width="56" height="44" rx="18" ${f}/>${[30, 43, 56].map(x => `<path d="M${x} 42 Q${x + 6} 34 ${x + 12} 42" fill="none" ${S}/>`).join('')}<path d="M24 56 Q40 50 50 60" fill="none" ${S}/><ellipse cx="38" cy="48" rx="9" ry="4" fill="#fff" opacity=".35"/>`,
-    papel: `${[30, 41, 52, 63].map((x, i) => `<rect x="${x}" y="${12 + [4, 0, 2, 8][i]}" width="10" height="44" rx="5" ${f}/>`).join('')}<rect x="27" y="44" width="48" height="40" rx="16" ${f}/><path d="M27 60 Q14 50 12 38 Q18 34 24 42 L30 52" ${f}/><ellipse cx="42" cy="54" rx="10" ry="5" fill="#fff" opacity=".35"/>`,
-    tijera: `<rect x="34" y="8" width="11" height="48" rx="5.5" transform="rotate(-12 40 56)" ${f}/><rect x="52" y="8" width="11" height="48" rx="5.5" transform="rotate(12 57 56)" ${f}/><rect x="26" y="44" width="50" height="40" rx="16" ${f}/>${[38, 52].map(x => `<path d="M${x} 54 Q${x + 6} 48 ${x + 12} 54" fill="none" ${S}/>`).join('')}<path d="M26 62 Q38 56 46 66" fill="none" ${S}/>` }[k];
-  return `<svg width="${z}" height="${z}" viewBox="0 0 100 92" aria-hidden="true">${g}${body}</svg>`; };
+let _handUid = 0;
+const HAND = (k, z = 104) => {
+  const id = 'h' + (++_handUid);
+  const common = `xmlns="http://www.w3.org/2000/svg" width="${z}" height="${z}" viewBox="0 0 128 128" role="img" aria-label="${({piedra:'Piedra',papel:'Papel',tijera:'Tijera'})[k] || k}"`;
+  // Piedra: puño cerrado, volumen y nudillos claros
+  const piedra = `<svg ${common}><defs>
+    <linearGradient id="pg${id}" x1="20%" y1="10%" x2="90%" y2="95%"><stop offset="0%" stop-color="#ffe2b8"/><stop offset="45%" stop-color="#e8b07a"/><stop offset="100%" stop-color="#a86a3a"/></linearGradient>
+    <linearGradient id="ps${id}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fff6" /><stop offset="100%" stop-color="#0000"/></linearGradient>
+    <filter id="sh${id}" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.2" flood-color="#000" flood-opacity=".45"/></filter>
+  </defs>
+  <ellipse cx="64" cy="112" rx="34" ry="8" fill="#000" opacity=".18"/>
+  <g filter="url(#sh${id})">
+    <path d="M34 70c-6 2-14 10-12 22 2 10 14 16 28 16h28c14 0 24-6 26-16 2-12-4-20-12-24" fill="url(#pg${id})" stroke="#6b3a1a" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M38 68c2-18 10-34 26-38 12-3 24 4 28 16 2 6 2 14-1 20" fill="url(#pg${id})" stroke="#6b3a1a" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M48 52c4-10 12-16 22-14 8 2 14 10 14 20" fill="none" stroke="#6b3a1a" stroke-width="2" opacity=".55"/>
+    <path d="M44 74h8M56 72h9M69 72h9M82 74h7" stroke="#7a4520" stroke-width="3.2" stroke-linecap="round" opacity=".7"/>
+    <ellipse cx="52" cy="66" rx="7" ry="4" fill="#fff" opacity=".28"/>
+    <path d="M40 88c10-6 28-8 44-2" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="3" stroke-linecap="round"/>
+  </g></svg>`;
+  // Papel: palma abierta, 4 dedos + pulgar
+  const papel = `<svg ${common}><defs>
+    <linearGradient id="fg${id}" x1="15%" y1="5%" x2="85%" y2="100%"><stop offset="0%" stop-color="#ffe9cc"/><stop offset="50%" stop-color="#f0c090"/><stop offset="100%" stop-color="#c47a45"/></linearGradient>
+    <filter id="sh${id}" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.2" flood-color="#000" flood-opacity=".45"/></filter>
+  </defs>
+  <ellipse cx="64" cy="116" rx="36" ry="7" fill="#000" opacity=".16"/>
+  <g filter="url(#sh${id})">
+    <path d="M28 78c-8-2-16-14-10-26 4-8 14-10 20-4l6 10" fill="url(#fg${id})" stroke="#6b3a1a" stroke-width="2.3" stroke-linejoin="round"/>
+    <path d="M40 86c-2 14 8 26 28 26h10c18 0 30-10 30-26V70c0-6-4-10-10-10H52c-8 0-12 4-12 12z" fill="url(#fg${id})" stroke="#6b3a1a" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M48 22c-3-2-8 0-9 8l-2 36c0 4 3 7 7 7h4c4 0 7-3 7-7V30c0-6-3-9-7-9z" fill="url(#fg${id})" stroke="#6b3a1a" stroke-width="2.2"/>
+    <path d="M64 14c-3-1-8 1-8 9v44c0 4 3 7 7 7h4c4 0 7-3 7-7V24c0-7-4-10-10-10z" fill="url(#fg${id})" stroke="#6b3a1a" stroke-width="2.2"/>
+    <path d="M80 18c-3-2-8 0-8 8v42c0 4 3 7 7 7h4c4 0 7-3 7-7V28c0-7-4-11-10-10z" fill="url(#fg${id})" stroke="#6b3a1a" stroke-width="2.2"/>
+    <path d="M96 26c-3-2-8 0-8 8v36c0 4 3 7 7 7h3c4 0 7-3 7-7V36c0-7-3-11-9-10z" fill="url(#fg${id})" stroke="#6b3a1a" stroke-width="2.2"/>
+    <ellipse cx="58" cy="78" rx="12" ry="6" fill="#fff" opacity=".28"/>
+    <path d="M54 28v30M70 22v36M86 28v32" stroke="#7a4520" stroke-width="1.6" opacity=".28" stroke-linecap="round"/>
+  </g></svg>`;
+  // Tijera: V de índice y medio, resto recogidos
+  const tijera = `<svg ${common}><defs>
+    <linearGradient id="tg${id}" x1="20%" y1="0%" x2="80%" y2="100%"><stop offset="0%" stop-color="#ffe4bf"/><stop offset="55%" stop-color="#e3a86e"/><stop offset="100%" stop-color="#9d5c30"/></linearGradient>
+    <filter id="sh${id}" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.2" flood-color="#000" flood-opacity=".45"/></filter>
+  </defs>
+  <ellipse cx="64" cy="116" rx="34" ry="7" fill="#000" opacity=".16"/>
+  <g filter="url(#sh${id})">
+    <path d="M36 86c-4 12 6 26 28 26h12c16 0 28-10 26-24-1-8-8-14-16-14H52c-8 0-14 4-16 12z" fill="url(#tg${id})" stroke="#6b3a1a" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M42 78c-6-2-12-12-6-22 3-6 12-8 18-2l4 6" fill="url(#tg${id})" stroke="#6b3a1a" stroke-width="2.2" stroke-linejoin="round"/>
+    <path d="M58 70c-1 4 2 8 7 8h6c4 0 7-3 6-7l-6-28c-2-8-12-10-16-2l-3 12c-1 5 1 10 6 17z" fill="url(#tg${id})" stroke="#6b3a1a" stroke-width="2.1" opacity=".95"/>
+    <path d="M52 18c-4-3-11-1-12 8l-4 48c-1 6 3 11 9 11h5c5 0 9-4 10-9l8-46c2-9-6-15-16-12z" fill="url(#tg${id})" stroke="#6b3a1a" stroke-width="2.3" transform="rotate(-16 56 50)"/>
+    <path d="M78 16c-4-2-11 0-12 9l-2 48c0 6 4 11 10 11h5c5 0 9-4 9-10l6-46c2-9-5-15-16-12z" fill="url(#tg${id})" stroke="#6b3a1a" stroke-width="2.3" transform="rotate(16 84 50)"/>
+    <ellipse cx="62" cy="82" rx="10" ry="5" fill="#fff" opacity=".26"/>
+    <path d="M48 88c12-5 28-5 40 2" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="3" stroke-linecap="round"/>
+  </g></svg>`;
+  return { piedra, papel, tijera }[k] || '';
+};
+
 const RPSN = { piedra: 'Piedra', papel: 'Papel', tijera: 'Tijera' };
 async function gamesView(B) {
   const d = await api('/rps'), G = d.games, sel = rpsScreen && G.find(g => g.id === rpsScreen);
@@ -603,7 +647,7 @@ async function gamesView(B) {
   // Pantalla 1: retar + pendientes + historial
   const rec = G.filter(g => g.status === 'pending' && g.mine === 'received'), sent = G.filter(g => g.status === 'pending' && g.mine === 'sent'), play = G.filter(g => g.status === 'accepted'), hist = G.filter(g => !['pending', 'accepted'].includes(g.status));
   const ST = { done: '', declined: 'Rechazado (devuelto)', expired: 'Vencido (devuelto)' };
-  B.innerHTML = `<button class="alt" id="toRetos" style="width:auto">← Retos</button><div class="card"><h2>✊✋✌️ Piedra, papel o tijera</h2><p class="small">Reta a un amigo. Tu apuesta se retiene al retar; tiene 24 h para aceptar. El ganador se lleva todo el bote; empate devuelve.</p>
+  B.innerHTML = `<button class="alt" id="toRetos" style="width:auto">← Retos</button><div class="card"><h2 class="rps-h2"><span class="rps-trio sm">${HAND('piedra', 36)}${HAND('papel', 36)}${HAND('tijera', 36)}</span> Piedra, papel o tijera</h2><p class="small">Reta a un amigo. Tu apuesta se retiene al retar; tiene 24 h para aceptar. El ganador se lleva todo el bote; empate devuelve.</p>
     <div class="row"><select id="ro">${d.friends.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('')}</select><input id="rs" type="number" min="${d.min}" max="${d.max}" step="1" placeholder="Apuesta (${d.min}–${fmt(d.max)})"><button id="rgo">Retar</button></div>
     <div class="small">Mínimo 🪙 ${fmt(d.min)} · máximo 🪙 ${fmt(d.max)} · tienes 🪙 ${fmt(me.coins)}</div></div>
     <div class="card"><h2>Retos recibidos</h2>${rec.map(g => `<div class="opt"><span>${esc(g.rival)} te reta por 🪙 ${fmt(g.stake)} · <span class="small">${left(g)}</span></span><span><button data-ac="${g.id}">Aceptar</button> <button class="alt" data-rj="${g.id}">Rechazar</button></span></div>`).join('') || '<p class="small">Ninguno</p>'}</div>
