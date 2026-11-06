@@ -94,28 +94,26 @@ t('avatar1: fotos de racha W3/W5/L2/L3 sin marco', () => {
   assert.ok(src.includes('tablaAvatar') && src.includes('tb-aura-photo'));
 });
 
-t('retos: solo RPS en menú; HAND SVG detallado; sin tiles pen/bb/tc nuevos', () => {
+t('retos: solo RPS en menú; personajes suministrados; sin tiles pen/bb/tc nuevos', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/app.js'), 'utf8');
-  const i = src.indexOf('async function retosMenu'), j = src.indexOf('let _handUid');
+  const i = src.indexOf('async function retosMenu'), j = src.indexOf('const HAND =');
   const menu = src.slice(i, j === -1 ? i + 1200 : j);
   assert.ok(menu.includes("tile('rps'") || menu.includes('Piedra, papel o tijera'));
   assert.ok(menu.includes('legacyTiles') || menu.includes('antiguo'));
   assert.ok(!menu.includes("tile('pen'") || menu.includes('antiguo'));
   // no advertising new pen/bb/tc as primary tiles without legacy filter
   assert.ok(menu.includes('Por ahora el reto disponible'));
-  assert.ok(menu.includes('img/rps/game-icon.jpg') || menu.includes('/img/rps/game-icon.jpg'));
-  assert.ok(fs.existsSync(path.join(__dirname, 'public/img/rps/game-icon.jpg')));
+  assert.ok(menu.includes('img/rps/tile.webp') || menu.includes('/img/rps/tile.webp'));
+  assert.ok(fs.existsSync(path.join(__dirname, 'public/img/rps/tile.webp')));
   assert.ok(src.includes('DISABLED') || src.includes('ya no se pueden crear') || src.includes('Ya no se pueden crear'));
   const h = src.slice(src.indexOf('const HAND ='), src.indexOf('const RPSN'));
-  assert.ok(h.includes('viewBox="0 0 128 128"'));
-  assert.ok(h.includes('piedra') && h.includes('papel') && h.includes('tijera'));
-  assert.ok(h.includes('linearGradient') && h.includes('feDropShadow'));
-  assert.ok(!h.includes('✊') && !h.includes('✋') && !h.includes('✌️'));
-  // extract one SVG and basic well-formedness
-  const m = h.match(/const piedra = `([\s\S]*?)`;/);
-  assert.ok(m); const svg = m[1].replace(/\$\{[^}]+\}/g, 'X');
-  assert.ok(svg.includes('<svg') && svg.includes('</svg>'));
-  assert.equal((svg.match(/<svg/g) || []).length, (svg.match(/<\/svg>/g) || []).length);
+  assert.ok(h.includes('rps-character') && h.includes('/img/rps/${k}.webp'));
+  assert.ok(h.includes('Object.hasOwn(labels, k)'));
+  assert.ok(!h.includes('<svg') && !h.includes('feDropShadow'));
+  for (const n of ['tile', 'piedra', 'papel', 'tijera']) assert.ok(fs.statSync(path.join(__dirname, 'public/img/rps', n + '.webp')).size > 10000);
+  assert.ok(src.includes("HAND(sel.myPick, 110)") && src.includes("HAND(sel.rivalPick, 110)"));
+  assert.ok(src.includes("sel && sel.status === 'done'"));
+
 });
 
 console.log(n + ' tests avatares estáticos');

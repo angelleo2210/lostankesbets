@@ -530,7 +530,7 @@ async function retosMenu(B) {
   const legacyTiles = [['pen', 'Tanda de penaltis (antiguo)', p], ['bb', 'Béisbol (antiguo)', q], ['tc', 'Three Contest (antiguo)', z]]
     .filter(([, , d]) => live(d).length).map(([k, n, d]) => tile(k, '<span class="legacy-dot">⏳</span>', n, d, true)).join('');
   B.innerHTML = `<div class="card"><h2>⚔️ Retos</h2><p class="small">Por ahora el reto disponible es Piedra, papel o tijera.</p>
-    <div class="retos retos-solo">${tile('rps', `<img class="rps-game-icon" src="/img/rps/game-icon.jpg" width="148" height="148" alt="Piedra papel o tijera" decoding="async">`, 'Piedra, papel o tijera', r, false)}</div>
+    <div class="retos retos-solo">${tile('rps', `<img class="rps-game-icon" src="/img/rps/tile.webp" width="148" height="148" alt="Piedra papel o tijera" decoding="async">`, 'Piedra, papel o tijera', r, false)}</div>
     ${legacyTiles ? `<div class="small" style="margin-top:10px">Retos antiguos aún abiertos (solo para terminar o responder; ya no se pueden crear nuevos):</div><div class="retos">${legacyTiles}</div>` : ''}
   </div>`;
   B.querySelectorAll('[data-gm]').forEach(b => b.onclick = () => { gameSel = b.dataset.gm; render(); });
@@ -575,59 +575,12 @@ async function penView(B) {
   B.querySelectorAll('[data-ac],[data-rj]').forEach(b => b.onclick = async () => { const id = Number(b.dataset.ac || b.dataset.rj);
     try { await api('/pen/respond', { id, accept: !!b.dataset.ac }); if (b.dataset.ac) penScreen = id; render(); } catch (e) { flash(e.message); } });
   B.querySelectorAll('[data-go]').forEach(b => b.onclick = e => { e.preventDefault(); penScreen = Number(b.dataset.go); render(); }); }
-let _handUid = 0;
+// Supplied character artwork; shared by choices and revealed results only.
 const HAND = (k, z = 104) => {
-  const id = 'h' + (++_handUid);
-  const common = `xmlns="http://www.w3.org/2000/svg" width="${z}" height="${z}" viewBox="0 0 128 128" role="img" aria-label="${({piedra:'Piedra',papel:'Papel',tijera:'Tijera'})[k] || k}"`;
-  // Piedra: puño cerrado, volumen y nudillos claros
-  const piedra = `<svg ${common}><defs>
-    <linearGradient id="pg${id}" x1="20%" y1="10%" x2="90%" y2="95%"><stop offset="0%" stop-color="#ffe2b8"/><stop offset="45%" stop-color="#e8b07a"/><stop offset="100%" stop-color="#a86a3a"/></linearGradient>
-    <linearGradient id="ps${id}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#fff6" /><stop offset="100%" stop-color="#0000"/></linearGradient>
-    <filter id="sh${id}" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.2" flood-color="#000" flood-opacity=".45"/></filter>
-  </defs>
-  <ellipse cx="64" cy="112" rx="34" ry="8" fill="#000" opacity=".18"/>
-  <g filter="url(#sh${id})">
-    <path d="M34 70c-6 2-14 10-12 22 2 10 14 16 28 16h28c14 0 24-6 26-16 2-12-4-20-12-24" fill="url(#pg${id})" stroke="#6b3a1a" stroke-width="2.4" stroke-linejoin="round"/>
-    <path d="M38 68c2-18 10-34 26-38 12-3 24 4 28 16 2 6 2 14-1 20" fill="url(#pg${id})" stroke="#6b3a1a" stroke-width="2.4" stroke-linejoin="round"/>
-    <path d="M48 52c4-10 12-16 22-14 8 2 14 10 14 20" fill="none" stroke="#6b3a1a" stroke-width="2" opacity=".55"/>
-    <path d="M44 74h8M56 72h9M69 72h9M82 74h7" stroke="#7a4520" stroke-width="3.2" stroke-linecap="round" opacity=".7"/>
-    <ellipse cx="52" cy="66" rx="7" ry="4" fill="#fff" opacity=".28"/>
-    <path d="M40 88c10-6 28-8 44-2" fill="none" stroke="#fff" stroke-opacity=".25" stroke-width="3" stroke-linecap="round"/>
-  </g></svg>`;
-  // Papel: palma abierta, 4 dedos + pulgar
-  const papel = `<svg ${common}><defs>
-    <linearGradient id="fg${id}" x1="15%" y1="5%" x2="85%" y2="100%"><stop offset="0%" stop-color="#ffe9cc"/><stop offset="50%" stop-color="#f0c090"/><stop offset="100%" stop-color="#c47a45"/></linearGradient>
-    <filter id="sh${id}" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.2" flood-color="#000" flood-opacity=".45"/></filter>
-  </defs>
-  <ellipse cx="64" cy="116" rx="36" ry="7" fill="#000" opacity=".16"/>
-  <g filter="url(#sh${id})">
-    <path d="M28 78c-8-2-16-14-10-26 4-8 14-10 20-4l6 10" fill="url(#fg${id})" stroke="#6b3a1a" stroke-width="2.3" stroke-linejoin="round"/>
-    <path d="M40 86c-2 14 8 26 28 26h10c18 0 30-10 30-26V70c0-6-4-10-10-10H52c-8 0-12 4-12 12z" fill="url(#fg${id})" stroke="#6b3a1a" stroke-width="2.4" stroke-linejoin="round"/>
-    <path d="M48 22c-3-2-8 0-9 8l-2 36c0 4 3 7 7 7h4c4 0 7-3 7-7V30c0-6-3-9-7-9z" fill="url(#fg${id})" stroke="#6b3a1a" stroke-width="2.2"/>
-    <path d="M64 14c-3-1-8 1-8 9v44c0 4 3 7 7 7h4c4 0 7-3 7-7V24c0-7-4-10-10-10z" fill="url(#fg${id})" stroke="#6b3a1a" stroke-width="2.2"/>
-    <path d="M80 18c-3-2-8 0-8 8v42c0 4 3 7 7 7h4c4 0 7-3 7-7V28c0-7-4-11-10-10z" fill="url(#fg${id})" stroke="#6b3a1a" stroke-width="2.2"/>
-    <path d="M96 26c-3-2-8 0-8 8v36c0 4 3 7 7 7h3c4 0 7-3 7-7V36c0-7-3-11-9-10z" fill="url(#fg${id})" stroke="#6b3a1a" stroke-width="2.2"/>
-    <ellipse cx="58" cy="78" rx="12" ry="6" fill="#fff" opacity=".28"/>
-    <path d="M54 28v30M70 22v36M86 28v32" stroke="#7a4520" stroke-width="1.6" opacity=".28" stroke-linecap="round"/>
-  </g></svg>`;
-  // Tijera: V de índice y medio, resto recogidos
-  const tijera = `<svg ${common}><defs>
-    <linearGradient id="tg${id}" x1="20%" y1="0%" x2="80%" y2="100%"><stop offset="0%" stop-color="#ffe4bf"/><stop offset="55%" stop-color="#e3a86e"/><stop offset="100%" stop-color="#9d5c30"/></linearGradient>
-    <filter id="sh${id}" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="2.2" flood-color="#000" flood-opacity=".45"/></filter>
-  </defs>
-  <ellipse cx="64" cy="116" rx="34" ry="7" fill="#000" opacity=".16"/>
-  <g filter="url(#sh${id})">
-    <path d="M36 86c-4 12 6 26 28 26h12c16 0 28-10 26-24-1-8-8-14-16-14H52c-8 0-14 4-16 12z" fill="url(#tg${id})" stroke="#6b3a1a" stroke-width="2.4" stroke-linejoin="round"/>
-    <path d="M42 78c-6-2-12-12-6-22 3-6 12-8 18-2l4 6" fill="url(#tg${id})" stroke="#6b3a1a" stroke-width="2.2" stroke-linejoin="round"/>
-    <path d="M58 70c-1 4 2 8 7 8h6c4 0 7-3 6-7l-6-28c-2-8-12-10-16-2l-3 12c-1 5 1 10 6 17z" fill="url(#tg${id})" stroke="#6b3a1a" stroke-width="2.1" opacity=".95"/>
-    <path d="M52 18c-4-3-11-1-12 8l-4 48c-1 6 3 11 9 11h5c5 0 9-4 10-9l8-46c2-9-6-15-16-12z" fill="url(#tg${id})" stroke="#6b3a1a" stroke-width="2.3" transform="rotate(-16 56 50)"/>
-    <path d="M78 16c-4-2-11 0-12 9l-2 48c0 6 4 11 10 11h5c5 0 9-4 9-10l6-46c2-9-5-15-16-12z" fill="url(#tg${id})" stroke="#6b3a1a" stroke-width="2.3" transform="rotate(16 84 50)"/>
-    <ellipse cx="62" cy="82" rx="10" ry="5" fill="#fff" opacity=".26"/>
-    <path d="M48 88c12-5 28-5 40 2" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="3" stroke-linecap="round"/>
-  </g></svg>`;
-  return { piedra, papel, tijera }[k] || '';
+  const labels = { piedra: 'Piedra', papel: 'Papel', tijera: 'Tijera' };
+  if (!Object.hasOwn(labels, k)) return '';
+  return `<img class="rps-character" src="/img/rps/${k}.webp" width="${z}" height="${z}" alt="${labels[k]}" decoding="async">`;
 };
-
 const RPSN = { piedra: 'Piedra', papel: 'Papel', tijera: 'Tijera' };
 async function gamesView(B) {
   const d = await api('/rps'), G = d.games, sel = rpsScreen && G.find(g => g.id === rpsScreen);
