@@ -6,6 +6,19 @@
   const SLOTS = [];
   const CAT = {};
   const src = (pick, head) => `img/avatars/${Math.min(N, Math.max(1, pick|0))}${head ? '_head' : ''}.webp`;
+  /** Solo pick=1 por ahora: foto de racha en vez de marco. W3/W5/L2/L3. */
+  const streakKey = (st) => {
+    if (!st || !st.kind) return null;
+    if (st.kind === 'fuego') return st.intense ? 'w5' : 'w3';
+    if (st.kind === 'hielo') return st.intense ? 'l3' : 'l2';
+    return null;
+  };
+  const streakSrc = (pick, st, head) => {
+    const p = Math.min(N, Math.max(1, pick|0));
+    if (p !== 1 || head) return null; // head crops: sin variantes aún
+    const k = streakKey(st);
+    return k ? `img/avatars/1_${k}.webp` : null;
+  };
   const norm = c => {
     let p = 1;
     if (c && typeof c === 'object') {
@@ -29,7 +42,8 @@
     const head = !!opts.head;
     const w = opts.w || (head ? 64 : 180), h = opts.h || (head ? w : Math.round(w * 4 / 3));
     const cls = opts.cls || '';
-    return `<img class="av-img ${cls}" src="${src(pick, head)}" width="${w}" height="${h}" alt="Avatar ${pick}" draggable="false" loading="lazy">`;
+    const url = (opts.streak && streakSrc(pick, opts.streak, head)) || src(pick, head);
+    return `<img class="av-img ${cls}" src="${url}" width="${w}" height="${h}" alt="Avatar ${pick}" draggable="false" loading="lazy">`;
   };
   function render(cfg, opt = {}) {
     const c = norm(cfg);
@@ -38,7 +52,7 @@
     return imgTag(c.pick, opt);
   }
   const api = { N, DEFAULT, LAYERS, SLOTS, CAT, FACES: {}, BODIES: {}, COLORS: [], HAIRC: [], SKIN: [], CNAMES: {},
-    validate, norm, render, src, imgTag, PICKS: Array.from({ length: N }, (_, i) => i + 1) };
+    validate, norm, render, src, streakSrc, streakKey, imgTag, PICKS: Array.from({ length: N }, (_, i) => i + 1) };
   if (typeof module !== 'undefined') module.exports = api;
   root.Avatar = api;
 })(typeof window !== 'undefined' ? window : globalThis);

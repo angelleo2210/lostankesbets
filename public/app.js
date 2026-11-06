@@ -139,7 +139,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
       const sz = place === 1 ? { w: 72, h: 96 } : { w: 58, h: 77 };
       return `<div class="tb-pod tb-pod-${place}${u.id === meId ? ' me' : ''}">
         <div class="tb-pod-name">${esc(nm)}</div>
-        ${auraWrap(`<div class="tb-pod-av">${Avatar.imgTag(Avatar.norm(u.avatarCfg).pick, { w: sz.w, h: sz.h, cls: 'av3dc' })}</div>`, u.streak)}
+        ${tablaAvatar(u, { w: sz.w, h: sz.h, boxCls: 'tb-pod-av', sm: false })}
       </div>`;
     };
     const rowHtml = rows.map((u, i) => {
@@ -148,7 +148,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
       const stk = streakEmoji(u.streak);
       return `<div class="tb-row${mine ? ' me' : ''}">
         <div class="tb-rank">${i + 1}</div>
-        ${auraWrap(`<div class="tb-av">${Avatar.imgTag(Avatar.norm(u.avatarCfg).pick, { w: 44, h: 58, cls: 'av3dc' })}</div>`, u.streak, { sm: true })}
+        ${tablaAvatar(u, { w: 44, h: 58, boxCls: 'tb-av', sm: true })}
         <div class="tb-info">
           <div class="tb-name">${esc(nm)}${mine ? ' <span class="tb-you">Tú</span>' : ''}</div>
           <div class="tb-user">@${esc(u.username)}</div>
@@ -317,6 +317,15 @@ const auraWrap = (inner, st, { sm } = {}) => {
   const ac = auraClass(st); if (!ac) return inner;
   const src = FRAME_SRC[ac] || FRAME_SRC[ac.split(' ')[0]];
   return `<div class="tb-aura ${ac}${sm ? ' tb-aura-sm' : ''}"><div class="tb-aura-core">${inner}</div><img class="tb-frame" src="${src}" alt="" decoding="async" aria-hidden="true"></div>`;
+};
+/** Avatar en Tabla: pick=1 con racha → foto de racha (sin marco). Otros → marco CSS. */
+const tablaAvatar = (u, { w, h, boxCls, sm } = {}) => {
+  const pick = Avatar.norm(u && u.avatarCfg).pick;
+  const st = u && u.streak;
+  const photo = Avatar.streakSrc && Avatar.streakSrc(pick, st, false);
+  const img = `<div class="${boxCls || 'tb-av'}"><img class="av3dc" src="${photo || Avatar.src(pick, false)}" width="${w}" height="${h}" alt="" draggable="false" loading="lazy"></div>`;
+  if (photo) return `<div class="tb-aura tb-aura-photo${sm ? ' tb-aura-sm' : ''}">${img}</div>`;
+  return auraWrap(img, st, { sm });
 };
 const streakTag = (st, big) => { if (!st) return ''; const I = !!st.intense, z = big ? 30 : 16;
   if (st.kind === 'fuego') return `<span class="stk fire ${I ? 'intense' : ''} ${big ? 'big' : ''}">${I ? FIRE(z + 4) + FIRE(z) : FIRE(z)} ${I ? (big ? 'Imparable · ' : 'Imparable ') : big ? 'En llamas · ' : ''}${I && !big ? 'x' + st.n : 'En racha x' + st.n}</span>`;

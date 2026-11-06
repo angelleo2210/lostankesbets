@@ -62,7 +62,7 @@ t('tabla: podium + feed + filtros + fila propia + glow 1º', () => {
   assert.ok(block.includes('data-tp') && block.includes('hoy') && block.includes('semana') && block.includes('temporada'));
   assert.ok(block.includes('tb-row') && block.includes('winPct') && block.includes('streakEmoji') && block.includes('tb-you'));
   assert.ok(block.includes("/tabla?period="));
-  assert.ok(src.includes('auraClass') && src.includes('auraWrap') && block.includes('auraWrap('));
+  assert.ok(src.includes('auraClass') && src.includes('auraWrap') && block.includes('tablaAvatar('));
   assert.ok(src.includes('FRAME_SRC') && src.includes('frame-fire.webp') && src.includes('frame-fire-hi.webp') && src.includes('frame-ice.webp') && src.includes('frame-ice-hi.webp'));
   assert.ok(src.includes('tb-frame') && !src.includes('ap-flake') && !src.includes('rectPts'));
   const css = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
@@ -74,5 +74,21 @@ t('tabla: podium + feed + filtros + fila propia + glow 1º', () => {
   for (const f of ['frame-fire.webp','frame-fire-hi.webp','frame-ice.webp','frame-ice-hi.webp']) {
     assert.ok(fs2.existsSync(path.join(__dirname, 'public/img/frames', f)), f);
   }
+});
+
+t('avatar1: fotos de racha W3/W5/L2/L3 sin marco', () => {
+  const fs2 = require('fs');
+  for (const f of ['1_w3.webp','1_w5.webp','1_l2.webp','1_l3.webp']) {
+    assert.ok(fs2.existsSync(path.join(__dirname, 'public/img/avatars', f)), f);
+  }
+  assert.ok(typeof Av.streakSrc === 'function');
+  assert.equal(Av.streakSrc(1, { kind: 'fuego', n: 3, intense: false }), 'img/avatars/1_w3.webp');
+  assert.equal(Av.streakSrc(1, { kind: 'fuego', n: 5, intense: true }), 'img/avatars/1_w5.webp');
+  assert.equal(Av.streakSrc(1, { kind: 'hielo', n: 2, intense: false }), 'img/avatars/1_l2.webp');
+  assert.equal(Av.streakSrc(1, { kind: 'hielo', n: 4, intense: true }), 'img/avatars/1_l3.webp');
+  assert.equal(Av.streakSrc(2, { kind: 'fuego', n: 3, intense: false }), null);
+  assert.equal(Av.streakSrc(1, null), null);
+  const src = fs.readFileSync(path.join(__dirname, 'public/app.js'), 'utf8');
+  assert.ok(src.includes('tablaAvatar') && src.includes('tb-aura-photo'));
 });
 console.log(n + ' tests avatares estáticos');
