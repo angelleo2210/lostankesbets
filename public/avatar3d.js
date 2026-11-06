@@ -68,7 +68,20 @@
   async function person(cfg) { const { m } = await data(), p = pick(cfg || {}, m), c = cv(), x = c.getContext('2d');
     const parts = await Promise.all([img(p.base), ...p.use.map(l => Promise.all([l.erase ? img(l.erase) : null, l.skins ? img(l.skins[p.skin]) : !l.src ? null : (l.color ? recolor(l.src, l.color, l.want, l.lum, l.sel) : img(l.src)), l.hands ? img(l.hands[p.skin]) : null]))]);
     x.drawImage(parts[0], 0, 0);
-    parts.slice(1).forEach(([er, pa, hn]) => { if (er) { x.globalCompositeOperation = 'destination-out'; x.drawImage(er, 0, 0); x.globalCompositeOperation = 'source-over'; } if (pa) x.drawImage(pa, 0, 0); if (hn) x.drawImage(hn, 0, 0); });
+    parts.slice(1).forEach(([er, pa, hn], i) => {
+      if (er) { // dilatar un poco el borrado de gorra/sombrero para que el pelo no asome
+        const soft = document.createElement('canvas'); soft.width = W; soft.height = H; const sx = soft.getContext('2d');
+        sx.drawImage(er, 0, 0); sx.globalCompositeOperation = 'source-in'; sx.filter = 'blur(1.2px)'; sx.drawImage(er, -1, -1, W + 2, H + 2);
+        x.globalCompositeOperation = 'destination-out'; x.drawImage(soft, 0, 0); x.drawImage(er, 0, 0); x.globalCompositeOperation = 'source-over';
+      }
+      // prendas base: quitar la ropa oscura del body SOLO bajo la máscara de la prenda (sin expandir fuera → no come piel)
+      if (pa && p.use[i] && p.use[i].base && (p.use[i].slot === 'arriba' || p.use[i].slot === 'abajo' || p.use[i].slot === 'zapatos')) {
+        const mask = document.createElement('canvas'); mask.width = W; mask.height = H; const mx = mask.getContext('2d');
+        mx.drawImage(pa, 0, 0); mx.globalCompositeOperation = 'source-in'; mx.fillStyle = '#000'; mx.fillRect(0, 0, W, H);
+        x.globalCompositeOperation = 'destination-out'; x.drawImage(mask, 0, 0); x.globalCompositeOperation = 'source-over';
+      }
+      if (pa) x.drawImage(pa, 0, 0); if (hn) x.drawImage(hn, 0, 0);
+    });
     return { canvas: c, info: p }; }
   function shadow(x, cx, cy, rw, a = .55) { x.save(); x.translate(cx, cy); x.scale(1, .16); const g = x.createRadialGradient(0, 0, 2, 0, 0, rw); g.addColorStop(0, `rgba(10,5,0,${a})`); g.addColorStop(1, 'rgba(10,5,0,0)'); x.fillStyle = g; x.fillRect(-rw, -rw, rw * 2, rw * 2); x.restore(); }
   // opt.scene = { yate: {id,color}, moto: {id,color} }  → muelle con los objetos que tenga; sin ninguno: estudio.
@@ -83,13 +96,22 @@
     // Retrato: solo persona + fondo suave, sin escena/muelle
     if (opt.head) {
       const { canvas: pc, info } = await person(cfg); const hc = headCrop(pc);
-      const TW = opt.w || 96, TH = opt.h || TW; target.width = TW; target.height = TH;
-      const g = x.createRadialGradient(TW / 2, TH * .45, 2, TW / 2, TH * .5, TW * .55);
-      g.addColorStop(0, '#3a4257'); g.addColorStop(1, '#14171f'); x.fillStyle = g; x.fillRect(0, 0, TW, TH);
-      x.drawImage(hc, 0, 0, TW, TH); return { ...info, missing: [...info.missing] };
+      const cssW = opt.w || 96, cssH = opt.h || cssW;
+      const dpr = Math.min(3, opt.dpr || (typeof devicePixelRatio !== 'undefined' ? devicePixelRatio : 2));
+      target.width = Math.round(cssW * dpr); target.height = Math.round(cssH * dpr);
+      if (target.style) { target.style.width = cssW + 'px'; target.style.height = cssH + 'px'; }
+      x.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const g = x.createRadialGradient(cssW / 2, cssH * .45, 2, cssW / 2, cssH * .5, cssW * .55);
+      g.addColorStop(0, '#3a4257'); g.addColorStop(1, '#14171f'); x.fillStyle = g; x.fillRect(0, 0, cssW, cssH);
+      x.drawImage(hc, 0, 0, cssW, cssH); return { ...info, missing: [...info.missing] };
     }
     const y = prop('yate'), mo = prop('moto'), dock = !!(sc.yate || sc.moto), [{ canvas: pc, info }, plate, yi, mi] = await Promise.all([person(cfg), dock ? img(s.plates.muelle.src) : null, y && recolor(y.src, y.color, y.want, y.lum, y.sel || { c: 18, h: 28 }), mo && recolor(mo.src, mo.color, mo.want, mo.lum, mo.sel || { c: 18, h: 28 })]);
-    const TW = opt.w || W, TH = opt.h || H; target.width = TW; target.height = TH; const k = TW / W;
+    const cssW = opt.w || W, cssH = opt.h || H;
+    const dpr = Math.min(3, opt.dpr || (typeof devicePixelRatio !== 'undefined' ? devicePixelRatio : 2));
+    target.width = Math.round(cssW * dpr); target.height = Math.round(cssH * dpr);
+    if (target.style) { target.style.width = cssW + 'px'; target.style.height = (cssH) + 'px'; }
+    x.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const TW = cssW, TH = cssH, k = TW / W;
     if (dock) { x.drawImage(plate, 0, 0, TW, TH); if (yi) x.drawImage(yi, 0, 0, TW, TH);
       const pl = s.plates.muelle.person, ph = TH * pl.h, pw = ph * W / H, px = TW * pl.x, py = TH * pl.y - ph * .975;
       shadow(x, px + pw * .47, py + ph * .955, pw * .36); if (mi) { shadow(x, TW * .72, TH * .80, TW * .3, .45); }
