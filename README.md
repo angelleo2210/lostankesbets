@@ -26,3 +26,13 @@ Luego: **Cerrar apuestas**, **Ganó esta** (paga) o **Cancelar y devolver**.
 
 ## Líneas reales
 Usan The Odds API (https://the-odds-api.com). Pon tu clave en `ODDS_API_KEY`. Sin clave verás "Líneas reales: falta configurar la clave". El admin importa un evento en la pestaña **Reales** y lo liquida a mano con "Ganó esta".
+
+## Mercados por evento
+
+- The Odds API v4: `h2h,spreads,totals`, `regions=us`, cuotas americanas. Documentación: https://the-odds-api.com/liveapi/guides/v4/ . Cada mercado conserva el umbral y las cuotas de un solo bookmaker completo; no se mezclan casas dentro de un mercado. Disponibilidad depende del deporte/casa/plan/cuota (hasta 3 créditos por región por consulta). No se fabrican cuotas si falta un mercado.
+- Importar crea líneas independientes por mercado; reimportar no cambia apuestas/cuotas ni reabre mercados. Las importaciones antiguas h2h se conservan.
+- Admin → Nuevo evento con mercados: equipos, mercados habilitados, umbrales y cuotas explícitas. Líneas enteras/medias; no se admiten cuartos asiáticos/divididos.
+- Liquidar/cerrar afecta SOLO al mercado elegido. Push requiere umbral entero y confirmación manual del resultado exacto: devuelve simples y anula patas de parlay (multiplicador 1). No hay feed de marcadores ni liquidación automática.
+- Parlay: como máximo una selección por evento, aun entre mercados distintos. Las apuestas simples a mercados independientes sí se permiten.
+- Migración aditiva e idempotente; no cambia cuentas, PINs, saldos ni apuestas existentes.
+- Pruebas: `node test.js && node test_av3d.js && node test_markets.js`.

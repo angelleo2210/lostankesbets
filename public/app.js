@@ -45,10 +45,10 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
   const B = $('#body'); bonusBar();
   try {
   if (tab === 'lineas') { const ls = await api('/lines');
-    B.innerHTML = boletoCard() + (ls.length ? ls.map(lineCard).join('') : '<div class="card">No hay líneas abiertas.</div>'); bindBets(ls); }
+    B.innerHTML = boletoCard() + (ls.length ? marketCards(ls) : '<div class="card">No hay líneas abiertas.</div>'); bindBets(ls); }
   if (tab === 'reales') { const d = await api('/real'); const ls = (await api('/lines')).filter(l => l.kind === 'real');
-    B.innerHTML = boletoCard() + (d.error ? `<div class="card">${esc(d.error)}</div>` : '') + (ls.length ? ls.map(lineCard).join('') : '<div class="card">El administrador aún no ha agregado líneas reales.</div>') +
-      (me.is_admin && d.events ? `<div class="card"><h2>Importar evento real (admin)</h2>${d.events.slice(0, 30).map(e => `<div class="card"><b>${esc(e.sport)}: ${esc(e.title)}</b><div class="small">${new Date(e.starts).toLocaleString('es-US')} · ${esc(e.bookmaker)}</div>${e.options.map(o => `${esc(o.label)} ${od(o.odds)}`).join(' · ')}<button class="alt" data-imp="${esc(e.id)}">Agregar</button></div>`).join('')}</div>` : '');
+    B.innerHTML = boletoCard() + (d.error ? `<div class="card">${esc(d.error)}</div>` : '') + (ls.length ? marketCards(ls) : '<div class="card">El administrador aún no ha agregado líneas reales.</div>') +
+      (me.is_admin && d.events ? `<div class="card"><h2>Importar evento real (admin)</h2>${d.events.slice(0, 30).map(e => `<div class="card"><b>${esc(e.sport)}: ${esc(e.title)}</b><div class="small">${new Date(e.starts).toLocaleString('es-US')} · ${esc(e.bookmaker)}</div>${(e.markets || []).map(m => `${Markets.NAMES[m.key]}: ${m.options.map(o => `${esc(Markets.label(m.key,o))} ${od(o.odds)}`).join(' / ')}`).join('<br>')}<button class="alt" data-imp="${esc(e.id)}">Agregar</button></div>`).join('')}</div>` : '');
     bindBets(ls); B.querySelectorAll('[data-imp]').forEach(b => b.onclick = async () => { try { const r = await api('/admin/import', { eventId: b.dataset.imp }); if (r.error) throw new Error(r.error); render(); } catch (e) { flash(e.message); } }); }
   if (tab === 'mias') {
     const meta = s => ({
@@ -202,6 +202,34 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
   if (tab === 'admin') await adminView(B);
   } catch (e) { flash(e.message); }
 }
+// Group independently settled market lines into one event card; legacy custom lines stay unchanged.
+function marketCards(ls) {
+  const groups = new Map(), legacy = [];
+  for (const l of ls) {
+    if (!l.event_id) { legacy.push(l); continue; }
+    const key = l.kind + ':' + l.event_id;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(l);
+  }
+  return [...groups.values()].map(group => {
+    const base = group.find(l => l.home) || group[0];
+    const by = Object.fromEntries(group.map(l => [l.market || 'h2h', l]));
+    const winner = by.h2h;
+    const teams = base.home ? [base.home, base.away] : (winner?.options || []).filter(o => !['Draw','Empate'].includes(o.outcome || o.label)).map(o => o.outcome || o.label);
+    const cell = (l, o) => {
+      if (!l || !o) return '<span class="market-unavailable" aria-label="No disponible">—</span>';
+      const on = boleto.some(b => b.id === o.id), key = l.market || 'h2h';
+      const content = `${key !== 'h2h' ? `<span class="market-point">${esc(Markets.threshold(key, o))}</span>` : ''}<span class="odds-n">${od(o.odds)}</span>`;
+      return l.status === 'open' ? `<button type="button" class="odds ${on ? 'on' : ''}" data-add="${o.id}" aria-pressed="${on}" aria-label="${esc(o.label)} ${od(o.odds)}">${content}</button>` : `<div class="odds off" aria-label="Cerrada">${content}</div>`;
+    };
+    const row = (name, i) => `<div class="event-team">${esc(name)}</div>${cell(by.spreads, by.spreads?.options.find(o => o.outcome === name))}${cell(by.totals, by.totals?.options.find(o => o.outcome === (i === 0 ? 'Over' : 'Under')))}${cell(winner, winner?.options.find(o => (o.outcome || o.label) === name))}`;
+    const draw = winner?.options.find(o => ['Draw','Empate'].includes(o.outcome || o.label));
+    return `<div class="card line"><div class="line-hd"><h2>${esc(base.title)}</h2><div class="small">${base.kind === 'real' ? 'Real' : 'Ficticia'} · Mercados independientes${base.starts ? ' · ' + new Date(base.starts).toLocaleString('es-US') : ''}</div></div>
+      <div class="event-market-grid"><span class="market-head">Equipo</span><span class="market-head">Hándicap</span><span class="market-head">Total${base.unit ? '<br>' + esc(base.unit) : ''}</span><span class="market-head">Ganador</span>
+      ${teams.slice(0,2).map(row).join('')}${draw ? `<span class="event-team">Empate</span><span></span><span></span>${cell(winner, draw)}` : ''}</div>
+      <div class="small">— No disponible. Una selección por evento en parlay. ${group.filter(l => l.bookmaker).map(l => `${Markets.NAMES[l.market]}: ${esc(l.bookmaker)}`).join(' · ')}</div></div>`;
+  }).join('') + legacy.map(lineCard).join('');
+}
 function lineCard(l) {
   const open = l.status === 'open';
   const rows = l.options.map(o => {
@@ -233,7 +261,7 @@ function bindBets(ls = []) {
   };
   A.querySelectorAll('[data-add]').forEach(b => b.onclick = () => { const id = Number(b.dataset.add), i = boleto.findIndex(x => x.id === id);
     if (i >= 0) boleto.splice(i, 1); else { const l = ls.find(l => l.options.some(o => o.id === id)), o = l && l.options.find(o => o.id === id);
-      if (!l || !o) return; boleto = boleto.filter(x => x.line !== l.id); if (boleto.length >= 15) return flash('Máximo 15 selecciones'); boleto.push({ id, line: l.id, title: l.title, label: o.label, odds: o.odds }); } render(); });
+      if (!l || !o) return; boleto = boleto.filter(x => x.line !== l.id && !(l.event_id && x.event === l.kind + ':' + l.event_id)); if (boleto.length >= 15) return flash('Máximo 15 selecciones'); boleto.push({ id, line: l.id, event: l.event_id ? l.kind + ':' + l.event_id : null, title: l.title, label: o.label, odds: o.odds }); } render(); });
   A.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { boleto = boleto.filter(x => x.id !== Number(b.dataset.rm)); render(); });
   if ($('#pclr')) $('#pclr').onclick = () => { boleto = []; render(); };
   if ($('#ps')) $('#ps').oninput = payoutHint;
@@ -252,10 +280,16 @@ async function adminView(B) {
   const inv = await api('/admin/invites').catch(() => []); const us = await api('/admin/users').catch(() => []); const tps = await api('/admin/topups').catch(() => []);
   B.innerHTML = `<div class="card"><h2>Nueva línea ficticia</h2><input id="t" placeholder="Ej: Hoy Ángel come espaguetis">
   <div id="opts"></div><button class="alt" id="add">+ Opción</button><button id="create">Crear línea</button></div>
-  <div class="card"><h2>Liquidar / cerrar</h2>${ls.map(l => `<div class="card"><b>${esc(l.title)}</b> <span class="small">(${l.status === 'open' ? 'abierta' : 'cerrada'})</span>
+  <div class="card"><h2>Nuevo evento con mercados</h2><p class="small">Opciones independientes; no se generan cuotas. Solo umbrales enteros o medios (sin líneas asiáticas divididas). Liquidación manual por mercado.</p>
+    <input id="et" placeholder="Título del evento"><input id="eh" placeholder="Equipo local"><input id="ea" placeholder="Equipo visitante">
+    <select id="eu"><option value="">Unidad sin especificar</option value="goles">Goles</option><option value="puntos">Puntos</option><option value="carreras">Carreras</option></select>
+    <label><input type="checkbox" id="emh"> Ganador</label><div class="row"><input id="eho" placeholder="Cuota local"><input id="eao" placeholder="Cuota visitante"><input id="edo" placeholder="Cuota empate (opcional)"></div>
+    <label><input type="checkbox" id="ems"> Hándicap</label><div class="row"><input id="esp" placeholder="Umbral local (ej. -0.5)"><input id="eso" placeholder="Cuota local"><input id="esao" placeholder="Cuota visitante"></div><p class="small">Visitante: umbral opuesto al local.</p>
+    <label><input type="checkbox" id="emt"> Total</label><div class="row"><input id="etp" placeholder="Umbral total"><input id="eto" placeholder="Cuota Over"><input id="etuo" placeholder="Cuota Under"></div><button id="eventCreate">Crear evento</button></div>
+  <div class="card"><h2>Liquidar / cerrar</h2>${ls.map(l => `<div class="card"><b>${esc(l.title)}${l.market ? " · " + Markets.NAMES[l.market] : ""}</b> <span class="small">(${l.status === 'open' ? 'abierta' : 'cerrada'})</span>
    ${l.status === 'open' ? `<button class="alt" data-close="${l.id}">Cerrar apuestas</button>` : ''}
    <select id="w${l.id}">${l.options.map(o => `<option value="${o.id}">${esc(o.label)} ${od(o.odds)}</option>`).join('')}</select>
-   <div class="row"><button data-settle="${l.id}">Ganó esta</button><button class="red" data-cancel="${l.id}">Cancelar y devolver</button></div></div>`).join('') || 'Nada pendiente.'}</div>
+   <div class="row"><button data-settle="${l.id}">Ganó esta</button>${["spreads","totals"].includes(l.market) && l.options.every(o => Number.isInteger(o.point)) ? `<button class="alt" data-push="${l.id}">Push: empate exacto / devolver</button>` : ""}<button class="red" data-cancel="${l.id}">Cancelar y devolver</button></div></div>`).join('') || 'Nada pendiente.'}</div>
   <div class="card"><h2>Recargar saldo</h2><select id="tu">${us.map(u => `<option value="${u.id}">${esc((u.avatar ? u.avatar + ' ' : '') + (u.display_name || u.username))} · 🪙 ${fmt(u.coins)}</option>`).join('')}</select>
    <input id="ta" type="number" min="1" max="10000000" step="1" placeholder="Monto (máx 10.000.000)"><button id="tgo">Recargar</button>
    ${tps.length ? '<div class="small" style="margin-top:6px">Recientes</div>' + tps.map(t => `<div class="small">${esc(new Date(t.created + 'Z').toLocaleString('es-US'))} · ${who(t)} +${fmt(t.amount)} (por ${esc(t.admin)})</div>`).join('') : ''}</div>
@@ -264,6 +298,15 @@ async function adminView(B) {
   addOpt('Sí', '-250'); addOpt('No', '+880'); $('#add').onclick = () => addOpt();
   const act = (sel, fn) => B.querySelectorAll(sel).forEach(b => b.onclick = async () => { try { await fn(b); render(); } catch (e) { flash(e.message); } });
   act('#create', () => api('/admin/lines', { title: $('#t').value, options: [...$('#opts').children].map(r => ({ label: r.children[0].value, odds: Number(r.children[1].value) })) }));
+  act('#eventCreate', () => {
+    const num = id => { const v = $('#' + id).value.trim(); if (!v) throw new Error('Falta umbral o cuota'); return Number(v); };
+    const home = $('#eh').value.trim(), away = $('#ea').value.trim(), markets = [];
+    if ($('#emh').checked) { const options = [{ label: home, odds: num('eho') }, { label: away, odds: num('eao') }]; if ($('#edo').value.trim()) options.push({ label: 'Draw', odds: num('edo') }); markets.push({ key: 'h2h', options }); }
+    if ($('#ems').checked) markets.push({ key: 'spreads', options: [{ label: home, point: num('esp'), odds: num('eso') }, { label: away, point: -num('esp'), odds: num('esao') }] });
+    if ($('#emt').checked) markets.push({ key: 'totals', options: [{ label: 'Over', point: num('etp'), odds: num('eto') }, { label: 'Under', point: num('etp'), odds: num('etuo') }] });
+    return api('/admin/events', { title: $('#et').value, home, away, unit: $('#eu').value, markets });
+  });
+  act('[data-push]', b => confirm('¿Resultado exactamente igual al umbral? Push solo de este mercado: devolver simples y anular patas de parlay.') && api(`/admin/lines/${b.dataset.push}/push`, {}));
   act('[data-close]', b => api(`/admin/lines/${b.dataset.close}/close`, {}));
   act('[data-settle]', b => confirm('¿Liquidar esta línea?') && api(`/admin/lines/${b.dataset.settle}/settle`, { optionId: Number($('#w' + b.dataset.settle).value) }));
   act('[data-cancel]', b => confirm('¿Cancelar y devolver monedas?') && api(`/admin/lines/${b.dataset.cancel}/cancel`, {}));

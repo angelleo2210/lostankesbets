@@ -48,7 +48,9 @@ app.post('/api/parlay', h(r => { const u = auth(r); return { id: C.placeParlay(u
 app.get('/api/real', h(async r => { auth(r); return odds.upcoming(r.query.sport || 'upcoming'); }));
 app.post('/api/admin/import', h(async r => { admin(r); const d = await odds.upcoming(r.body.sport || 'upcoming'); if (d.error) return d;
   const e = d.events.find(x => x.id === r.body.eventId); if (!e) return { error: 'Evento no encontrado' };
-  return { id: C.createLine(`${e.sport}: ${e.title}`, e.options, { kind: 'real', event_id: e.id, starts: e.starts }) }; }));
+  return { ids: C.createEvent({ ...e, title: `${e.sport}: ${e.title}` }, 'real') }; }));
+app.post('/api/admin/events', h(r => { admin(r); return { ids: C.createEvent({ ...r.body, id: 'custom:' + require('node:crypto').randomUUID() }) }; }));
+app.post('/api/admin/lines/:id/push', h(r => { admin(r); C.pushLine(r.params.id); }));
 app.post('/api/admin/lines', h(r => { admin(r); return { id: C.createLine(r.body.title, r.body.options) }; }));
 app.post('/api/admin/lines/:id/close', h(r => { admin(r); C.closeLine(Number(r.params.id)); }));
 app.post('/api/admin/lines/:id/settle', h(r => { admin(r); C.settleLine(r.params.id, r.body.optionId); }));

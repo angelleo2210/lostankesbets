@@ -1,5 +1,6 @@
 const { DatabaseSync } = require('node:sqlite');
 const crypto = require('node:crypto');
+const Markets = require('./public/markets');
 const AV = require('./public/avatar'); const ST = require('./public/store');
 const START_COINS = 50000; const BONUS = 5000, BONUS_MS = 24 * 3600 * 1000; const MAX_TOPUP = 10000000;
 const PODIUM_MIN_SETTLED = 3; // mín. apuestas liquidadas (won+lost) para el podio top 3
@@ -92,7 +93,12 @@ function open(file = 'data.db') {
   if (!ucols.includes('facial_hair')) db.exec('ALTER TABLE users ADD COLUMN facial_hair TEXT');
   db.exec('CREATE TABLE IF NOT EXISTS purchases(user_id INTEGER, item_id TEXT, price INTEGER, color TEXT, created TEXT DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(user_id, item_id))');
   if (!db.prepare('PRAGMA table_info(purchases)').all().some(c => c.name === 'color')) db.exec('ALTER TABLE purchases ADD COLUMN color TEXT');
-  const tx = fn => { db.exec('BEGIN'); try { const r = fn(); db.exec('COMMIT'); return r; } catch (e) { db.exec('ROLLBACK'); throw e; } };
+  // Additive migration: legacy lines remain market=NULL.
+  for (const [table, cols] of Object.entries({ lines: { market: 'TEXT', home: 'TEXT', away: 'TEXT', unit: 'TEXT', bookmaker: 'TEXT' }, options: { point: 'REAL', outcome: 'TEXT' } })) {
+    const existing = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
+    for (const [col, type] of Object.entries(cols)) if (!existing.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
+  }
+  let txN = 0; const tx = fn => { const sp = 'tx' + (++txN); db.exec(`SAVEPOINT ${sp}`); try { const r = fn(); db.exec(`RELEASE ${sp}`); return r; } catch (e) { db.exec(`ROLLBACK TO ${sp}; RELEASE ${sp}`); throw e; } };
   const err = m => { const e = new Error(m); e.user = true; throw e; };
   const getCfg = uid => { try { return AV.norm(JSON.parse(db.prepare('SELECT avatar_cfg FROM users WHERE id=?').get(uid)?.avatar_cfg || 'null')); } catch { return AV.norm(null); } };
   const editWear = () => {}; // avatar estático: ya no hay wear por capas
@@ -270,10 +276,32 @@ function open(file = 'data.db') {
       title = String(title || '').trim(); if (!title) err('Falta el título');
       if (!Array.isArray(opts) || opts.length < 2) err('Se necesitan al menos 2 opciones');
       opts.forEach(o => { if (!String(o.label || '').trim()) err('Opción sin nombre'); try { profit(100, o.odds); } catch (e) { err(e.message); } });
+      if (extra.market) { try { Markets.validate(extra.market, opts, extra.home, extra.away); } catch(e) { err(e.message); } }
       return tx(() => {
         const id = Number(db.prepare('INSERT INTO lines(title,kind,event_id,starts) VALUES(?,?,?,?)').run(title, extra.kind || 'custom', extra.event_id || null, extra.starts || null).lastInsertRowid);
-        for (const o of opts) db.prepare('INSERT INTO options(line_id,label,odds) VALUES(?,?,?)').run(id, String(o.label).trim(), Math.trunc(Number(o.odds)));
+        db.prepare('UPDATE lines SET market=?,home=?,away=?,unit=?,bookmaker=? WHERE id=?').run(extra.market || null, extra.home || null, extra.away || null, extra.unit || '', extra.bookmaker || null, id);
+        for (const o of opts) db.prepare('INSERT INTO options(line_id,label,odds,point,outcome) VALUES(?,?,?,?,?)').run(id, extra.market ? Markets.label(extra.market,o) : String(o.label).trim(), Math.trunc(Number(o.odds)), extra.market && extra.market !== 'h2h' ? o.point : null, extra.market ? o.label : null);
         return id;
+      });
+    },
+    createEvent(event, kind = 'custom') {
+      if (!event || !event.id || !Array.isArray(event.markets) || !event.markets.length) err('Evento sin mercados');
+      if (new Set(event.markets.map(m => m.key)).size !== event.markets.length) err('Mercados repetidos');
+      return tx(() => event.markets.map(m => {
+        try { Markets.validate(m.key, m.options, event.home, event.away); } catch(e) { err(e.message); }
+        const prior = db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND COALESCE(market,'h2h')=?").get(String(event.id), kind, m.key);
+        if (prior) return prior.id;
+        return api.createLine(event.title, m.options, { kind, event_id: String(event.id), starts: event.starts, market: m.key, home: event.home, away: event.away, unit: event.unit, bookmaker: m.bookmaker });
+      }));
+    },
+    pushLine(id) {
+      return tx(() => {
+        const l = db.prepare('SELECT * FROM lines WHERE id=?').get(Number(id));
+        if (!l || !['spreads','totals'].includes(l.market)) err('Push solo para hándicap o total');
+        const os = db.prepare('SELECT point FROM options WHERE line_id=?').all(l.id);
+        if (!os.every(o => Number.isInteger(o.point))) err('No hay push en umbrales de medio punto');
+        api.cancelLine(l.id);
+        db.prepare("UPDATE lines SET status='pushed' WHERE id=?").run(l.id);
       });
     },
     lines(statusFilter) {
@@ -284,7 +312,7 @@ function open(file = 'data.db') {
       stake = Number(stake);
       if (!Number.isInteger(stake) || stake <= 0) err('La apuesta debe ser un número entero mayor que 0');
       return tx(() => {
-        const o = db.prepare('SELECT o.*, l.status FROM options o JOIN lines l ON l.id=o.line_id WHERE o.id=?').get(Number(optionId));
+        const o = db.prepare('SELECT o.*, l.status, l.event_id, l.kind FROM options o JOIN lines l ON l.id=o.line_id WHERE o.id=?').get(Number(optionId));
         if (!o) err('Opción no existe'); if (o.status !== 'open') err('Esta línea ya no acepta apuestas');
         const u = db.prepare('SELECT coins FROM users WHERE id=?').get(userId);
         if (u.coins < stake) err('No tienes suficientes monedas');
@@ -300,10 +328,11 @@ function open(file = 'data.db') {
       if (!Number.isInteger(stake) || stake <= 0) err('La apuesta debe ser un número entero mayor que 0');
       return tx(() => {
         const legs = ids.map(id => {
-          const o = db.prepare('SELECT o.*, l.status FROM options o JOIN lines l ON l.id=o.line_id WHERE o.id=?').get(id);
+          const o = db.prepare('SELECT o.*, l.status, l.event_id, l.kind FROM options o JOIN lines l ON l.id=o.line_id WHERE o.id=?').get(id);
           if (!o) err('Opción no existe'); if (o.status !== 'open') err('Una de las líneas ya no acepta apuestas'); return o;
         });
         if (new Set(legs.map(o => o.line_id)).size !== legs.length) err('Solo una selección por línea');
+        if (new Set(legs.map(o => o.event_id ? `${o.kind}:${o.event_id}` : `line:${o.line_id}`)).size !== legs.length) err('Solo una selección por evento en parlay');
         const u = db.prepare('SELECT coins FROM users WHERE id=?').get(userId);
         if (u.coins < stake) err('No tienes suficientes monedas');
         db.prepare('UPDATE users SET coins=coins-? WHERE id=?').run(stake, userId);
