@@ -444,9 +444,9 @@ function open(file = 'data.db') {
       return rows.map(r => ({ username: r.username, display_name: r.display_name, avatarCfg: AV.norm(r.avatar_cfg), status: r.status, stake: r.stake, payout: r.payout, title: r.title, kind: r.kind, ts: r.o }));
     },
     // Podio top 3: solo jugadores con ≥ PODIUM_MIN_SETTLED apuestas liquidadas (won+lost; parlay=1) en el periodo.
-    // La tabla lista a todos; el podio solo a elegibles (0–3 huecos).
+    // La tabla lista a TODOS (incl. admin); el podio solo a elegibles (0–3 huecos), admin incluido si califica.
     tabla(period = 'temporada') {
-      const rows = api.leaderboard(period).filter(u => !u.is_admin).map(({ is_admin, ...u }) => u);
+      const rows = api.leaderboard(period).map(({ is_admin, ...u }) => u);
       const podium = rows.filter(u => (u.wins + u.losses) >= PODIUM_MIN_SETTLED).slice(0, 3);
       return { period: ['hoy', 'semana', 'temporada'].includes(period) ? period : 'temporada', rows, podium, activity: api.activity(8) };
     },
