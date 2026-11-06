@@ -2,6 +2,7 @@ const { DatabaseSync } = require('node:sqlite');
 const crypto = require('node:crypto');
 const AV = require('./public/avatar'); const ST = require('./public/store');
 const START_COINS = 50000; const BONUS = 5000, BONUS_MS = 24 * 3600 * 1000; const MAX_TOPUP = 10000000;
+const PODIUM_MIN_SETTLED = 3; // mín. apuestas liquidadas (won+lost) para el podio top 3
 
 function profit(stake, odds) {
   odds = Number(odds);
@@ -442,9 +443,12 @@ function open(file = 'data.db') {
       ) ORDER BY o DESC, title LIMIT ?`).all(Math.min(20, Math.max(1, Number(limit) || 8)));
       return rows.map(r => ({ username: r.username, display_name: r.display_name, avatarCfg: AV.norm(r.avatar_cfg), status: r.status, stake: r.stake, payout: r.payout, title: r.title, kind: r.kind, ts: r.o }));
     },
+    // Podio top 3: solo jugadores con ≥ PODIUM_MIN_SETTLED apuestas liquidadas (won+lost; parlay=1) en el periodo.
+    // La tabla lista a todos; el podio solo a elegibles (0–3 huecos).
     tabla(period = 'temporada') {
       const rows = api.leaderboard(period).filter(u => !u.is_admin).map(({ is_admin, ...u }) => u);
-      return { period: ['hoy', 'semana', 'temporada'].includes(period) ? period : 'temporada', rows, activity: api.activity(8) };
+      const podium = rows.filter(u => (u.wins + u.losses) >= PODIUM_MIN_SETTLED).slice(0, 3);
+      return { period: ['hoy', 'semana', 'temporada'].includes(period) ? period : 'temporada', rows, podium, activity: api.activity(8) };
     },
     ranks() { const m = new Map(); db.prepare('SELECT id, (SELECT COUNT(*) FROM bets b WHERE b.user_id=users.id AND b.status=\'won\') + (SELECT COUNT(*) FROM parlays p WHERE p.user_id=users.id AND p.status=\'won\') wins FROM users WHERE is_admin=0 AND wins>0 ORDER BY wins DESC, coins DESC, username LIMIT 3').all().forEach((u, i) => m.set(u.id, i + 1)); return m; },
     refreshRanks() { const m = api.ranks(); const ins = db.prepare('INSERT OR IGNORE INTO unlocks(user_id,item_id,rank) VALUES(?,?,?)');
@@ -541,6 +545,7 @@ function open(file = 'data.db') {
     const u = db.prepare('SELECT username, display_name FROM users WHERE id=?').get(uid); L.push({ uid, name: u.display_name || u.username, text: escH(text), at: now }); chats.set(k, L); return { ok: true }; };
   api.chatList = (uid, kind, id) => { const k = chatCheck(uid, kind, id); return (chats.get(k) || []).map(m => ({ name: escH(m.name), text: m.text, at: m.at, mine: m.uid === uid })); };
   for (const f of ['rpsRespond', 'rpsPick', 'rpsExpire', 'penRespond', 'penPlay', 'penExpire', 'bbRespond', 'bbPlan', 'bbExpire', 'tcRespond', 'tcExpire', 'tcStart', 'tcShoot', 'tcNext', 'tcAim']) { const o = api[f]; api[f] = (...a) => { try { return o(...a); } finally { if (chats.size) api.chatPurge(); } }; }
+  api.PODIUM_MIN_SETTLED = PODIUM_MIN_SETTLED;
   return api;
 }
-module.exports = { open, BONUS, FACIAL, REWARDS, profit, dec, toAmerican, START_COINS };
+module.exports = { open, BONUS, FACIAL, REWARDS, profit, dec, toAmerican, START_COINS, PODIUM_MIN_SETTLED };

@@ -1,4 +1,4 @@
-// Avatares estáticos 1..9 (sin capas 3D)
+// Avatares estáticos 1..12 (sin capas 3D)
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
@@ -6,7 +6,7 @@ const Av = require('./public/avatar');
 const St = require('./public/store');
 let n = 0; const t = (name, fn) => { try { fn(); n++; console.log('ok', name); } catch (e) { console.error('FAIL', name, e); process.exitCode = 1; } };
 
-t('PICKS 1..9 y DEFAULT', () => { assert.deepEqual(Av.PICKS, [1,2,3,4,5,6,7,8,9]); assert.deepEqual(Av.DEFAULT, { pick: 1 }); assert.deepEqual(Av.LAYERS, {}); });
+t('PICKS 1..12 y DEFAULT', () => { assert.deepEqual(Av.PICKS, [1,2,3,4,5,6,7,8,9,10,11,12]); assert.deepEqual(Av.DEFAULT, { pick: 1 }); assert.deepEqual(Av.LAYERS, {}); });
 t('norm y validate', () => {
   assert.deepEqual(Av.norm(null), { pick: 1 });
   assert.deepEqual(Av.norm({ pick: 5 }), { pick: 5 });
@@ -62,6 +62,8 @@ t('tabla: podium + feed + filtros + fila propia + glow 1º', () => {
   assert.ok(block.includes('data-tp') && block.includes('hoy') && block.includes('semana') && block.includes('temporada'));
   assert.ok(block.includes('tb-row') && block.includes('winPct') && block.includes('streakEmoji') && block.includes('tb-you'));
   assert.ok(block.includes("/tabla?period="));
+  assert.ok(block.includes('d.podium') || block.includes('podium'));
+  assert.ok(block.includes('mín. 3') || block.includes('min. 3') || block.includes('3 apuestas liquidadas'));
   assert.ok(src.includes('auraClass') && src.includes('auraWrap') && block.includes('tablaAvatar('));
   assert.ok(src.includes('FRAME_SRC') && src.includes('frame-fire.webp') && src.includes('frame-fire-hi.webp') && src.includes('frame-ice.webp') && src.includes('frame-ice-hi.webp'));
   assert.ok(src.includes('tb-frame') && !src.includes('ap-flake') && !src.includes('rectPts'));
@@ -86,7 +88,7 @@ t('avatar1: fotos de racha W3/W5/L2/L3 sin marco', () => {
   assert.equal(Av.streakSrc(1, { kind: 'fuego', n: 5, intense: true }), 'img/avatars/1_w5.webp');
   assert.equal(Av.streakSrc(1, { kind: 'hielo', n: 2, intense: false }), 'img/avatars/1_l2.webp');
   assert.equal(Av.streakSrc(1, { kind: 'hielo', n: 4, intense: true }), 'img/avatars/1_l3.webp');
-  assert.equal(Av.streakSrc(2, { kind: 'fuego', n: 3, intense: false }), null);
+  assert.equal(Av.streakSrc(12, { kind: 'fuego', n: 3, intense: false }), 'img/avatars/12_w3.webp');
   assert.equal(Av.streakSrc(1, null), null);
   const src = fs.readFileSync(path.join(__dirname, 'public/app.js'), 'utf8');
   assert.ok(src.includes('tablaAvatar') && src.includes('tb-aura-photo'));
