@@ -4,7 +4,7 @@
     oro: '#d4af37', plata: '#c0c0c0', rosa: '#e7a3a8', esmeralda: '#10b981', zafiro: '#1e40af' };
   const NAMES = { rojo: 'Rojo', azul: 'Azul', verde: 'Verde', dorado: 'Dorado', blanco: 'Blanco', negro: 'Negro', oro: 'Oro', plata: 'Plata', rosa: 'Oro rosa', esmeralda: 'Esmeralda', zafiro: 'Zafiro' };
   const COLORS = ['rojo', 'azul', 'verde', 'dorado', 'blanco', 'negro'], J = ['oro', 'plata', 'rosa', 'negro', 'esmeralda', 'zafiro'];
-  const CATS = [['carros', '🏎️ Carros'], ['motos', '🏍️ Motos'], ['barcos', '🛥️ Barcos'], ['aviones', '✈️ Aviones'], ['relojes', '⌚ Relojes'], ['casas', '🏠 Casas'], ['ropa', '👕 Ropa y accesorios']];
+  const CATS = [['carros', '🏎️ Carros'], ['motos', '🏍️ Motos'], ['barcos', '🛥️ Barcos'], ['aviones', '✈️ Aviones'], ['relojes', '⌚ Relojes'], ['casas', '🏠 Casas']]; // ropa eliminada
   const SUBS = [['arriba', 'Arriba'], ['abajo', 'Abajo'], ['zapatos', 'Zapatos'], ['medias', 'Medias'], ['cadenas', 'Cadenas'], ['joyas', 'Joyas'], ['gorras', 'Gorras y sombreros'], ['accesorios', 'Accesorios']];
   const it = (id, cat, name, price, color, sub, colors = COLORS) => ({ id, cat, name, price, color, colors, ...(sub ? { sub } : {}) });
   const ITEMS = [

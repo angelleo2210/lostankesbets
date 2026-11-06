@@ -15,13 +15,7 @@ const body = (u, size = 64) => _avBody(u, size);
 const who = (u, full) => { const c = u.cosmetics || {}, ac = rw(c.accessory), col = rw(c.color);
   return `${head(u, full || 28)} ${u.badge ? u.badge + ' ' : ''}${u.avatar ? esc(u.avatar) : ''}${ac ? ac.icon : ''}${ac || u.avatar ? ' ' : ''}<span style="${col ? `color:${col.color};font-weight:800;text-shadow:0 0 6px ${col.color}88` : ''}">${esc(u.display_name || u.username)}</span>`; };
 const EMOJIS = '😎🦁🐯🐺🦅🔥⚡💪🍀🎲🏆⚽🏀🏈⚾🥊🍝🍺🤑👑🚀🐐🦈💀'.match(/\p{Extended_Pictographic}/gu);
-function builder(el, cfg, unlocked, onChange) {
-  const C = Avatar.CAT, lockOf = (k, v) => C[k].lock && C[k].lock[v];
-  const draw = () => { el.innerHTML = Object.entries(C).map(([k, c]) => `<div class="small" style="margin-top:6px">${c.name}</div><div class="chips">${c.opts.map(v => { const L = lockOf(k, v), ok = !L || unlocked.has(L), on = cfg[k] === v;
-      return c.color ? `<button class="sw${on ? ' on' : ''}" style="background:${v}" data-b="${k}|${v}" aria-label="${v}"></button>` : `<button class="chip ${on ? '' : 'alt'}" ${ok ? `data-b="${k}|${v}"` : 'disabled style="opacity:.45"'}>${ok ? '' : '🔒'}${esc(v.replace(/_/g, ' '))}</button>`; }).join('')}</div>`).join('');
-    el.querySelectorAll('[data-b]').forEach(b => b.onclick = () => { const [k, v] = b.dataset.b.split('|'); cfg[k] = v; draw(); onChange(); }); };
-  draw();
-}
+function builder(el) { if (el) el.innerHTML = ''; }
 const flash = m => { const e = $('#msg'); if (e) e.textContent = m; else alert(m); };
 async function start() {
   if (token) try { me = await api('/me'); return render(); } catch { token = null; localStorage.removeItem('token'); }
@@ -31,11 +25,11 @@ async function start() {
   <h2>${mode === 'setup' ? 'Crear administrador' : mode === 'register' ? 'Unirte con invitación' : 'Entrar'}</h2>
   ${mode === 'register' ? `<input id="code" placeholder="Código de invitación" value="${esc(code)}">` : ''}
   <input id="u" placeholder="Usuario" autocapitalize="none"><input id="p" type="password" placeholder="PIN (mín. 4)" inputmode="numeric">
-  ${mode === 'register' ? '<details><summary class="small">🎨 Arma tu muñeco (opcional)</summary><div style="text-align:center" id="rpv"></div><div id="rbl"></div></details>' : ''}
+  ${mode === 'register' ? `<details open><summary class="small">🎨 Elige tu avatar (opcional)</summary><div class="av-pick" id="rpick">${Avatar.PICKS.map(n => `<button type="button" class="av-opt" data-rp="${n}">${Avatar.imgTag(n,{w:72,h:96,cls:'av3dc'})}<span>${n}</span></button>`).join('')}</div></details>` : ''}
   <button id="go">${mode === 'login' ? 'Entrar' : 'Crear cuenta'}</button>
   ${mode === 'login' ? '<p class="small">¿Tienes invitación? Abre el link que te mandaron.</p>' : ''}<p id="msg" class="err"></p></div>`;
   const rcfg = { ...Avatar.DEFAULT }; let touched = false;
-  if ($('#rbl')) { const pv = () => $('#rpv').innerHTML = Avatar.render(rcfg, { size: 150 }); pv(); builder($('#rbl'), rcfg, new Set(), () => { touched = true; pv(); }); }
+  document.querySelectorAll('[data-rp]').forEach(b => b.onclick = () => { rcfg.pick = +b.dataset.rp; touched = true; document.querySelectorAll('[data-rp]').forEach(x => x.classList.toggle('on', +x.dataset.rp === rcfg.pick)); });
   $('#go').onclick = async () => { try { const b = { username: $('#u').value, pin: $('#p').value, code: $('#code')?.value, ...(touched ? { avatarCfg: rcfg } : {}) };
     const d = await api(mode === 'setup' ? '/setup' : mode === 'register' ? '/register' : '/login', b);
     token = localStorage.token = d.token; history.replaceState(null, '', '/'); start(); } catch (e) { flash(e.message); } };
@@ -64,33 +58,26 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
     B.innerHTML = `<div class="chips depts"><button class="chip ${byCoins ? 'alt' : 'on'}" data-tm="ganadas">🏆 Apuestas ganadas</button><button class="chip ${byCoins ? 'on' : 'alt'}" data-tm="monedas">🪙 Monedas</button></div><div class="card">${rows.map((u, i) => `<div class="opt"><span>${i + 1}. ${who(u)}${u.display_name ? ` <span class="small">@${esc(u.username)}</span>` : ''}${byCoins ? '' : ' ' + streakTag(u.streak)}</span><b>${byCoins ? `🪙 ${fmt(u.coins)}` : `🏆 ${u.wins} <span class="small">· 🪙 ${fmt(u.coins)}</span>`}</b></div>`).join('')}</div><div class="small">${byCoins ? 'Saldo actual de cada jugador.' : 'Ranking principal: apuestas ganadas (un parlay ganado cuenta 1). Empate: más monedas.'}</div>`;
     B.querySelectorAll('[data-tm]').forEach(b => b.onclick = () => { tablaMode = b.dataset.tm; render(); }); }
   const stP = tab === 'perfil' ? await api('/store') : null;
-  if (tab === 'perfil') { let av = me.avatar || '', fs = me.facialHair?.style || 'ninguno', cos = { ...(me.cosmetics || {}) }, acfg = { ...me.avatarCfg }; const mine = new Set((me.unlocks || []).map(u => u.item_id));
+  if (tab === 'perfil') { let av = me.avatar || '', cos = { ...(me.cosmetics || {}) }, acfg = Avatar.norm(me.avatarCfg); const mine = new Set((me.unlocks || []).map(u => u.item_id));
     B.innerHTML = `<div class="card"><h2>Mi perfil</h2><div class="small">Usuario: @${esc(me.username)}</div>${streakTag(me.streak, true)}
-    <div style="display:flex;flex-wrap:wrap;gap:4px;margin:8px 0">${EMOJIS.map(e => `<button class="${e === av ? '' : 'alt'}" style="width:44px;padding:6px" data-em="${e}">${e}</button>`).join('')}<button class="alt" style="width:auto;padding:6px" data-em="">Sin avatar</button></div>
-    <div class="card avpv" id="bigpv"></div>
-    <h2>Mi imagen de perfil</h2><div id="combo"></div>
-    <h2>Tu muñeco</h2><div id="bld"></div>
-    <h2>👕 Mi ropa</h2><div class="small">Lo que compras en la Tienda se pone solo. Aquí te lo pones o te lo quitas (y luego Guardar).</div><div id="ropa"></div>
-    <h2>Vello facial</h2><select id="fh">${Object.entries(FH).map(([k, v]) => `<option value="${k}" ${k === fs ? 'selected' : ''}>${v[0]}</option>`).join('')}</select>
-    <div class="row"><label class="small"><input type="checkbox" id="fcu" style="width:auto" ${me.facialHair?.color ? 'checked' : ''}> Color</label><input type="color" id="fc" value="${esc(me.facialHair?.color || '#5b3a1e')}" style="height:42px"></div>
-    <h2>Recompensas top 3 ${me.badge || ''}</h2><div class="small">Quedar en el top 3 de la tabla (con más de 50.000) desbloquea ítems exclusivos: corona, sombrero dorado, gorra de campeón, camiseta y pantalón dorados, medias doradas y zapaticos de oro/plata/bronce (aparecen con 🔒 arriba hasta ganarlos). Lo que ganas se queda para siempre; la medalla 🥇🥈🥉 solo se ve mientras sigues arriba.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;margin:8px 0">${EMOJIS.map(e => `<button class="${e === av ? '' : 'alt'}" style="width:44px;padding:6px" data-em="${e}">${e}</button>`).join('')}<button class="alt" style="width:auto;padding:6px" data-em="">Sin emoji</button></div>
+    <h2>Tu avatar</h2><div class="small">Elige uno de los 9. Sin colores ni accesorios.</div>
+    <div class="av-pick" id="avpick">${Avatar.PICKS.map(n => `<button type="button" class="av-opt ${acfg.pick === n ? 'on' : ''}" data-pick="${n}">${Avatar.imgTag(n, { w: 90, h: 120, cls: 'av3dc' })}<span>${n}</span></button>`).join('')}</div>
+    <div class="card avpv" id="bigpv" aria-label="Vista previa">${_avBody({ avatarCfg: acfg }, 220)}</div>
+    <h2>Mi imagen de perfil</h2><div id="combo">${composite({ ...me, avatarCfg: acfg }, stP.owned)}</div>
+    <h2>Recompensas top 3 ${me.badge || ''}</h2><div class="small">Quedar en el top 3 (con más de 50.000) desbloquea ítems junto al nombre. La medalla solo mientras sigues arriba.</div>
     ${[['color', 'Colores metálicos (nombre)'], ['accessory', 'Accesorios junto al nombre']].map(([k, n]) => `<div class="small" style="margin-top:6px">${n}</div><div style="display:flex;flex-wrap:wrap;gap:4px">${RW.filter(r => r.kind === k).map(r => { const ok = mine.has(r.id);
       return `<button class="${cos[k] === r.id ? '' : 'alt'}" style="width:auto;padding:6px;${ok ? '' : 'opacity:.45'}" ${ok ? `data-cos="${k}:${r.id}"` : 'disabled'} title="${esc(r.name)}">${ok ? '' : '🔒'}${r.icon || `<span style="color:${r.color}">●</span>`} <span class="small">top ${r.minRank}</span></button>`; }).join('')}<button class="alt" style="width:auto;padding:6px" data-cos="${k}:">Nada</button></div>`).join('')}
     <div class="card">Vista previa: <span id="pv"></span></div>
     <input id="dn" maxlength="20" placeholder="Nombre para mostrar (opcional)" value="${esc(me.display_name || '')}"><button id="sv">Guardar</button></div>`;
-    const fhv = () => { const fh = $('#fh'), fcu = $('#fcu'), fc = $('#fc'); if (!fh || fh.value === 'ninguno') return null; return { style: fh.value, color: fcu && fcu.checked && fc ? fc.value : null }; };
     const pv = () => { const dn = $('#dn'), pve = $('#pv'), big = $('#bigpv'), combo = $('#combo'); if (!dn || !pve || !big || !combo) return;
-      const u = { username: me.username, badge: me.badge, cosmetics: cos, avatar: av, avatarCfg: acfg, display_name: dn.value.trim(), facialHair: fhv() };
-      pve.innerHTML = who(u); big.innerHTML = av3d(u, { w: 200, h: 267 }, 'big'); combo.innerHTML = composite(u, stP.owned); }; pv();
-    const ownL = stP.owned.filter(o => Avatar.LAYERS[o.item_id]); acfg.wear = { ...(acfg.wear || {}) };
-    const ropa = () => { $('#ropa').innerHTML = ownL.length ? Avatar.SLOTS.map(sl => { const xs = ownL.filter(o => Avatar.LAYERS[o.item_id][0] === sl); if (!xs.length) return '';
-      return `<div class="small" style="margin-top:6px">${SLOTN[sl]}</div><div class="chips">${xs.map(o => `<button class="chip ${acfg.wear[sl]?.id === o.item_id ? 'on' : 'alt'}" data-wr="${sl}:${o.item_id}:${o.color}">${esc(Store.byId(o.item_id)?.name || o.item_id)}</button>`).join('')}<button class="chip ${acfg.wear[sl] ? 'alt' : 'on'}" data-wr="${sl}::">Quitar</button></div>`; }).join('') : '<div class="small">Aún no tienes ropa: cómprala en la Tienda → Ropa y accesorios.</div>';
-      $('#ropa').querySelectorAll('[data-wr]').forEach(b => b.onclick = () => { const [sl, id, col] = b.dataset.wr.split(':'); if (id) acfg.wear[sl] = { id, color: col }; else delete acfg.wear[sl]; ropa(); pv(); }); }; ropa();
-    builder($('#bld'), acfg, new Set((me.unlocks || []).map(x => x.item_id)), pv);
-    ['#fh', '#fc', '#fcu', '#dn'].forEach(sel => { const el = $(sel); if (el) el.oninput = el.onchange = pv; });
+      const u = { username: me.username, badge: me.badge, cosmetics: cos, avatar: av, avatarCfg: acfg, display_name: dn.value.trim() };
+      pve.innerHTML = who(u); big.innerHTML = _avBody(u, 220); combo.innerHTML = composite(u, stP.owned); }; pv();
+    B.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { acfg = { pick: +b.dataset.pick }; B.querySelectorAll('[data-pick]').forEach(x => x.classList.toggle('on', +x.dataset.pick === acfg.pick)); pv(); });
+    const dne = $('#dn'); if (dne) dne.oninput = dne.onchange = pv;
     B.querySelectorAll('[data-cos]').forEach(b => b.onclick = () => { const [k, v] = b.dataset.cos.split(':'); if (v) cos[k] = v; else delete cos[k]; B.querySelectorAll(`[data-cos^="${k}:"]`).forEach(x => x.className = x.dataset.cos === `${k}:${v}` && v ? '' : 'alt'); pv(); });
     B.querySelectorAll('[data-em]').forEach(b => b.onclick = () => { av = b.dataset.em; B.querySelectorAll('[data-em]').forEach(x => x.className = x.dataset.em === av && av ? '' : 'alt'); pv(); });
-    const sv = $('#sv'); if (sv) sv.onclick = async () => { try { const dn = $('#dn'); await api('/profile', { avatar: av, display_name: dn ? dn.value : '', facialHair: fhv() || 'ninguno', cosmetics: cos, avatarCfg: acfg }); render(); } catch (e) { flash(e.message); } }; }
+    const sv = $('#sv'); if (sv) sv.onclick = async () => { try { const dn = $('#dn'); await api('/profile', { avatar: av, display_name: dn ? dn.value : '', facialHair: 'ninguno', cosmetics: cos, avatarCfg: acfg }); render(); } catch (e) { flash(e.message); } }; }
   if (tab === 'tienda') await storeView(B);
   if (tab === 'juegos') await (gameSel === 'rps' ? gamesView(B) : gameSel === 'pen' ? penView(B) : gameSel === 'bb' ? bbView(B) : gameSel === 'tc' ? tcView(B) : retosMenu(B));
   if (tab === 'perfil') { const g = document.createElement('div'); B.append(g); await storeView(g, true); }
@@ -145,10 +132,9 @@ start();
 let sq = 0;
 const SLOTN = { arriba: 'Arriba', abajo: 'Abajo', zapatos: 'Zapatos', medias: 'Medias', cadenas: 'Cadenas', pulseras: 'Pulseras', mochila: 'Mochila', cabeza: 'Gorras y sombreros' };
 // Imagen compuesta: avatar con brazos cruzados, el mejor yate detrás (en puerto) y la moto al lado. Se arma con las compras.
-const av3dAttr = o => esc(JSON.stringify(o)).replace(/'/g, '&#39;');
-const av3d = (u, o = {}, cls = '') => `<div class="av3dw ${cls}"><canvas class="av3dc" data-av3d='${av3dAttr({ cfg: u.avatarCfg || {}, ...o })}'></canvas><div class="av3dmiss small"></div></div>`;
-const _avHead = (u, size = 28) => av3d(u, { head: true, w: Math.max(48, size * 2), h: Math.max(48, size * 2) }, 'head');
-const _avBody = (u, size = 64) => av3d(u, { w: Math.round(size * 576 / 768), h: size }, 'body');
+const pickOf = u => Avatar.norm(u && u.avatarCfg).pick;
+const _avHead = (u, size = 28) => `<span class="av3dw head">${Avatar.imgTag(pickOf(u), { head: true, w: Math.max(48, size * 2), h: Math.max(48, size * 2), cls: 'av3dc' })}</span>`;
+const _avBody = (u, size = 160) => `<div class="av3dw body">${Avatar.imgTag(pickOf(u), { w: Math.round(size * 3 / 4), h: size, cls: 'av3dc' })}</div>`;
 const SHOW_CATS = new Set(['carros', 'motos', 'barcos', 'aviones', 'casas', 'relojes']);
 const SCENE3D = new Set(['moto_scooter','moto_naked','moto_pista','jet_basico','jet_turbo','jet_pro','yate_lancha','yate_velero','yate_catamaran','yate_blanco','yate_mega']);
 const propThumb = (id, color) => SCENE3D.has(id) ? `img/av3d/scenes/${id}.webp` : Store.img(id, color);
@@ -159,12 +145,11 @@ const coverBanner = (u, owned = []) => {
   const loot = show.length
     ? show.map(o => `<div class="cover-item" title="${esc(o.it.name)}"><img src="${propThumb(o.item_id, o.color)}" alt="${esc(o.it.name)}"><span>${esc(o.it.name)}</span></div>`).join('')
     : `<div class="cover-empty small">Aún no tienes carros, motos, barcos, aviones, casas ni relojes. ¡Pásate por la Tienda!</div>`;
-  // Escena rica de portada + avatar completo + nombre/monedas + todas las pertenencias
   return `<section class="cover" aria-label="Portada">
     <img class="cover-bg" src="img/av3d/scenes/cover_bg.webp" alt="">
     <div class="cover-shade"></div>
     <div class="cover-row">
-      <div class="cover-av">${av3d(u, { w: 180, h: 240, plain: true }, 'oncover')}</div>
+      <div class="cover-av">${Avatar.imgTag(pickOf(u), { w: 180, h: 240, cls: 'av3dc oncover' })}</div>
       <div class="cover-meta">
         <div class="cover-hello">Hola,</div>
         <div class="cover-name">${u.badge ? u.badge + ' ' : ''}${nm}</div>
@@ -175,9 +160,12 @@ const coverBanner = (u, owned = []) => {
   </section>`;
 };
 
-const composite = (u, owned) => { const best = p => owned.filter(o => o.item_id.startsWith(p)).map(o => ({ ...o, it: Store.byId(o.item_id) })).filter(o => o.it).sort((a, b) => b.it.price - a.it.price)[0];
-  const y = best('yate_'), m = best('moto_'), scene = {}; if (y) scene.yate = { id: y.item_id, color: y.color }; if (m) scene.moto = { id: m.item_id, color: m.color };
-  return `<div class="combo3d">${av3d(u, { scene })}<div class="ccap">${y ? '🛥️ ' + esc(y.it.name) : m ? '⚓ Muelle' : '🎬 Estudio'}${m ? ' · 🏍️ ' + esc(m.it.name) : ''}</div></div>`; };
+const composite = (u, owned) => {
+  const props = owned.map(o => ({ ...o, it: Store.byId(o.item_id) })).filter(o => o.it && SHOW_CATS.has(o.it.cat))
+    .sort((a, b) => b.it.price - a.it.price).slice(0, 4);
+  const thumbs = props.map(o => `<img class="combo-prop" src="${propThumb(o.item_id, o.color)}" alt="${esc(o.it.name)}" title="${esc(o.it.name)}">`).join('');
+  return `<div class="combo3d static"><div class="combo-av">${Avatar.imgTag(pickOf(u), { w: 220, h: 293, cls: 'av3dc' })}</div><div class="combo-props">${thumbs || '<span class="small">Sin vehículos aún</span>'}</div></div>`;
+};
 const FIRE = (z, u = 'fx' + (++sq)) => `<svg width="${z}" height="${z}" viewBox="0 0 24 24" style="vertical-align:middle" aria-hidden="true"><defs><radialGradient id="${u}a" cx=".5" cy=".75" r=".7"><stop offset="0" stop-color="#fde047"/><stop offset=".45" stop-color="#fb923c"/><stop offset="1" stop-color="#dc2626"/></radialGradient><radialGradient id="${u}b" cx=".5" cy=".7" r=".6"><stop offset="0" stop-color="#fff"/><stop offset=".5" stop-color="#fef08a"/><stop offset="1" stop-color="#f59e0b"/></radialGradient></defs><path d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-5 3-7 0 2 1 3 2 3 0-3-1-5 1-8z" fill="url(#${u}a)"/><path d="M12 11c.5 2 3 3 3 5.5a3 3 0 0 1-6 0c0-1.5 1-2.5 1.5-3.5.3 1 .8 1.4 1.3 1.4 0-1.3-.4-2.2.2-3.4z" fill="url(#${u}b)"/><ellipse cx="9.5" cy="12" rx="1" ry="2" fill="#fff" opacity=".45"/></svg>`;
 const ICE = z => `<svg width="${z}" height="${z}" viewBox="0 0 24 24" style="vertical-align:middle" aria-hidden="true"><g stroke="#bae6fd" stroke-width="2" stroke-linecap="round" fill="none">${[0, 60, 120].map(a => `<g transform="rotate(${a} 12 12)"><path d="M12 2v20"/><path d="M9 4.5l3 2.5 3-2.5M9 19.5l3-2.5 3 2.5"/></g>`).join('')}</g><circle cx="12" cy="12" r="2.2" fill="#e0f2fe"/><circle cx="11.3" cy="11.3" r=".7" fill="#fff"/></svg>`;
 const streakTag = (st, big) => { if (!st) return ''; const I = st.n >= 6, z = big ? 30 : 16;
@@ -189,18 +177,18 @@ async function bonusBar() { const el = $('#bono'); if (!el) return; const b = aw
     el.innerHTML = left <= 0 ? `<button id="bonob">🎁 Reclamar bono diario +${fmt(b.amount)}</button>` : `<span class="small">🎁 Próximo bono en ${Math.floor(left / 3600000)} h ${Math.floor(left % 3600000 / 60000)} min</span>`;
     const bt = $('#bonob'); if (bt) bt.onclick = async () => { try { const r = await api('/bonus', {}); flash(r.claimed ? `+${fmt(r.amount)} monedas 🎉` : 'Ya lo reclamaste hoy'); render(); } catch (e) { flash(e.message); } }; };
   paint(); bonoT = setInterval(paint, 30000); }
-const thumb = (id, col) => av3d({ avatarCfg: { ...(me && me.avatarCfg || {}), wear: { [Avatar.LAYERS[id][0]]: { id, color: col } } } }, { w: 192, h: 256 }, 'mini');
+const thumb = () => '';
 async function storeView(B, garage) { const d = await api('/store'); const own = new Map(d.owned.map(o => [o.item_id, o.color])), paid = new Map(d.owned.map(o => [o.item_id, o.price])); const pick = {};
   const sw = i => `<div class="swr">${i.colors.map(c => `<button class="swb ${(own.get(i.id) || i.color) === c ? 'on' : ''}" style="background:${Store.PALETTE[c]}" data-sw="${i.id}" data-c="${c}" title="${Store.NAMES[c]}" aria-label="${Store.NAMES[c]}"></button>`).join('')}</div>`;
   const tier = i => i.id === 'avion_jet' ? ['exclusive', '💎 Exclusivo'] : i.price >= 1000000 ? ['premium', '⭐ Premium'] : ['', ''];
-  const card = i => { const [cl, tg] = tier(i); return `<div class="card item ${own.has(i.id) ? 'owned' : ''} ${cl}">${tg ? `<span class="tag">${tg}</span>` : ''}<div class="ph"><img loading="lazy" id="im_${i.id}" src="${Store.img(i.id, own.get(i.id))}" alt="${esc(i.name)}">${Avatar.LAYERS[i.id] ? `<span class="thav" id="th_${i.id}">${thumb(i.id, own.get(i.id) || i.color)}</span>` : ''}</div><b>${esc(i.name)}</b><div>🪙 ${fmt(i.price)}</div>${sw(i)}${own.has(i.id) ? `<div class="small">✅ Tuyo</div><button class="alt" data-savec="${i.id}">Guardar color</button><button class="alt sell" data-sell="${i.id}">Vender (+${fmt(Math.floor((paid.get(i.id) ?? i.price) * 3 / 4))})</button>` : me.coins >= i.price ? `<div class="small ok">✔ Te alcanza</div><button data-buy="${i.id}">Comprar</button>` : `<div class="small err">Te faltan 🪙 ${fmt(i.price - me.coins)}</div><button data-buy="${i.id}" disabled>Comprar</button>`}</div>`; };
+  const card = i => { const [cl, tg] = tier(i); return `<div class="card item ${own.has(i.id) ? 'owned' : ''} ${cl}">${tg ? `<span class="tag">${tg}</span>` : ''}<div class="ph"><img loading="lazy" id="im_${i.id}" src="${Store.img(i.id, own.get(i.id))}" alt="${esc(i.name)}"></div><b>${esc(i.name)}</b><div>🪙 ${fmt(i.price)}</div>${sw(i)}${own.has(i.id) ? `<div class="small">✅ Tuyo</div><button class="alt" data-savec="${i.id}">Guardar color</button><button class="alt sell" data-sell="${i.id}">Vender (+${fmt(Math.floor((paid.get(i.id) ?? i.price) * 3 / 4))})</button>` : me.coins >= i.price ? `<div class="small ok">✔ Te alcanza</div><button data-buy="${i.id}">Comprar</button>` : `<div class="small err">Te faltan 🪙 ${fmt(i.price - me.coins)}</div><button data-buy="${i.id}" disabled>Comprar</button>`}</div>`; };
   const grid = xs => `<div class="shop">${xs.map(card).join('')}</div>`;
   const section = (k, v, xs) => !xs.length ? '' : k !== 'ropa' ? `<h2>${v}</h2>${grid(xs)}` : `<h2>${v}</h2>` + Store.SUBS.map(([s, n]) => { const ys = xs.filter(i => i.sub === s); return ys.length ? `<h3>${n}</h3>${grid(ys)}` : ''; }).join('');
   const pool = garage ? d.items.filter(i => own.has(i.id)) : d.items, cats = garage || !storeCat ? Store.CATS : Store.CATS.filter(c => c[0] === storeCat);
   B.innerHTML = (garage ? `<h2>🚗 Mi garaje</h2>${own.size ? '' : '<div class="small">Aún no tienes nada. Pásate por la Tienda.</div>'}` : `<div class="card"><h2>🛍️ Tienda</h2><div class="small">Solo cosméticos para presumir: no dan ventajas en las apuestas. Prueba colores gratis antes de comprar.</div></div><div class="chips depts">${[['', 'Todo'], ...Store.CATS].map(([k, v]) => `<button class="chip ${storeCat === k ? 'on' : 'alt'}" data-dep="${k}">${v}</button>`).join('')}</div>`) +
     cats.map(([k, v]) => section(k, v, pool.filter(i => i.cat === k))).join('');
   B.querySelectorAll('[data-dep]').forEach(b => b.onclick = () => { storeCat = b.dataset.dep; storeView(B, garage); });
-  const set = (id, c) => { pick[id] = c; $('#im_' + id).src = Store.img(id, c); if ($('#th_' + id)) $('#th_' + id).innerHTML = thumb(id, c); B.querySelectorAll(`[data-sw="${id}"]`).forEach(x => x.classList.toggle('on', x.dataset.c === c)); };
+  const set = (id, c) => { pick[id] = c; $('#im_' + id).src = Store.img(id, c); B.querySelectorAll(`[data-sw="${id}"]`).forEach(x => x.classList.toggle('on', x.dataset.c === c)); };
   B.querySelectorAll('[data-sw]').forEach(b => b.onclick = () => set(b.dataset.sw, b.dataset.c));
   B.querySelectorAll('[data-buy]').forEach(b => b.onclick = async () => { const i = Store.byId(b.dataset.buy); if (!confirm(`¿Comprar ${i.name} por ${fmt(i.price)} monedas?`)) return; try { await api('/store/buy', { itemId: i.id, ...(pick[i.id] ? { color: pick[i.id] } : {}) }); render(); } catch (e) { flash(e.message); } });
   B.querySelectorAll('[data-sell]').forEach(b => b.onclick = async () => { const i = Store.byId(b.dataset.sell), r = Math.floor((paid.get(i.id) ?? i.price) * 3 / 4); if (!confirm(`¿Vender ${i.name} por ${fmt(r)} monedas (75% de lo que pagaste)?`)) return; try { await api('/store/sell', { itemId: i.id }); flash(`Vendido: +${fmt(r)}`); render(); } catch (e) { flash(e.message); } });

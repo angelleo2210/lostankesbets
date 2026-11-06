@@ -68,4 +68,19 @@ b,strong{font-weight:600}input{font-size:16px}
 .cover-item span{display:block;margin-top:4px;font-size:10px;font-weight:700;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cover-empty{padding:4px 12px 12px;position:relative;z-index:1}
 @media(min-width:520px){.cover-av{width:148px;flex-basis:148px;max-width:none}.cover-item{width:110px}.cover-name{font-size:26px}section.cover{min-height:250px}}
-@media(min-width:760px){section.cover{min-height:280px}.cover-av{width:168px;flex-basis:168px}.cover-loot{gap:10px}}</style></head><body><main id="app"></main><script src="avatar.js"></script><script src="store.js"></script><script src="avatar3d.js"></script><script src="app.js"></script></body></html>
+@media(min-width:760px){section.cover{min-height:280px}.cover-av{width:168px;flex-basis:168px}.cover-loot{gap:10px}}
+.av-pick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0}
+.av-opt{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;border-radius:12px;background:#0f172a;border:2px solid #334155;cursor:pointer;color:#e2e8f0}
+.av-opt.on{border-color:#38bdf8;box-shadow:0 0 0 2px #38bdf855}
+.av-opt img,.av-opt .av-img{width:90px;height:120px;object-fit:contain;display:block}
+.av-opt span{font-size:12px;opacity:.8}
+.avpv .av-img,.avpv img{width:100%;height:auto;max-height:40vh;object-fit:contain;display:block;margin:0 auto}
+.av3dw{display:inline-block;line-height:0;vertical-align:middle}
+.av3dw.head{width:auto;height:auto}
+.av3dw .av-img,.av3dw img.av3dc,.cover-av .av-img,.cover-av img{display:block;width:100%;height:auto;object-fit:contain;background:transparent}
+.cover-av{overflow:visible!important}
+.combo3d.static{display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px;background:#0f172a;border-radius:14px}
+.combo3d.static .combo-av img{width:min(220px,70vw);height:auto;object-fit:contain}
+.combo-props{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.combo-prop{width:72px;height:54px;object-fit:contain;background:#1e293b;border-radius:8px;padding:4px}
+</style></head><body><main id="app"></main><script src="avatar.js"></script><script src="store.js"></script><script src="app.js"></script></body></html>

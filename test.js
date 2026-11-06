@@ -90,16 +90,16 @@ t('recompensas top 3', () => {
   assert.ok(has(ids[0], 'corona') && has(ids[0], 'bronce')); assert.ok(!has(ids[1], 'corona') && has(ids[1], 'trofeo'));
   assert.ok(has(ids[2], 'medalla') && !has(ids[2], 'plata')); assert.equal(Q.unlocksOf(ids[3]).length, 0); assert.equal(Q.unlocksOf(1).length, 0);
   let lb = Q.leaderboard(); assert.equal(lb.find(r => r.username === 'aa').badge, '🥇'); assert.equal(lb.find(r => r.username === 'angel').badge, null);
-  assert.throws(() => Q.setProfile(ids[1], '', '', null, undefined, { hat: 'corona' }), /Bloqueado/); assert.throws(() => Q.setProfile(ids[3], '', '', null, undefined, { hat: 'gorra_campeon' }), /Bloqueado/);
-  assert.throws(() => Q.setProfile(ids[1], '', '', null, undefined, { shirt: 'dorada' }), /Bloqueado/); assert.ok(Q.setProfile(ids[1], '', '', null, undefined, { socks: 'doradas', shoes: 'plata' }));
-  assert.throws(() => Q.setProfile(ids[2], '', '', null, undefined, { shoes: 'plata' }), /Bloqueado/); assert.ok(Q.setProfile(ids[2], '', '', null, undefined, { shoes: 'bronce' }));
+  assert.throws(() => Q.setProfile(ids[1], '', '', null, { color: 'oro' }), /Bloqueado/);
+  assert.throws(() => Q.setProfile(ids[3], '', '', null, { accessory: 'diamante' }), /Bloqueado/);
   assert.throws(() => Q.setProfile(ids[0], '', '', null, { color: 'corona' }), /inválido/);
-  assert.deepEqual(Q.setProfile(ids[0], '', '', null, { color: 'oro', accessory: 'diamante' }, { hat: 'corona', shirt: 'dorada', pants: 'dorado', shoes: 'oro' }).cosmetics, { color: 'oro', accessory: 'diamante' });
+  assert.deepEqual(Q.setProfile(ids[0], '', '', null, { color: 'oro', accessory: 'diamante' }, { pick: 3 }).cosmetics, { color: 'oro', accessory: 'diamante' });
+  assert.deepEqual(Q.leaderboard().find(r => r.username === 'aa').avatarCfg, { pick: 3 });
   const [L2, S2, N2] = mk(); Q.placeBet(ids[0], N2.id, 10000); Q.placeBet(ids[3], S2.id, 5000); Q.settleLine(L2, S2.id); // aa 43000 cae; dd 54900 sube a 1
   lb = Q.leaderboard(); const aa = lb.find(r => r.username === 'aa');
-  assert.equal(aa.badge, null); assert.equal(aa.avatarCfg.hat, 'corona'); assert.equal(aa.avatarCfg.shirt, 'dorada'); assert.ok(has(ids[0], 'corona')); // trofeo conservado
+  assert.equal(aa.badge, null); assert.deepEqual(aa.avatarCfg, { pick: 3 }); assert.ok(has(ids[0], 'corona')); // trofeo conservado
   assert.equal(lb.find(r => r.username === 'dd').badge, '🥇'); assert.ok(has(ids[3], 'corona'));
-  assert.ok(Q.setProfile(ids[0], '', '', null, undefined, { hat: 'corona' })); // aún puede usarlo
+  assert.ok(Q.setProfile(ids[0], '', '', null, { color: 'oro' })); // color sigue desbloqueado
 });
 t('recarga admin', () => {
   const Q = open(':memory:'); const ad = Q.setupAdmin('angel', '1234'); const q = Q.register(Q.newInvite(), 'rr', '1111');
@@ -110,23 +110,28 @@ t('recarga admin', () => {
   assert.throws(() => Q.topup(ad, 999, 10), /no existe/); assert.ok(Q.topup(ad, q, 10000000));
   const h = Q.topups(); assert.equal(h.length, 2); assert.equal(h[1].amount, 2500); assert.equal(h[1].username, 'rr'); assert.equal(h[1].admin, 'angel'); assert.ok(h[1].created);
 });
-t('avatar cuerpo completo', () => {
-  const AV = require('./public/avatar'); const Q = open(':memory:'); Q.setupAdmin('angel', '1234');
-  const d = Q.register(Q.newInvite(), 'def', '1111'); assert.deepEqual(Q.leaderboard().find(r => r.username === 'def').avatarCfg, { ...AV.DEFAULT, wear: {} });
-  const cfg = { skin: AV.SKIN[2], eyes: 'estrellas', mouth: 'lengua', hair: 'afro', hairColor: AV.HAIRC[4], hat: 'vaquero', hatColor: AV.COLORS[2], glasses: 'sol', earrings: 'aro', necklace: 'perlas', shirt: 'camisa', shirtColor: AV.COLORS[0], pants: 'chores', pantsColor: AV.COLORS[3], socks: 'largas', socksColor: AV.COLORS[8], shoes: 'botas', shoesColor: AV.COLORS[9] };
-  const q = Q.register(Q.newInvite(), 'cfg', '1111', cfg); assert.deepEqual(Q.leaderboard().find(r => r.username === 'cfg').avatarCfg, { ...AV.DEFAULT, ...cfg, wear: {} });
-  assert.throws(() => Q.register(Q.newInvite(), 'bad', '1111', { hat: 'corona' }), /Bloqueado/);
-  for (const bad of [{ eyes: 'laser' }, { shirtColor: 'red' }, { foo: 1 }, { hairColor: '#123456' }, [1]]) assert.throws(() => Q.setProfile(q, '', '', null, undefined, bad), /inválid|desconocida/);
-  Q.setProfile(q, '🦁', 'Leo', { style: 'bigote' }, undefined, { glasses: 'ninguno' }); const me = Q.leaderboard().find(r => r.username === 'cfg');
-  assert.equal(me.avatarCfg.glasses, 'ninguno'); assert.equal(me.avatar, '🦁'); assert.equal(me.facialHair.style, 'bigote');
-  const svg = AV.render(me.avatarCfg, { facialHair: me.facialHair }); assert.ok(svg.startsWith('<svg') && !/<script|undefined/.test(svg));
-  for (const k in AV.CAT) for (const v of AV.CAT[k].opts) assert.ok(!/undefined/.test(AV.render({ [k]: v }, { facialHair: { style: 'perilla' } })), k + v);
-  assert.ok(AV.render(AV.DEFAULT, { head: true }).includes('viewBox="16'));
+t('avatar estático 1..9', () => {
+  const AV = require('./public/avatar'), fs = require('fs'); const Q = open(':memory:'); Q.setupAdmin('angel', '1234');
+  const d = Q.register(Q.newInvite(), 'def', '1111'); assert.deepEqual(Q.leaderboard().find(r => r.username === 'def').avatarCfg, AV.DEFAULT);
+  const q = Q.register(Q.newInvite(), 'cfg', '1111', { pick: 7 }); assert.deepEqual(Q.leaderboard().find(r => r.username === 'cfg').avatarCfg, { pick: 7 });
+  // configs viejas se normalizan a pick 1
+  const q2 = Q.register(Q.newInvite(), 'old', '1111', { body: 'atletico', wear: { arriba: { id: 'top_hoodie', color: 'rojo' } } });
+  assert.deepEqual(Q.leaderboard().find(r => r.username === 'old').avatarCfg, { pick: 1 });
+  for (const bad of [{ pick: 0 }, { pick: 10 }, { pick: 'x' }, [1]]) assert.throws(() => Q.setProfile(q, '', '', null, undefined, bad), /Avatar|Elige/);
+  Q.setProfile(q, '🦁', 'Leo', { style: 'bigote' }, undefined, { pick: 4 }); const me = Q.leaderboard().find(r => r.username === 'cfg');
+  assert.deepEqual(me.avatarCfg, { pick: 4 }); assert.equal(me.avatar, '🦁'); assert.equal(me.facialHair.style, 'bigote');
+  const html = AV.render(me.avatarCfg); assert.ok(html.includes('img/avatars/4.webp') && !/<script|undefined/.test(html));
+  assert.ok(AV.render(AV.DEFAULT, { head: true }).includes('img/avatars/1_head.webp'));
+  assert.deepEqual(AV.PICKS, [1,2,3,4,5,6,7,8,9]);
+  for (const n of AV.PICKS) {
+    assert.ok(fs.existsSync(__dirname + '/public/img/avatars/' + n + '.webp'), n);
+    assert.ok(fs.existsSync(__dirname + '/public/img/avatars/' + n + '_head.webp'), n + '_head');
+  }
 });
-t('gorras y sombreros: 9 ítems, fotos 6 colores, capa de avatar', () => { const AV = require('./public/avatar'), fs = require('fs'); const ST = require('./public/store'); const hs = ST.ITEMS.filter(i => i.sub === 'gorras'); assert.equal(hs.length, 9);
-  for (const i of hs) { assert.ok(AV.LAYERS[i.id] && AV.LAYERS[i.id][0] === 'cabeza', i.id); assert.deepEqual(i.colors, ['rojo', 'azul', 'verde', 'dorado', 'blanco', 'negro']);
-    for (const c of i.colors) assert.ok(fs.statSync(__dirname + '/public/img/store/' + i.id + '_' + c + '.jpg').size > 5000, i.id + c);
-    const svg = AV.render({ wear: { cabeza: { id: i.id, color: 'rojo' } } }, { size: 120 }); assert.ok(!/undefined|NaN/.test(svg), i.id); } });
+t('gorras legacy: fotos siguen en disco (ropa ya no se vende)', () => { const fs = require('fs'); const ST = require('./public/store'); const hs = ST.ITEMS.filter(i => i.sub === 'gorras'); assert.equal(hs.length, 9);
+  assert.ok(!ST.CATS.some(c => c[0] === 'ropa'));
+  for (const i of hs) { assert.deepEqual(i.colors, ['rojo', 'azul', 'verde', 'dorado', 'blanco', 'negro']);
+    for (const c of i.colors) assert.ok(fs.statSync(__dirname + '/public/img/store/' + i.id + '_' + c + '.jpg').size > 5000, i.id + c); } });
 t('migración acc_gorra → head_gorra_casual sin perder nada', () => { const f = require('os').tmpdir() + '/ltb-gor-' + process.pid + '.db'; let Q = open(f); Q.setupAdmin('angel', '1234');
   Q.register(Q.newInvite(), 'g1', '1111'); Q.register(Q.newInvite(), 'g2', '1111'); const uid = n => Q.db.prepare('SELECT id FROM users WHERE username=?').get(n).id, a = uid('g1'), b = uid('g2'), c = id => Q.db.prepare('SELECT coins FROM users WHERE id=?').get(id).coins;
   Q.db.prepare("INSERT INTO purchases(user_id,item_id,price,color) VALUES(?,'acc_gorra',5000,'azul'),(?,'acc_gorra',5000,'rojo'),(?,'head_gorra_casual',5000,'negro')").run(a, b, b);
@@ -151,7 +156,8 @@ t('tienda: compra, saldo, duplicado, color', () => { const S = open(':memory:');
   assert.ok(require('./public/store').render('yate_blanco', 'negro').includes('img/store/yate_blanco_negro.jpg')); });
 t('tienda: catálogo, departamentos, fotos', () => { const ST = require('./public/store'), fs = require('fs');
   assert.equal(new Set(ST.ITEMS.map(i => i.id)).size, ST.ITEMS.length);
-  for (const i of ST.ITEMS) { assert.ok(ST.CATS.some(c => c[0] === i.cat), i.id); assert.ok(i.colors.includes(i.color), i.id); assert.equal(i.colors.length, 6);
+  assert.ok(!ST.CATS.some(c => c[0] === 'ropa'), 'ropa fuera de la tienda');
+  for (const i of ST.ITEMS.filter(x => x.cat !== 'ropa')) { assert.ok(ST.CATS.some(c => c[0] === i.cat), i.id); assert.ok(i.colors.includes(i.color), i.id); assert.equal(i.colors.length, 6);
     for (const c of i.colors) assert.ok(fs.existsSync(__dirname + '/public/' + ST.img(i.id, c)), i.id + c); }
   const ropa = ST.ITEMS.filter(i => i.cat === 'ropa'); assert.equal(ropa.length, 32); assert.ok(!ST.byId('acc_gorra')); for (const i of ropa) { assert.ok(i.price <= 25000, i.id); assert.ok(ST.SUBS.some(s => s[0] === i.sub), i.id); }
   assert.deepEqual(['casa_familiar', 'casa_moderna', 'casa_residencia'].map(id => ST.byId(id).price), [300000, 600000, 1000000]);
@@ -205,16 +211,14 @@ t('piedra papel tijera', () => { const Q = open(':memory:'); Q.setupAdmin('angel
 { const I = open(':memory:'); I.setupAdmin('angel', '1234'); const c1 = I.newInvite(); I.register(c1, 'invitado', '9999'); I.newInvite();
   t('listInvites no truena y no expone uid crudo', () => { const xs = I.listInvites(); assert.ok(xs.length >= 2); assert.ok(xs.some(x => x.used_by === 'invitado')); xs.forEach(x => assert.equal(x.uid, undefined)); }); }
 
-t('avatar por capas: equipar al comprar, verificar posesión, quitar al vender', () => { const AV = require('./public/avatar'); const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const q = Q.register(Q.newInvite(), 'capas', '1111');
+t('avatar pick: guardar 1..9; comprar ropa legacy no toca avatarCfg', () => { const AV = require('./public/avatar'); const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const q = Q.register(Q.newInvite(), 'capas', '1111');
   const cfg = () => Q.leaderboard().find(r => r.username === 'capas').avatarCfg; Q.db.prepare('UPDATE users SET coins=100000 WHERE id=?').run(q);
-  Q.buyItem(q, 'top_hoodie', 'rojo'); assert.deepEqual(cfg().wear.arriba, { id: 'top_hoodie', color: 'rojo' }); Q.setItemColor(q, 'top_hoodie', 'azul'); assert.equal(cfg().wear.arriba.color, 'azul');
-  assert.throws(() => Q.setProfile(q, '', '', null, undefined, { wear: { abajo: { id: 'bot_jeans', color: 'negro' } } }), /No tienes/);
-  assert.throws(() => Q.setProfile(q, '', '', null, undefined, { wear: { abajo: { id: 'top_hoodie', color: 'negro' } } }), /Ropa inválida/);
-  Q.setProfile(q, '', '', null, undefined, { body: 'musculoso', face: 'cuadrada', wear: {} }); assert.deepEqual(cfg().wear, {}); assert.equal(cfg().body, 'musculoso');
-  Q.setProfile(q, '', '', null, undefined, { wear: { arriba: { id: 'top_hoodie', color: 'rojo' } } }); assert.equal(cfg().wear.arriba.color, 'azul');
-  Q.sellItem(q, 'top_hoodie'); assert.deepEqual(cfg().wear, {});
-  for (const id in AV.LAYERS) for (const pose of ['', 'cruzado']) { const svg = AV.render({ body: 'gordito', wear: { [AV.LAYERS[id][0]]: { id, color: 'rojo' } } }, { size: 120, pose }); assert.ok(!/undefined|NaN/.test(svg), id); }
-  for (const f in AV.FACES) for (const b in AV.BODIES) assert.ok(!/undefined|NaN/.test(AV.render({ face: f, body: b }))); });
+  Q.buyItem(q, 'top_hoodie', 'rojo'); assert.deepEqual(cfg(), AV.DEFAULT); Q.setItemColor(q, 'top_hoodie', 'azul'); assert.deepEqual(cfg(), AV.DEFAULT);
+  Q.setProfile(q, '', '', null, undefined, { pick: 5 }); assert.deepEqual(cfg(), { pick: 5 });
+  Q.setProfile(q, '', '', null, undefined, { body: 'musculoso', wear: {} }); assert.deepEqual(cfg(), { pick: 1 }); // legacy → 1
+  Q.setProfile(q, '', '', null, undefined, { pick: 9 }); assert.deepEqual(cfg(), { pick: 9 });
+  Q.sellItem(q, 'top_hoodie'); assert.deepEqual(cfg(), { pick: 9 }); assert.equal(Q.owned(q).length, 0);
+  for (const n of AV.PICKS) assert.ok(AV.imgTag(n).includes('avatars/' + n + '.webp')); });
 t('tanda de penaltis', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const a = Q.register(Q.newInvite(), 'pa', '1111'), b = Q.register(Q.newInvite(), 'pb', '1111');
   const c = id => Q.db.prepare('SELECT coins FROM users WHERE id=?').get(id).coins, set = (id, v) => Q.db.prepare('UPDATE users SET coins=? WHERE id=?').run(v, id); set(a, 30000); set(b, 30000);
   for (const bad of [9, 25001, 1.5, 'x']) assert.throws(() => Q.penChallenge(a, b, bad), /entre 10/); assert.throws(() => Q.penChallenge(a, a, 100), /ti mismo/);
