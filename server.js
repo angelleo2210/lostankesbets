@@ -16,9 +16,7 @@ app.get('/api/lines', h(r => { auth(r); return C.lines(['open', 'closed']); }));
 app.get('/api/leaderboard', h(r => { auth(r); return C.leaderboard(); }));
 app.post('/api/bet', h(r => { const u = auth(r); C.placeBet(u.id, r.body.optionId, r.body.stake); }));
 app.post('/api/profile', h(r => { const u = auth(r); return C.setProfile(u.id, r.body.avatar, r.body.display_name, r.body.facialHair, r.body.cosmetics, r.body.avatarCfg); }));
-app.get('/api/store', h(r => { const u = auth(r); return { items: require('./public/store').ITEMS, owned: C.owned(u.id) }; }));
-app.post('/api/store/buy', h(r => { const u = auth(r); return C.buyItem(u.id, r.body.itemId, r.body.color); }));
-app.post('/api/store/sell', h(r => { const u = auth(r); return C.sellItem(u.id, r.body.itemId); }));
+app.get('/api/owned', h(r => { const u = auth(r); return { owned: C.owned(u.id) }; }));
 app.get('/api/chat/:kind/:id', h(r => C.chatList(auth(r).id, r.params.kind, r.params.id)));
 app.post('/api/chat/:kind/:id', h(r => C.chatSend(auth(r).id, r.params.kind, r.params.id, r.body.text)));
 app.get('/api/tc', h(r => { const u = auth(r); return { games: C.tcList(u.id), min: C.RPS_MIN, max: C.RPS_MAX, tc: C.TC, friends: C.users().filter(x => !x.is_admin && x.id !== u.id).map(x => ({ id: x.id, name: x.display_name || x.username })) }; }));
@@ -44,7 +42,6 @@ app.post('/api/rps/respond', h(r => C.rpsRespond(auth(r).id, r.body.id, !!r.body
 app.post('/api/rps/pick', h(r => C.rpsPick(auth(r).id, r.body.id, r.body.pick)));
 app.get('/api/bonus', h(r => C.bonusStatus(auth(r).id)));
 app.post('/api/bonus', h(r => C.claimBonus(auth(r).id)));
-app.post('/api/store/color', h(r => { const u = auth(r); return C.setItemColor(u.id, r.body.itemId, r.body.color); }));
 app.get('/api/rewards', h(r => { auth(r); return require('./core').REWARDS; }));
 app.post('/api/parlay', h(r => { const u = auth(r); return { id: C.placeParlay(u.id, r.body.optionIds, r.body.stake) }; }));
 app.get('/api/real', h(async r => { auth(r); return odds.upcoming(r.query.sport || 'upcoming'); }));

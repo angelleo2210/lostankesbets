@@ -18,8 +18,8 @@ t('norm y validate', () => {
 });
 t('archivos webp existen', () => {
   for (const i of Av.PICKS) {
-    assert.ok(fs.statSync(path.join(__dirname, 'public/img/avatars', i + '.webp')).size > 500);
-    assert.ok(fs.statSync(path.join(__dirname, 'public/img/avatars', i + '_head.webp')).size > 200);
+    assert.ok(fs.statSync(path.join(__dirname, 'public/img/avatars', i + '.webp')).size > 5000);
+    assert.ok(fs.statSync(path.join(__dirname, 'public/img/avatars', i + '_head.webp')).size > 2000);
   }
 });
 t('render/imgTag', () => {
@@ -27,5 +27,7 @@ t('render/imgTag', () => {
   assert.match(Av.render({ pick: 2 }, { head: true }), /2_head\.webp/);
   assert.match(Av.imgTag(6, { w: 100, h: 133 }), /avatars\/6\.webp/);
 });
+t('app sin pestaña Tienda', () => { const src = fs.readFileSync(path.join(__dirname, 'public/app.js'), 'utf8');
+  assert.ok(!src.includes("[\'tienda\', \'Tienda\']") && !src.includes('storeView') && !src.includes('🛍️ Tienda')); });
 t('tienda sin categoría ropa', () => { assert.ok(!St.CATS.some(c => c[0] === 'ropa')); assert.ok(St.CATS.some(c => c[0] === 'motos')); });
 console.log(n + ' tests avatares estáticos');
