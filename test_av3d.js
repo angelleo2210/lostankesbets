@@ -27,6 +27,16 @@ t('render/imgTag', () => {
   assert.match(Av.render({ pick: 2 }, { head: true }), /2_head\.webp/);
   assert.match(Av.imgTag(6, { w: 100, h: 133 }), /avatars\/6\.webp/);
 });
+t('Mis apuestas estilo Hard Rock (banner + Apostado/Cobrado)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/app.js'), 'utf8');
+  const i = src.indexOf("tab === 'mias'"), j = src.indexOf("tab === 'tabla'");
+  const m = src.slice(i, j);
+  assert.ok(m.includes('hrb-banner') && m.includes('GANASTE') && m.includes('hrb-money'));
+  assert.ok(m.includes('Apostado') && m.includes('Cobrado') && m.includes('Ver selecciones'));
+  assert.ok(!m.includes('head(me'));
+  const css = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert.ok(css.includes('.hrb.bet-won') && css.includes('.hrb-money'));
+});
 t('líneas: odds grid alineado y sin Monto por fila', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/app.js'), 'utf8');
   const i = src.indexOf('function lineCard'), j = src.indexOf('function boletoCard');

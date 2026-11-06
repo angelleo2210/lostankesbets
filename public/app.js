@@ -50,10 +50,78 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
     B.innerHTML = boletoCard() + (d.error ? `<div class="card">${esc(d.error)}</div>` : '') + (ls.length ? ls.map(lineCard).join('') : '<div class="card">El administrador aún no ha agregado líneas reales.</div>') +
       (me.is_admin && d.events ? `<div class="card"><h2>Importar evento real (admin)</h2>${d.events.slice(0, 30).map(e => `<div class="card"><b>${esc(e.sport)}: ${esc(e.title)}</b><div class="small">${new Date(e.starts).toLocaleString('es-US')} · ${esc(e.bookmaker)}</div>${e.options.map(o => `${esc(o.label)} ${od(o.odds)}`).join(' · ')}<button class="alt" data-imp="${esc(e.id)}">Agregar</button></div>`).join('')}</div>` : '');
     bindBets(ls); B.querySelectorAll('[data-imp]').forEach(b => b.onclick = async () => { try { const r = await api('/admin/import', { eventId: b.dataset.imp }); if (r.error) throw new Error(r.error); render(); } catch (e) { flash(e.message); } }); }
-  if (tab === 'mias') { const st = { open: 'Abierta', won: '<b>✅ ¡Ganaste!</b>', lost: '<b>❌ Perdiste</b>', refunded: 'Devuelta' };
-    B.innerHTML = me.bets.length ? me.bets.map(b => `<div class="card bet-${b.status}">${head(me, 22)} <b>${esc(b.title)}</b><div>${esc(b.label)} ${od(b.odds)} · apostado ${fmt(b.stake)}</div><div class="small">${st[b.status]}${b.status === 'open' ? ' · gana ' + fmt(b.stake + profit(b.stake, b.odds)) : b.payout ? ' · cobrado ' + fmt(b.payout) : ''}</div></div>`).join('') : '<div class="card">Aún no tienes apuestas.</div>';
-    const pst = { ...st, open: 'Abierto' , won: '<b>✅ ¡Ganaste!</b>', lost: '<b>❌ Perdiste</b>', refunded: 'Devuelto' }, gst = { open: '⏳', won: '✅', lost: '❌', cancelled: '🚫' };
-    B.innerHTML = (me.parlays || []).map(p => `<div class="card bet-${p.status}">${head(me, 22)} <b>🎟️ Parlay de ${p.legs.length}</b> ${p.odds ? od(p.odds) : ''} · apostado ${fmt(p.stake)}${p.legs.map(g => `<div class="small">${gst[g.status] || ''} ${esc(g.title)}: ${esc(g.label)} ${od(g.odds)}</div>`).join('')}<div class="small">${pst[p.status]}${p.status === 'open' ? ' · gana ' + fmt(p.potential) : p.payout ? ' · cobrado ' + fmt(p.payout) : ''}</div></div>`).join('') + B.innerHTML; }
+  if (tab === 'mias') {
+    const meta = s => ({
+      won: { banner: 'GANASTE', cls: 'won', payK: 'Cobrado' },
+      lost: { banner: 'PERDISTE', cls: 'lost', payK: 'Resultado' },
+      open: { banner: 'PENDIENTE', cls: 'open', payK: 'Ganarías' },
+      refunded: { banner: 'ANULADA', cls: 'ref', payK: 'Devuelto' },
+      cancelled: { banner: 'ANULADA', cls: 'ref', payK: 'Devuelto' }
+    }[s] || { banner: '—', cls: 'open', payK: '—' });
+    const money = (b) => {
+      if (b.status === 'won') return fmt(b.payout || 0);
+      if (b.status === 'lost') return '0';
+      if (b.status === 'refunded' || b.status === 'cancelled') return fmt(b.payout || b.stake || 0);
+      if (b.status === 'open') {
+        if (b.potential != null) return fmt(b.potential);
+        if (b.odds != null) return fmt(b.stake + profit(b.stake, b.odds));
+      }
+      return '—';
+    };
+    const shareBet = (kind, id) => {
+      const el = document.querySelector(`[data-betshare="${kind}-${id}"]`);
+      if (!el) return;
+      const text = el.dataset.share || '';
+      const done = () => flash('Copiado');
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(() => { flash(text); });
+      else flash(text);
+    };
+    const betCard = (b) => {
+      const m = meta(b.status);
+      const share = `LosTankesBets · ${m.banner} · ${b.title} · ${b.label} ${od(b.odds)} · Apostado ${fmt(b.stake)} · ${m.payK} ${money(b)} · #${b.id}`;
+      return `<article class="hrb bet-${m.cls}" data-betshare="b-${b.id}" data-share="${esc(share)}">
+        <div class="hrb-banner"><span class="hrb-brand">LosTankesBets</span><span class="hrb-win">${m.banner}</span></div>
+        <div class="hrb-body">
+          <div class="hrb-row"><div class="hrb-left"><span class="hrb-tag">Simple</span><span class="hrb-name">${esc(b.title)}</span></div><span class="hrb-odds">${od(b.odds)}</span></div>
+          <div class="hrb-sel">${esc(b.label)}</div>
+          <div class="hrb-money"><div><span class="k">Apostado</span><b>${fmt(b.stake)}</b></div><div><span class="k">${m.payK}</span><b>${money(b)}</b></div></div>
+          <div class="hrb-foot"><button type="button" class="hrb-id" data-copy="${b.id}">#${b.id}</button><button type="button" class="hrb-share" data-sharebtn="b-${b.id}">Compartir</button></div>
+        </div></article>`;
+    };
+    const gst = { open: '○', won: '✓', lost: '✕', cancelled: '⊘', refunded: '⊘' };
+    const parlayCard = (p) => {
+      const m = meta(p.status);
+      const n = (p.legs || []).length;
+      const picks = (p.legs || []).map(g => g.label).join(', ');
+      const share = `LosTankesBets · ${m.banner} · Parlay ${n} · ${picks} · Apostado ${fmt(p.stake)} · ${m.payK} ${money(p)} · #${p.id}`;
+      const legs = (p.legs || []).map(g => `<div class="hrb-leg"><span>${gst[g.status] || '·'}</span><span>${esc(g.title)}: <b>${esc(g.label)}</b> ${od(g.odds)}</span></div>`).join('');
+      return `<article class="hrb bet-${m.cls}" data-betshare="p-${p.id}" data-share="${esc(share)}">
+        <div class="hrb-banner"><span class="hrb-brand">LosTankesBets</span><span class="hrb-win">${m.banner}</span></div>
+        <div class="hrb-body">
+          <div class="hrb-row"><div class="hrb-left"><span class="hrb-tag">Parlay</span><span class="hrb-name">${n}-Pick Parlay</span></div><span class="hrb-odds">${p.odds ? od(p.odds) : ''}</span></div>
+          <div class="hrb-sel">${esc(picks)}</div>
+          <div class="hrb-money"><div><span class="k">Apostado</span><b>${fmt(p.stake)}</b></div><div><span class="k">${m.payK}</span><b>${money(p)}</b></div></div>
+          <div class="hrb-foot"><button type="button" class="hrb-id" data-copy="${p.id}">#${p.id}</button><button type="button" class="hrb-share" data-sharebtn="p-${p.id}">Compartir</button></div>
+          <details class="hrb-details"><summary>Ver selecciones</summary><div class="hrb-legs">${legs}</div></details>
+        </div></article>`;
+    };
+    const items = [...(me.parlays || []).map(parlayCard), ...(me.bets || []).map(betCard)];
+    B.innerHTML = items.length ? items.join('') : '<div class="card"><div class="small">Aún no tienes apuestas.</div></div>';
+    B.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => {
+      const id = b.dataset.copy;
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(String(id)).then(() => flash('ID copiado')).catch(() => flash('#' + id));
+      else flash('#' + id);
+    });
+    B.querySelectorAll('[data-sharebtn]').forEach(b => b.onclick = () => {
+      const key = b.dataset.sharebtn;
+      const art = B.querySelector(`[data-betshare="${key}"]`);
+      const text = art && art.dataset.share;
+      if (!text) return;
+      if (navigator.share) navigator.share({ text }).catch(() => {});
+      else if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => flash('Copiado'));
+      else flash(text);
+    });
+  }
   if (tab === 'tabla') { const t = await api('/leaderboard'), byCoins = tablaMode === 'monedas', rows = byCoins ? [...t].sort((a, b) => b.coins - a.coins) : t;
     B.innerHTML = `<div class="chips depts"><button class="chip ${byCoins ? 'alt' : 'on'}" data-tm="ganadas">🏆 Apuestas ganadas</button><button class="chip ${byCoins ? 'on' : 'alt'}" data-tm="monedas">🪙 Monedas</button></div><div class="card">${rows.map((u, i) => `<div class="opt"><span>${i + 1}. ${who(u)}${u.display_name ? ` <span class="small">@${esc(u.username)}</span>` : ''}${byCoins ? '' : ' ' + streakTag(u.streak)}</span><b>${byCoins ? `🪙 ${fmt(u.coins)}` : `🏆 ${u.wins} <span class="small">· 🪙 ${fmt(u.coins)}</span>`}</b></div>`).join('')}</div><div class="small">${byCoins ? 'Saldo actual de cada jugador.' : 'Ranking principal: apuestas ganadas (un parlay ganado cuenta 1). Empate: más monedas.'}</div>`;
     B.querySelectorAll('[data-tm]').forEach(b => b.onclick = () => { tablaMode = b.dataset.tm; render(); }); }
