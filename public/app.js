@@ -116,7 +116,8 @@ function bindBets(ls = []) {
   if ($('#pgo')) $('#pgo').onclick = async () => { try { await api('/parlay', { optionIds: boleto.map(b => b.id), stake: Number($('#ps').value) }); boleto = []; tab = 'mias'; render(); } catch (e) { flash(e.message); } };
   A.querySelectorAll('[data-o]').forEach(b => b.onclick = async () => { const s = Number($('#s' + b.dataset.o).value); try { await api('/bet', { optionId: Number(b.dataset.o), stake: s }); render(); } catch (e) { flash(e.message); } }); }
 async function adminView(B) {
-  const ls = await api('/lines'); const inv = await api('/admin/invites'); const us = await api('/admin/users'); const tps = await api('/admin/topups');
+  const ls = await api('/lines');
+  const inv = await api('/admin/invites').catch(() => []); const us = await api('/admin/users').catch(() => []); const tps = await api('/admin/topups').catch(() => []);
   B.innerHTML = `<div class="card"><h2>Nueva línea ficticia</h2><input id="t" placeholder="Ej: Hoy Ángel come espaguetis">
   <div id="opts"></div><button class="alt" id="add">+ Opción</button><button id="create">Crear línea</button></div>
   <div class="card"><h2>Liquidar / cerrar</h2>${ls.map(l => `<div class="card"><b>${esc(l.title)}</b> <span class="small">(${l.status === 'open' ? 'abierta' : 'cerrada'})</span>

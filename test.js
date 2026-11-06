@@ -200,6 +200,11 @@ t('piedra papel tijera', () => { const Q = open(':memory:'); Q.setupAdmin('angel
   set(b, 50); assert.throws(() => Q.rpsChallenge(b, a, 51), /suficientes/); assert.equal(c(b), 50);
   const g5 = Q.rpsChallenge(a, b, 100).id; assert.throws(() => Q.rpsRespond(b, g5, true), /suficientes/); assert.equal(c(b), 50);
   assert.throws(() => Q.rpsPick(a, g5, 'piedra'), /no disponible/); assert.equal(Q.rpsView(999, g5), null); });
+
+// Admin: listar invitaciones (no debe tumbar la pestaña Admin / crear líneas)
+{ const I = open(':memory:'); I.setupAdmin('angel', '1234'); const c1 = I.newInvite(); I.register(c1, 'invitado', '9999'); I.newInvite();
+  t('listInvites no truena y no expone uid crudo', () => { const xs = I.listInvites(); assert.ok(xs.length >= 2); assert.ok(xs.some(x => x.used_by === 'invitado')); xs.forEach(x => assert.equal(x.uid, undefined)); }); }
+
 t('avatar por capas: equipar al comprar, verificar posesión, quitar al vender', () => { const AV = require('./public/avatar'); const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const q = Q.register(Q.newInvite(), 'capas', '1111');
   const cfg = () => Q.leaderboard().find(r => r.username === 'capas').avatarCfg; Q.db.prepare('UPDATE users SET coins=100000 WHERE id=?').run(q);
   Q.buyItem(q, 'top_hoodie', 'rojo'); assert.deepEqual(cfg().wear.arriba, { id: 'top_hoodie', color: 'rojo' }); Q.setItemColor(q, 'top_hoodie', 'azul'); assert.equal(cfg().wear.arriba.color, 'azul');
