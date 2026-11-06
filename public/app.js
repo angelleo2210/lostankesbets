@@ -10,10 +10,10 @@ const FH = { ninguno: ['Ninguno', ''], bigote: ['Bigote', '〰'], barba_corta: [
 const fhChip = f => f && FH[f.style] ? `<span title="${FH[f.style][0]}" style="display:inline-block;font-size:11px;padding:0 4px;border-radius:6px;background:#334155;color:${/^#[0-9a-f]{6}$/.test(f.color || '') ? f.color : '#e2e8f0'}">${FH[f.style][1]} ${FH[f.style][0]}</span> ` : '';
 let RW = [];
 const rw = id => RW.find(r => r.id === id);
-const head = (u, size = 28) => Avatar.render(u.avatarCfg, { head: true, size, facialHair: u.facialHair });
-const body = (u, size = 64) => Avatar.render(u.avatarCfg, { size, facialHair: u.facialHair });
+const head = (u, size = 28) => _avHead(u, size);
+const body = (u, size = 64) => _avBody(u, size);
 const who = (u, full) => { const c = u.cosmetics || {}, ac = rw(c.accessory), col = rw(c.color);
-  return `${full ? body(u, full) : head(u)} ${u.badge ? u.badge + ' ' : ''}${u.avatar ? esc(u.avatar) : ''}${ac ? ac.icon : ''}${ac || u.avatar ? ' ' : ''}<span style="${col ? `color:${col.color};font-weight:800;text-shadow:0 0 6px ${col.color}88` : ''}">${esc(u.display_name || u.username)}</span>`; };
+  return `${head(u, full || 28)} ${u.badge ? u.badge + ' ' : ''}${u.avatar ? esc(u.avatar) : ''}${ac ? ac.icon : ''}${ac || u.avatar ? ' ' : ''}<span style="${col ? `color:${col.color};font-weight:800;text-shadow:0 0 6px ${col.color}88` : ''}">${esc(u.display_name || u.username)}</span>`; };
 const EMOJIS = '😎🦁🐯🐺🦅🔥⚡💪🍀🎲🏆⚽🏀🏈⚾🥊🍝🍺🤑👑🚀🐐🦈💀'.match(/\p{Extended_Pictographic}/gu);
 function builder(el, cfg, unlocked, onChange) {
   const C = Avatar.CAT, lockOf = (k, v) => C[k].lock && C[k].lock[v];
@@ -143,6 +143,8 @@ const SLOTN = { arriba: 'Arriba', abajo: 'Abajo', zapatos: 'Zapatos', medias: 'M
 // Imagen compuesta: avatar con brazos cruzados, el mejor yate detrás (en puerto) y la moto al lado. Se arma con las compras.
 const av3dAttr = o => esc(JSON.stringify(o)).replace(/'/g, '&#39;');
 const av3d = (u, o = {}, cls = '') => `<div class="av3dw ${cls}"><canvas class="av3dc" data-av3d='${av3dAttr({ cfg: u.avatarCfg || {}, ...o })}'></canvas><div class="av3dmiss small"></div></div>`;
+const _avHead = (u, size = 28) => av3d(u, { head: true, w: Math.max(48, size * 2), h: Math.max(48, size * 2) }, 'head');
+const _avBody = (u, size = 64) => av3d(u, { w: Math.round(size * 576 / 768), h: size }, 'body');
 const composite = (u, owned) => { const best = p => owned.filter(o => o.item_id.startsWith(p)).map(o => ({ ...o, it: Store.byId(o.item_id) })).filter(o => o.it).sort((a, b) => b.it.price - a.it.price)[0];
   const y = best('yate_'), m = best('moto_'), scene = {}; if (y) scene.yate = { id: y.item_id, color: y.color }; if (m) scene.moto = { id: m.item_id, color: m.color };
   return `<div class="combo3d">${av3d(u, { scene })}<div class="ccap">${y ? '🛥️ ' + esc(y.it.name) : m ? '⚓ Muelle' : '🎬 Estudio'}${m ? ' · 🏍️ ' + esc(m.it.name) : ''}</div></div>`; };

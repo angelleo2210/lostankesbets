@@ -72,8 +72,22 @@
     return { canvas: c, info: p }; }
   function shadow(x, cx, cy, rw, a = .55) { x.save(); x.translate(cx, cy); x.scale(1, .16); const g = x.createRadialGradient(0, 0, 2, 0, 0, rw); g.addColorStop(0, `rgba(10,5,0,${a})`); g.addColorStop(1, 'rgba(10,5,0,0)'); x.fillStyle = g; x.fillRect(-rw, -rw, rw * 2, rw * 2); x.restore(); }
   // opt.scene = { yate: {id,color}, moto: {id,color} }  → muelle con los objetos que tenga; sin ninguno: estudio.
+  // Recorte de cabeza para header/ranking: cuadrado centrado en el rostro (aprox. y 0–32% del lienzo 576×768).
+  function headCrop(pc) {
+    const sh = Math.floor(H * 0.185), sw = sh, sy = Math.floor(H * 0.018), sx = Math.floor((W - sw) / 2);
+    const t = document.createElement('canvas'); t.width = sw; t.height = sh; const tx = t.getContext('2d');
+    tx.drawImage(pc, sx, sy, sw, sh, 0, 0, sw, sh); return t;
+  }
   async function render(target, cfg, opt = {}) { const { s } = await data(), x = target.getContext('2d'), sc = opt.scene || {}, miss = [];
     const prop = k => { const o = sc[k]; if (!o) return null; const pr = s.props[o.id]; if (!pr) { miss.push(o.id + ':' + o.color); return null; } return { ...pr, want: o.color }; };
+    // Retrato: solo persona + fondo suave, sin escena/muelle
+    if (opt.head) {
+      const { canvas: pc, info } = await person(cfg); const hc = headCrop(pc);
+      const TW = opt.w || 96, TH = opt.h || TW; target.width = TW; target.height = TH;
+      const g = x.createRadialGradient(TW / 2, TH * .45, 2, TW / 2, TH * .5, TW * .55);
+      g.addColorStop(0, '#3a4257'); g.addColorStop(1, '#14171f'); x.fillStyle = g; x.fillRect(0, 0, TW, TH);
+      x.drawImage(hc, 0, 0, TW, TH); return { ...info, missing: [...info.missing] };
+    }
     const y = prop('yate'), mo = prop('moto'), dock = !!(sc.yate || sc.moto), [{ canvas: pc, info }, plate, yi, mi] = await Promise.all([person(cfg), dock ? img(s.plates.muelle.src) : null, y && recolor(y.src, y.color, y.want, y.lum, y.sel || { c: 18, h: 28 }), mo && recolor(mo.src, mo.color, mo.want, mo.lum, mo.sel || { c: 18, h: 28 })]);
     const TW = opt.w || W, TH = opt.h || H; target.width = TW; target.height = TH; const k = TW / W;
     if (dock) { x.drawImage(plate, 0, 0, TW, TH); if (yi) x.drawImage(yi, 0, 0, TW, TH);

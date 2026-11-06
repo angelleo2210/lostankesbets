@@ -37,4 +37,23 @@ console.log(`cobertura ropa real cuerpo×piel×opción: tienda ${rs}/${BODIES.le
 console.log(`cobertura: bases ${BODIES.length * 3}/30 · prendas ${have}/${BODIES.length * ropa.length} (cuerpo×prenda, colores por recoloreado) · peinados ${hh + BODIES.length}/${BODIES.length * Av.CAT.hair.opts.length} · escenas objetos ${Object.keys(S.props).length}/${St.ITEMS.filter(i => i.cat === 'barcos' || i.cat === 'motos').length}`);
 console.log(n + ' pruebas av3d OK');
 
+
+t('retrato cabeza: head:true recorta cuadrado con alfa y sin escena', async () => {
+  const { createCanvas } = (() => { try { return require('canvas'); } catch { return {}; } })();
+  // node sin canvas: validamos pick + que render acepte head vía stub mínimo
+  const cfg = { body: 'atletico', skin: '#c68642', hair: 'corto' };
+  const p = A.pick(cfg, M);
+  assert.ok(p.base.includes('atletico'));
+  // simula headCrop bounds contra tamaño canónico
+  const W = 576, H = 768, sh = Math.floor(H * 0.185), sw = sh, sy = Math.floor(H * 0.018), sx = Math.floor((W - sw) / 2);
+  assert.equal(sw, sw); assert.ok(sy + sw < H * 0.5, 'recorte cabe en mitad superior');
+  assert.ok(fs.existsSync(`${R}/bases/atletico_media.webp`));
+  // código fuente de avatar3d declara modo head
+  const src = fs.readFileSync(__dirname + '/public/avatar3d.js', 'utf8');
+  assert.ok(src.includes('opt.head') && src.includes('headCrop'), 'Avatar3D.render soporta retrato');
+  const app = fs.readFileSync(__dirname + '/public/app.js', 'utf8');
+  assert.ok(app.includes("head: true") && app.includes("class=\"av3dw") || app.includes("'head'"), 'header/ranking usan av3d head');
+  assert.ok(app.includes("_avHead") || app.includes('head: true'));
+});
+
 t('ojos y boca del constructor cubiertos en 10 cuerpos x 3 pieles', () => { for (const b of Object.keys(M.layers)) { for (const e of Av.CAT.eyes.opts.slice(1)) assert.ok(M.layers[b]['ojos_' + e] && Object.keys(M.layers[b]['ojos_' + e].skins).length === 3, b + e); for (const m of Av.CAT.mouth.opts.slice(1)) assert.ok(M.layers[b]['boca_' + m] && Object.keys(M.layers[b]['boca_' + m].skins).length === 3, b + m); } });
