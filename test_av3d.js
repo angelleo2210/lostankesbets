@@ -66,8 +66,9 @@ t('tabla: podium + feed + filtros + fila propia + glow 1º', () => {
   const css = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
   assert.ok(css.includes('pod1glow') && css.includes('tb-pod-1') && css.includes('tb-pod-2') && css.includes('tb-pod-3'));
   assert.ok(css.includes('tb-row.me'));
-  assert.ok(css.includes('aura-fire-hi') && css.includes('aura-ice-hi') && css.includes('flameOrbit') && css.includes('flakeFall'));
+  assert.ok(css.includes('aura-fire-hi') && css.includes('aura-ice-hi') && css.includes('flameRect') && css.includes('flakeFall'));
   assert.ok(css.includes('filter:none') && !css.includes('hue-rotate') && css.includes('/img/auras/flame'));
   assert.ok(src.includes('❄️') || src.includes('ap-flake'));
+  assert.ok(src.includes('rectPts') && !src.includes('--a:') && css.includes('border-radius:inherit'));
 });
 console.log(n + ' tests avatares estáticos');

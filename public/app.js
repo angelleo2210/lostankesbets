@@ -306,25 +306,39 @@ const FIRE = (z, u = 'fx' + (++sq)) => `<svg width="${z}" height="${z}" viewBox=
 const ICE = z => `<svg width="${z}" height="${z}" viewBox="0 0 24 24" style="vertical-align:middle" aria-hidden="true"><g stroke="#bae6fd" stroke-width="2" stroke-linecap="round" fill="none">${[0, 60, 120].map(a => `<g transform="rotate(${a} 12 12)"><path d="M12 2v20"/><path d="M9 4.5l3 2.5 3-2.5M9 19.5l3-2.5 3 2.5"/></g>`).join('')}</g><circle cx="12" cy="12" r="2.2" fill="#e0f2fe"/><circle cx="11.3" cy="11.3" r=".7" fill="#fff"/></svg>`;
 const streakEmoji = st => { if (!st) return ''; if (st.kind === 'fuego') return st.intense ? '🔥🔥' : '🔥'; return st.intense ? '🧊🧊' : '🧊'; };
 const auraClass = st => { if (!st) return ''; if (st.kind === 'fuego') return st.intense ? 'aura-fire aura-fire-hi' : 'aura-fire'; return st.intense ? 'aura-ice aura-ice-hi' : 'aura-ice'; };
-/** Borde Naruto: fuego (W3/W5+) o azul+❄️ (L2/L3+). Sin tints ni filtros en la imagen. */
+/** Borde rectangular (misma forma del frame). Fuego W3/W5+ o azul+❄️. Sin tint. */
 const auraWrap = (inner, st, { sm } = {}) => {
   const ac = auraClass(st); if (!ac) return inner;
   const hi = !!st.intense, fire = st.kind === 'fuego';
   const parts = [];
+  // Posiciones en el perímetro RECTANGULAR (no órbita circular): top/right/bottom/left
+  const rectPts = (n) => {
+    const pts = [];
+    const perSide = Math.max(1, Math.ceil(n / 4));
+    for (let s = 0; s < 4; s++) {
+      for (let i = 0; i < perSide && pts.length < n; i++) {
+        const t = (i + 0.5) / perSide; // 0..1 along side
+        if (s === 0) pts.push({ x: t * 100, y: 0 }); // top
+        else if (s === 1) pts.push({ x: 100, y: t * 100 }); // right
+        else if (s === 2) pts.push({ x: (1 - t) * 100, y: 100 }); // bottom
+        else pts.push({ x: 0, y: (1 - t) * 100 }); // left
+      }
+    }
+    return pts;
+  };
   if (fire) {
-    const n = sm ? (hi ? 10 : 6) : (hi ? 16 : 10);
-    for (let i = 0; i < n; i++) {
-      const ang = (i / n) * 360;
+    const n = sm ? (hi ? 12 : 8) : (hi ? 16 : 12);
+    rectPts(n).forEach((p, i) => {
       const delay = ((i * 0.11) % 1.2).toFixed(2);
       const dur = (hi ? 0.55 : 0.85) + (i % 4) * 0.07;
-      const scale = sm ? (0.55 + (i % 3) * 0.1) : (0.85 + (i % 4) * 0.12);
+      const scale = sm ? (0.5 + (i % 3) * 0.1) : (0.8 + (i % 4) * 0.12);
       const kind = hi ? 'flame-hi' : 'flame';
-      parts.push(`<i class="ap ap-${kind}" style="--a:${ang.toFixed(1)}deg;--d:${delay}s;--t:${dur.toFixed(2)}s;--s:${scale.toFixed(2)};--v:${i % 4}"></i>`);
-    }
+      parts.push(`<i class="ap ap-${kind}" style="--x:${p.x.toFixed(1)}%;--y:${p.y.toFixed(1)}%;--d:${delay}s;--t:${dur.toFixed(2)}s;--s:${scale.toFixed(2)};--v:${i % 4}"></i>`);
+    });
   } else {
     const n = sm ? (hi ? 8 : 5) : (hi ? 12 : 7);
     for (let i = 0; i < n; i++) {
-      const x = 8 + (i * 41) % 84;
+      const x = 10 + (i * 41) % 80;
       const delay = ((i * 0.25) % 1.8).toFixed(2);
       const dur = (hi ? 1.5 : 2.2) + (i % 3) * 0.15;
       parts.push(`<i class="ap ap-flake" style="--x:${x}%;--d:${delay}s;--t:${dur.toFixed(2)}s;--s:${sm ? 0.85 : 1.1};--v:${i % 4}">❄️</i>`);
