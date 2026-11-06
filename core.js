@@ -123,7 +123,8 @@ function open(file = 'data.db') {
     // Racha: apuestas resueltas (ganada/perdida) en orden cronológico; parlay = 1; pendientes/devueltas no cuentan.
     streak: uid => { const rs = db.prepare("SELECT status, COALESCE(ts, CAST(strftime('%s', created) AS INTEGER) * 1000000) o, id FROM bets WHERE user_id=? AND status IN ('won','lost') UNION ALL SELECT status, COALESCE(ts, CAST(strftime('%s', created) AS INTEGER) * 1000000) o, id FROM parlays WHERE user_id=? AND status IN ('won','lost') ORDER BY o, id").all(uid, uid);
       if (!rs.length) return null; const last = rs[rs.length - 1].status; let n = 0; for (let i = rs.length - 1; i >= 0 && rs[i].status === last; i--) n++;
-      return last === 'won' && n >= 3 ? { kind: 'fuego', n, intense: n >= 6 } : last === 'lost' && n >= 2 ? { kind: 'hielo', n, intense: n >= 6 } : null; },
+      // 🔥 3+, 🔥🔥 5+; 🧊 2+, 🧊🧊 3+
+      return last === 'won' && n >= 3 ? { kind: 'fuego', n, intense: n >= 5 } : last === 'lost' && n >= 2 ? { kind: 'hielo', n, intense: n >= 3 } : null; },
     // Piedra/Papel/Tijera entre amigos. Apuestas retenidas al retar/aceptar; ganador se lleva el bote; empate devuelve.
     RPS_MIN, RPS_MAX, RPS_MS,
     bbHalf, bbGame, BB_N, BB_OUTS, BB_OUTS_SCOPE,
@@ -316,11 +317,11 @@ function open(file = 'data.db') {
       for (const pid of touched) {
         const p = db.prepare('SELECT * FROM parlays WHERE id=?').get(pid); if (p.status !== 'open') continue;
         const legs = db.prepare('SELECT * FROM parlay_legs WHERE parlay_id=?').all(pid);
-        if (legs.some(g => g.status === 'lost')) { db.prepare("UPDATE parlays SET status='lost' WHERE id=? AND status='open'").run(pid); continue; }
+        if (legs.some(g => g.status === 'lost')) { db.prepare("UPDATE parlays SET status='lost', ts=? WHERE id=? AND status='open'").run(now(), pid); continue; }
         if (legs.some(g => g.status === 'open')) continue;
         const live = legs.filter(g => g.status === 'won');
         const [st, pay] = live.length ? ['won', Math.floor(p.stake * live.reduce((m, g) => m * dec(g.odds), 1))] : ['refunded', p.stake];
-        if (db.prepare("UPDATE parlays SET status=?, payout=? WHERE id=? AND status='open'").run(st, pay, pid).changes === 1)
+        if (db.prepare("UPDATE parlays SET status=?, payout=?, ts=? WHERE id=? AND status='open'").run(st, pay, now(), pid).changes === 1)
           db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(pay, p.user_id);
       }
     },
@@ -339,9 +340,9 @@ function open(file = 'data.db') {
         for (const b of db.prepare("SELECT * FROM bets WHERE line_id=? AND status='open'").all(l.id)) {
           if (b.option_id === Number(winnerOptionId)) {
             const pay = b.stake + profit(b.stake, b.odds);
-            db.prepare("UPDATE bets SET status='won', payout=? WHERE id=?").run(pay, b.id);
+            db.prepare("UPDATE bets SET status='won', payout=?, ts=? WHERE id=?").run(pay, now(), b.id);
             db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(pay, b.user_id);
-          } else db.prepare("UPDATE bets SET status='lost' WHERE id=?").run(b.id);
+          } else db.prepare("UPDATE bets SET status='lost', ts=? WHERE id=?").run(now(), b.id);
         }
         api._parlayLegs(l.id, Number(winnerOptionId)); api.refreshRanks();
       });
@@ -401,7 +402,50 @@ function open(file = 'data.db') {
     },
     topups: (limit = 20) => db.prepare('SELECT t.id, t.amount, t.created, u.username, u.display_name, u.avatar, u.avatar_cfg, u.facial_hair, a.username admin FROM topups t JOIN users u ON u.id=t.user_id JOIN users a ON a.id=t.admin_id ORDER BY t.id DESC LIMIT ?').all(limit).map(r => deco(r)),
     users: () => { const rk = api.refreshRanks(); return db.prepare('SELECT id, username, avatar, display_name, facial_hair, cosmetics, avatar_cfg, coins, is_admin FROM users ORDER BY username').all().map(r => deco(r, r.id, rk)); },
-    leaderboard: () => { const rk = api.refreshRanks(); return db.prepare('SELECT id, username, avatar, display_name, facial_hair, cosmetics, avatar_cfg, coins, (SELECT COUNT(*) FROM bets b WHERE b.user_id=users.id AND b.status=\'won\') + (SELECT COUNT(*) FROM parlays p WHERE p.user_id=users.id AND p.status=\'won\') wins FROM users ORDER BY wins DESC, coins DESC, username').all().map(r => { const { id, ...o } = deco(r, r.id, rk); return { ...o, streak: api.streak(id) }; }); },
+    periodCutoff(period) {
+      const d = new Date(); d.setHours(0, 0, 0, 0);
+      if (period === 'hoy') return d.getTime() * 1000;
+      if (period === 'semana') { const day = d.getDay(); d.setDate(d.getDate() - ((day + 6) % 7)); return d.getTime() * 1000; }
+      return null; // temporada = all time
+    },
+    _settledCounts(uid, cutoff) {
+      const ts = "COALESCE(ts, CAST(strftime('%s', created) AS INTEGER) * 1000000)";
+      const f = cutoff == null ? '' : ` AND ${ts}>=?`;
+      const args = cutoff == null ? [uid] : [uid, cutoff];
+      const wonB = db.prepare(`SELECT COUNT(*) c FROM bets WHERE user_id=? AND status='won'${f}`).get(...args).c;
+      const lostB = db.prepare(`SELECT COUNT(*) c FROM bets WHERE user_id=? AND status='lost'${f}`).get(...args).c;
+      const wonP = db.prepare(`SELECT COUNT(*) c FROM parlays WHERE user_id=? AND status='won'${f}`).get(...args).c;
+      const lostP = db.prepare(`SELECT COUNT(*) c FROM parlays WHERE user_id=? AND status='lost'${f}`).get(...args).c;
+      return { wins: wonB + wonP, losses: lostB + lostP };
+    },
+    leaderboard(period = 'temporada') {
+      const rk = api.refreshRanks();
+      const cutoff = api.periodCutoff(period);
+      return db.prepare('SELECT id, username, avatar, display_name, facial_hair, cosmetics, avatar_cfg, coins, is_admin FROM users ORDER BY username').all().map(r => {
+        const { wins, losses } = api._settledCounts(r.id, cutoff);
+        const tot = wins + losses;
+        const { id, is_admin, ...o } = deco(r, r.id, rk);
+        return { ...o, id, is_admin, wins, losses, winPct: tot ? Math.round(wins * 1000 / tot) / 10 : 0, streak: api.streak(r.id) };
+      }).sort((a, b) => b.wins - a.wins || b.winPct - a.winPct || b.coins - a.coins || a.username.localeCompare(b.username));
+    },
+    activity(limit = 8) {
+      const rows = db.prepare(`SELECT * FROM (
+        SELECT u.username, u.display_name, u.avatar_cfg, b.status, b.stake, b.payout,
+          COALESCE(b.ts, CAST(strftime('%s', b.created) AS INTEGER) * 1000000) o, l.title, 'bet' kind
+        FROM bets b JOIN users u ON u.id=b.user_id JOIN lines l ON l.id=b.line_id
+        WHERE b.status IN ('won','lost')
+        UNION ALL
+        SELECT u.username, u.display_name, u.avatar_cfg, p.status, p.stake, p.payout,
+          COALESCE(p.ts, CAST(strftime('%s', p.created) AS INTEGER) * 1000000) o, 'Parlay' title, 'parlay' kind
+        FROM parlays p JOIN users u ON u.id=p.user_id
+        WHERE p.status IN ('won','lost')
+      ) ORDER BY o DESC, title LIMIT ?`).all(Math.min(20, Math.max(1, Number(limit) || 8)));
+      return rows.map(r => ({ username: r.username, display_name: r.display_name, avatarCfg: AV.norm(r.avatar_cfg), status: r.status, stake: r.stake, payout: r.payout, title: r.title, kind: r.kind, ts: r.o }));
+    },
+    tabla(period = 'temporada') {
+      const rows = api.leaderboard(period).filter(u => !u.is_admin).map(({ is_admin, ...u }) => u);
+      return { period: ['hoy', 'semana', 'temporada'].includes(period) ? period : 'temporada', rows, activity: api.activity(8) };
+    },
     ranks() { const m = new Map(); db.prepare('SELECT id, (SELECT COUNT(*) FROM bets b WHERE b.user_id=users.id AND b.status=\'won\') + (SELECT COUNT(*) FROM parlays p WHERE p.user_id=users.id AND p.status=\'won\') wins FROM users WHERE is_admin=0 AND wins>0 ORDER BY wins DESC, coins DESC, username LIMIT 3').all().forEach((u, i) => m.set(u.id, i + 1)); return m; },
     refreshRanks() { const m = api.ranks(); const ins = db.prepare('INSERT OR IGNORE INTO unlocks(user_id,item_id,rank) VALUES(?,?,?)');
       for (const [uid, rank] of m) for (const it of REWARDS) if (rank <= it.minRank) ins.run(uid, it.id, rank); return m; },

@@ -53,4 +53,17 @@ t('portada sin pertenencias/jetski', () => { const src = fs.readFileSync(path.jo
 t('app sin pestaña Tienda', () => { const src = fs.readFileSync(path.join(__dirname, 'public/app.js'), 'utf8');
   assert.ok(!src.includes("[\'tienda\', \'Tienda\']") && !src.includes('storeView') && !src.includes('🛍️ Tienda')); });
 t('tienda sin categoría ropa', () => { assert.ok(!St.CATS.some(c => c[0] === 'ropa')); assert.ok(St.CATS.some(c => c[0] === 'motos')); });
+
+t('tabla: podium + feed + filtros + fila propia + glow 1º', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/app.js'), 'utf8');
+  const i = src.indexOf("tab === 'tabla'"), j = src.indexOf("tab === 'perfil'");
+  const block = src.slice(i, j === -1 ? i + 2500 : j);
+  assert.ok(block.includes('tb-podium') && block.includes('tb-pod-') && block.includes('tb-feed'));
+  assert.ok(block.includes('data-tp') && block.includes('hoy') && block.includes('semana') && block.includes('temporada'));
+  assert.ok(block.includes('tb-row') && block.includes('winPct') && block.includes('streakEmoji') && block.includes('tb-you'));
+  assert.ok(block.includes("/tabla?period="));
+  const css = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
+  assert.ok(css.includes('pod1glow') && css.includes('tb-pod-1') && css.includes('tb-pod-2') && css.includes('tb-pod-3'));
+  assert.ok(css.includes('tb-row.me'));
+});
 console.log(n + ' tests avatares estáticos');

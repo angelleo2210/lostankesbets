@@ -13,7 +13,8 @@ app.post('/api/register', h(r => { C.register(r.body.code, r.body.username, r.bo
 app.post('/api/login', h(r => ({ token: C.login(r.body.username, r.body.pin) })));
 app.get('/api/me', h(r => { const u = auth(r); return { ...u, streak: C.streak(u.id), retosPend: C.rpsList(u.id).filter(g => g.status === 'pending' && g.mine === 'received').length + C.penList(u.id).filter(g => g.status === 'pending' && g.mine === 'received').length + C.tcList(u.id).filter(g => g.status === 'pending' && g.mine === 'received').length + C.bbList(u.id).filter(g => g.status === 'pending' && g.mine === 'received').length, bets: C.myBets(u.id), parlays: C.myParlays(u.id) }; }));
 app.get('/api/lines', h(r => { auth(r); return C.lines(['open', 'closed']); }));
-app.get('/api/leaderboard', h(r => { auth(r); return C.leaderboard(); }));
+app.get('/api/leaderboard', h(r => { auth(r); return C.leaderboard(r.query.period); }));
+app.get('/api/tabla', h(r => { const u = auth(r); const d = C.tabla(r.query.period || 'temporada'); return { ...d, me: u.id }; }));
 app.post('/api/bet', h(r => { const u = auth(r); C.placeBet(u.id, r.body.optionId, r.body.stake); }));
 app.post('/api/profile', h(r => { const u = auth(r); return C.setProfile(u.id, r.body.avatar, r.body.display_name, r.body.facialHair, r.body.cosmetics, r.body.avatarCfg); }));
 app.get('/api/owned', h(r => { const u = auth(r); return { owned: C.owned(u.id) }; }));

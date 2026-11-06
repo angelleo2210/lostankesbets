@@ -186,12 +186,21 @@ t('racha: fuego, hielo, nada, pendientes ignoradas', () => { const Q = open(':me
   const [A, AS] = mk(), [B2, BS] = mk(); Q.placeParlay(q, [AS.id, BS.id], 10); Q.settleLine(A, AS.id); Q.settleLine(B2, BS.id); assert.deepEqual(Q.streak(q), { kind: 'fuego', n: 4, intense: false });
   bet(0); assert.equal(Q.streak(q), null); bet(0); assert.deepEqual(Q.streak(q), { kind: 'hielo', n: 2, intense: false });
   assert.deepEqual(Q.leaderboard().find(r => r.username === 'racha').streak, { kind: 'hielo', n: 2, intense: false });
-  for (let i = 3; i <= 5; i++) { bet(0); assert.deepEqual(Q.streak(q), { kind: 'hielo', n: i, intense: false }); } bet(0); assert.deepEqual(Q.streak(q), { kind: 'hielo', n: 6, intense: true });
-  bet(1); bet(1); assert.equal(Q.streak(q), null); bet(1); bet(1); bet(1); assert.equal(Q.streak(q).intense, false); bet(1); assert.deepEqual(Q.streak(q), { kind: 'fuego', n: 6, intense: true }); bet(1); assert.equal(Q.streak(q).intense, true);
+  bet(0); assert.deepEqual(Q.streak(q), { kind: 'hielo', n: 3, intense: true });
+  bet(0); assert.deepEqual(Q.streak(q), { kind: 'hielo', n: 4, intense: true });
+  bet(1); bet(1); assert.equal(Q.streak(q), null);
+  bet(1); assert.deepEqual(Q.streak(q), { kind: 'fuego', n: 3, intense: false });
+  bet(1); assert.deepEqual(Q.streak(q), { kind: 'fuego', n: 4, intense: false });
+  bet(1); assert.deepEqual(Q.streak(q), { kind: 'fuego', n: 5, intense: true });
+  bet(1); assert.equal(Q.streak(q).intense, true);
   const vm = require('vm'), src = require('fs').readFileSync(__dirname + '/public/app.js', 'utf8'), pick = k => src.slice(src.indexOf('const ' + k + ' ='), src.indexOf('\n', src.indexOf('const ' + k + ' =')));
   const ctx = { sq: 0 }; vm.runInNewContext([pick('FIRE'), pick('ICE'), src.slice(src.indexOf('const streakTag ='), src.indexOf('`; };', src.indexOf('const streakTag =')) + 5), 'this.T = streakTag;'].join('\n'), ctx);
-  assert.match(ctx.T({ kind: 'fuego', n: 3 }), /En racha x3/); assert.match(ctx.T({ kind: 'fuego', n: 5 }, true), /En llamas/); assert.doesNotMatch(ctx.T({ kind: 'fuego', n: 5 }), /Imparable/); assert.match(ctx.T({ kind: 'fuego', n: 6 }), /Imparable/);
-  assert.match(ctx.T({ kind: 'hielo', n: 2 }), /Frío x2/); assert.doesNotMatch(ctx.T({ kind: 'hielo', n: 5 }), /Congelado/); assert.match(ctx.T({ kind: 'hielo', n: 6 }), /Congelado/); assert.match(ctx.T({ kind: 'hielo', n: 7 }), /intense/); });
+  assert.match(ctx.T({ kind: 'fuego', n: 3, intense: false }), /En racha x3/);
+  assert.match(ctx.T({ kind: 'fuego', n: 5, intense: true }), /Imparable/);
+  assert.match(ctx.T({ kind: 'fuego', n: 5, intense: true }, true), /Imparable/);
+  assert.match(ctx.T({ kind: 'hielo', n: 2, intense: false }), /Frío x2/);
+  assert.match(ctx.T({ kind: 'hielo', n: 3, intense: true }), /Congelado/);
+  assert.match(ctx.T({ kind: 'hielo', n: 4, intense: true }), /intense/); });
 t('piedra papel tijera', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '1234'); const a = Q.register(Q.newInvite(), 'ana', '1111'), b = Q.register(Q.newInvite(), 'beto', '1111');
   const c = id => Q.db.prepare('SELECT coins FROM users WHERE id=?').get(id).coins, set = (id, v) => Q.db.prepare('UPDATE users SET coins=? WHERE id=?').run(v, id);
   set(a, 30000); set(b, 30000);
@@ -319,4 +328,30 @@ t('Three Contest', () => { const Q = open(':memory:'); Q.setupAdmin('angel', '12
   const o = Q.tcChallenge(a, b, 50, 0).id; Q.tcRespond(b, o, true, 0); const c2 = coins(a); Q.tcExpire(24 * 3600e3 + 1); assert.equal(Q.tcView(a, o).status, 'expired'); assert.equal(coins(a), c2 + 50);
   // atómico: el retador sin monedas → no se cobra a nadie
   const z = Q.tcChallenge(a, b, 25000, 0).id; Q.db.prepare('UPDATE users SET coins=10 WHERE id=?').run(a); const bz = coins(b); assert.throws(() => Q.tcRespond(b, z, true, 1), /retador/); assert.equal(coins(b), bz); assert.equal(Q.tcView(b, z).status, 'pending'); });
+t('tabla: podium stats, period filter, activity, losses+pct', () => {
+  const Q = open(':memory:'); Q.setupAdmin('angel', '1234');
+  const a = Q.register(Q.newInvite(), 'pedro', '1111');
+  const b = Q.register(Q.newInvite(), 'maria', '1111');
+  const c = Q.register(Q.newInvite(), 'luis', '1111');
+  const mk = (uid, win) => { const id = Q.createLine('x', [{ label: 'A', odds: -110 }, { label: 'B', odds: -110 }]); const opts = Q.db.prepare('SELECT id FROM options WHERE line_id=? ORDER BY id').all(id); Q.placeBet(uid, opts[0].id, 10); Q.settleLine(id, win ? opts[0].id : opts[1].id); };
+  mk(a, true); mk(a, true); mk(a, true); mk(a, false);
+  mk(b, true); mk(b, true); mk(b, false);
+  mk(c, true);
+  const all = Q.tabla('temporada');
+  assert.equal(all.period, 'temporada');
+  assert.equal(all.rows[0].username, 'pedro');
+  assert.equal(all.rows[0].wins, 3); assert.equal(all.rows[0].losses, 1);
+  assert.equal(all.rows[0].winPct, 75);
+  assert.ok(all.activity.length >= 1);
+  assert.ok(all.activity[0].status === 'won' || all.activity[0].status === 'lost');
+  // hoy should include just-settled (ts stamped on settle)
+  const hoy = Q.tabla('hoy');
+  assert.equal(hoy.rows.find(r => r.username === 'pedro').wins, 3);
+  // future cutoff empty: force cutoff beyond now via periodCutoff mock? semana also includes
+  const lb = Q.leaderboard('temporada');
+  assert.ok(lb.find(r => r.username === 'pedro').losses === 1);
+  assert.ok('winPct' in lb[0]);
+});
 console.log(`\n${n} pruebas OK`);
+
+
