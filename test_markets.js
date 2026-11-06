@@ -49,6 +49,20 @@ t('grouped mobile markup missing cells, order handicap/total/winner and draw onl
  const lines=Q.lines().filter(l=>l.event_id==='half');const html=ctx.cards(lines);assert.ok(html.indexOf('Hándicap')<html.indexOf('Total'));assert.ok(html.indexOf('Total')<html.indexOf('Ganador'));assert.match(html,/O 2.5/);assert.match(html,/U 2.5/);assert.match(html,/No disponible/);assert.ok(!html.includes('>Empate<'));assert.match(html,/event-market-grid/);
  const draw=ctx.cards(Q.lines().filter(l=>l.event_id==='x'));assert.match(draw,/>Empate<\/span><span><\/span><span><\/span>/);assert.match(fs.readFileSync('public/index.html','utf8'),/markets.js/);
 });
+t('slip updates keep fixture DOM/viewport and stake; no render, focus, or forced top',()=>{
+ const fs=require('node:fs'),vm=require('node:vm');const src=fs.readFileSync('public/app.js','utf8');
+ const block=src.slice(src.indexOf('function bindBets('),src.indexOf('async function adminView('));
+ let top=200,corrections=[],stake={value:'125'},html='';
+ const buttons=[1,2].map(id=>({dataset:{add:String(id)},isConnected:true,getBoundingClientRect:()=>({top}),classList:{toggle(){}},setAttribute(){}}));
+ const slip={set outerHTML(s){html=s;top+=55;}};
+ const ctx={boleto:[],boletoStake:'',A:{querySelector:()=>slip,querySelectorAll:sel=>sel==='[data-add]'?buttons:[]},
+  $:sel=>sel==='#ps'?stake:null,window:{innerHeight:800,scrollBy:o=>{corrections.push(o);top-=o.top;}},boletoCard:()=>'<div class="slip">new</div>',dec:n=>2,fmt:String,flash:()=>{},render:()=>{throw new Error('Selection must not rerender page');}};
+ vm.runInNewContext(block+'\nthis.bind=bindBets;',ctx);
+ ctx.bind([{id:4,event_id:'event',kind:'real',title:'A-B',options:[{id:1,label:'Over O 3',odds:105},{id:2,label:'Under U 3',odds:-120}]}]);
+ buttons[0].onclick();assert.equal(top,200);assert.equal(ctx.boleto.length,1);assert.equal(ctx.boletoStake,'125');assert.equal(html,'<div class="slip">new</div>');
+ buttons[1].onclick();assert.equal(top,200);assert.equal(ctx.boleto.length,1);assert.equal(ctx.boleto[0].id,2);buttons[1].onclick();assert.equal(ctx.boleto.length,0);assert.equal(top,200);assert.equal(ctx.boletoStake,'125');
+ assert.equal(corrections.length,3);assert.ok(!block.includes('scrollIntoView')&&!block.includes('.focus(')&&!block.includes('scrollTo('));
+});
 (async()=>{
  const orig=global.fetch,old=process.env.ODDS_API_KEY;process.env.ODDS_API_KEY='test-only';
  try {global.fetch=async url=>{assert.match(url,/markets=h2h,spreads,totals/);return {ok:true,json:async()=>[fixture]};};assert.equal((await upcoming()).events[0].markets.length,3);

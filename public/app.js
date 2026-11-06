@@ -1,5 +1,5 @@
 const $ = s => document.querySelector(s); const A = $('#app');
-let token = localStorage.token, me = null, tab = 'lineas', boleto = [];
+let token = localStorage.token, me = null, tab = 'lineas', boleto = [], boletoStake = '';
 const dec = o => o > 0 ? 1 + o / 100 : 1 + 100 / -o; const toAm = d => d >= 2 ? Math.round((d - 1) * 100) : Math.round(-100 / (d - 1));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = n => Number(n).toLocaleString('es-US'); const od = o => (o > 0 ? '+' : '') + o;
@@ -248,7 +248,7 @@ function boletoCard() {
   const kind = n === 1 ? 'Simple' : 'Parlay';
   return `<div class="card slip"><h2>🎟️ Boleto · ${kind} (${n}/15)</h2><div class="slip-list">${boleto.map(b => `<div class="slip-row"><span class="small">${esc(b.title)}: <b>${esc(b.label)} ${od(b.odds)}</b></span><button type="button" class="alt slip-x" data-rm="${b.id}" aria-label="Quitar">✕</button></div>`).join('')}</div>
   <div class="slip-meta">${n === 1 ? 'Cuota' : 'Cuota combinada'} <b>${od(toAm(d))}</b></div>
-  <input type="number" min="1" inputmode="numeric" placeholder="Monto a apostar" id="ps">
+  <input type="number" min="1" inputmode="numeric" placeholder="Monto a apostar" id="ps" value="${esc(boletoStake)}">
   <div class="small" id="pw">Escribe un monto</div>
   <div class="row"><button type="button" id="pgo">Apostar</button><button type="button" class="alt" id="pclr">Vaciar</button></div></div>`;
 }
@@ -259,19 +259,38 @@ function bindBets(ls = []) {
     const mult = boleto.reduce((m, b) => m * dec(b.odds), 1);
     el.textContent = s > 0 ? 'Ganarías ' + fmt(Math.floor(s * mult)) : 'Escribe un monto';
   };
+  // Keep fixture DOM intact. Only the slip and blue selection classes change.
+  // Anchor correction compensates slip height changes (not a stale scrollY).
+  const refreshSlip = anchor => {
+    const before = anchor && anchor.getBoundingClientRect().top;
+    const stake = $('#ps'); if (stake) boletoStake = stake.value;
+    const slip = A.querySelector('.slip');
+    if (slip) slip.outerHTML = boletoCard();
+    A.querySelectorAll('[data-add]').forEach(b => {
+      const on = boleto.some(x => x.id === Number(b.dataset.add));
+      b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on));
+    });
+    bindBets(ls);
+    if (anchor && anchor.isConnected) {
+      const delta = anchor.getBoundingClientRect().top - before;
+      if (delta) window.scrollBy({ top: delta, left: 0, behavior: 'instant' });
+    }
+  };
+  const visibleFixture = () => [...A.querySelectorAll('.line')].find(el => { const r = el.getBoundingClientRect(); return r.bottom > 0 && r.top < window.innerHeight; });
   A.querySelectorAll('[data-add]').forEach(b => b.onclick = () => { const id = Number(b.dataset.add), i = boleto.findIndex(x => x.id === id);
     if (i >= 0) boleto.splice(i, 1); else { const l = ls.find(l => l.options.some(o => o.id === id)), o = l && l.options.find(o => o.id === id);
-      if (!l || !o) return; boleto = boleto.filter(x => x.line !== l.id && !(l.event_id && x.event === l.kind + ':' + l.event_id)); if (boleto.length >= 15) return flash('Máximo 15 selecciones'); boleto.push({ id, line: l.id, event: l.event_id ? l.kind + ':' + l.event_id : null, title: l.title, label: o.label, odds: o.odds }); } render(); });
-  A.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { boleto = boleto.filter(x => x.id !== Number(b.dataset.rm)); render(); });
-  if ($('#pclr')) $('#pclr').onclick = () => { boleto = []; render(); };
-  if ($('#ps')) $('#ps').oninput = payoutHint;
+      if (!l || !o) return; boleto = boleto.filter(x => x.line !== l.id && !(l.event_id && x.event === l.kind + ':' + l.event_id)); if (boleto.length >= 15) return flash('Máximo 15 selecciones'); boleto.push({ id, line: l.id, event: l.event_id ? l.kind + ':' + l.event_id : null, title: l.title, label: o.label, odds: o.odds }); } refreshSlip(b); });
+  A.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { const anchor = visibleFixture(); boleto = boleto.filter(x => x.id !== Number(b.dataset.rm)); refreshSlip(anchor); });
+  if ($('#pclr')) $('#pclr').onclick = () => { const anchor = visibleFixture(); boleto = []; refreshSlip(anchor); };
+  if ($('#ps')) $('#ps').oninput = () => { boletoStake = $('#ps').value; payoutHint(); };
+  payoutHint();
   if ($('#pgo')) $('#pgo').onclick = async () => {
     try {
       const stake = Number($('#ps').value);
       if (!boleto.length) return flash('Selecciona al menos una cuota');
       if (boleto.length === 1) await api('/bet', { optionId: boleto[0].id, stake });
       else await api('/parlay', { optionIds: boleto.map(b => b.id), stake });
-      boleto = []; tab = 'mias'; render();
+      boleto = []; boletoStake = ''; tab = 'mias'; render();
     } catch (e) { flash(e.message); }
   };
 }
