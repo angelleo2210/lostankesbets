@@ -71,6 +71,11 @@ t('portada cover: fondo rico y thumbs de todas las categorías showpiece', () =>
   }
   // jets/motos/yates 3D en escenas para la portada
   ['jet_basico','jet_turbo','jet_pro','moto_scooter','moto_naked','moto_pista','yate_mega'].forEach(id => assert.ok(fs.existsSync(`${R}/scenes/${id}.webp`), id));
+  const html = fs.readFileSync(__dirname + '/public/index.html', 'utf8');
+  assert.ok(!/\.avpv\{[^}]*position:fixed/.test(html), 'avpv ya no es overlay fijo');
+  assert.ok(html.includes('cover-av .av3dc') && html.includes('width:100%!important'), 'canvas de portada escala al contenedor');
+  assert.ok(/\.cover-av\{[^}]*width:1[12][0-9]px/.test(html), 'cover-av ancho móvil ~120px');
+  assert.ok(app.includes("av3d(u, { w: 200, h: 267 }, 'big')") || app.includes('w: 200'), 'preview perfil con tamaño acotado');
 });
 
 t('ojos y boca del constructor cubiertos en 10 cuerpos x 3 pieles', () => { for (const b of Object.keys(M.layers)) { for (const e of Av.CAT.eyes.opts.slice(1)) assert.ok(M.layers[b]['ojos_' + e] && Object.keys(M.layers[b]['ojos_' + e].skins).length === 3, b + e); for (const m of Av.CAT.mouth.opts.slice(1)) assert.ok(M.layers[b]['boca_' + m] && Object.keys(M.layers[b]['boca_' + m].skins).length === 3, b + m); } });

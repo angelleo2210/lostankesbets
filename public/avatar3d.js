@@ -99,7 +99,7 @@
       const cssW = opt.w || 96, cssH = opt.h || cssW;
       const dpr = Math.min(3, opt.dpr || (typeof devicePixelRatio !== 'undefined' ? devicePixelRatio : 2));
       target.width = Math.round(cssW * dpr); target.height = Math.round(cssH * dpr);
-      if (target.style) { target.style.width = cssW + 'px'; target.style.height = cssH + 'px'; }
+      if (target.style) { target.style.width = '100%'; target.style.height = '100%'; }
       x.setTransform(dpr, 0, 0, dpr, 0, 0);
       const g = x.createRadialGradient(cssW / 2, cssH * .45, 2, cssW / 2, cssH * .5, cssW * .55);
       g.addColorStop(0, '#3a4257'); g.addColorStop(1, '#14171f'); x.fillStyle = g; x.fillRect(0, 0, cssW, cssH);
@@ -109,7 +109,8 @@
     const cssW = opt.w || W, cssH = opt.h || H;
     const dpr = Math.min(3, opt.dpr || (typeof devicePixelRatio !== 'undefined' ? devicePixelRatio : 2));
     target.width = Math.round(cssW * dpr); target.height = Math.round(cssH * dpr);
-    if (target.style) { target.style.width = cssW + 'px'; target.style.height = (cssH) + 'px'; }
+    // Display size comes from CSS parent (.av3dw / .cover-av); keep bitmap sharp via attrs+DPR
+    if (target.style) { target.style.width = '100%'; target.style.height = 'auto'; }
     x.setTransform(dpr, 0, 0, dpr, 0, 0);
     const TW = cssW, TH = cssH, k = TW / W;
     if (dock) { x.drawImage(plate, 0, 0, TW, TH); if (yi) x.drawImage(yi, 0, 0, TW, TH);
@@ -118,6 +119,9 @@
       // luz cálida suave desde la izquierda, sin tapar la textura
       const t = cv(), tx = t.getContext('2d'); tx.drawImage(pc, 0, 0); tx.globalCompositeOperation = 'source-atop'; const lg = tx.createLinearGradient(0, 0, W, 0); lg.addColorStop(0, 'rgba(255,170,90,.12)'); lg.addColorStop(1, 'rgba(70,40,90,.10)'); tx.fillStyle = lg; tx.fillRect(0, 0, W, H);
       x.drawImage(t, px, py, pw, ph); if (mi) x.drawImage(mi, 0, 0, TW, TH);
+    } else if (opt.plain) {
+      x.clearRect(0, 0, TW, TH);
+      x.drawImage(pc, 0, 0, TW, TH);
     } else { const g = x.createRadialGradient(TW / 2, TH * .4, 20 * k, TW / 2, TH * .45, TH * .7); g.addColorStop(0, '#3a4257'); g.addColorStop(1, '#14171f'); x.fillStyle = g; x.fillRect(0, 0, TW, TH);
       shadow(x, TW * .46, TH * .925, TW * .3, .6); x.drawImage(pc, 0, 0, TW, TH); }
     return { ...info, missing: [...info.missing, ...miss] }; }

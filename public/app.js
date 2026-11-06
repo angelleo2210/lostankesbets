@@ -78,17 +78,19 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
       return `<button class="${cos[k] === r.id ? '' : 'alt'}" style="width:auto;padding:6px;${ok ? '' : 'opacity:.45'}" ${ok ? `data-cos="${k}:${r.id}"` : 'disabled'} title="${esc(r.name)}">${ok ? '' : '🔒'}${r.icon || `<span style="color:${r.color}">●</span>`} <span class="small">top ${r.minRank}</span></button>`; }).join('')}<button class="alt" style="width:auto;padding:6px" data-cos="${k}:">Nada</button></div>`).join('')}
     <div class="card">Vista previa: <span id="pv"></span></div>
     <input id="dn" maxlength="20" placeholder="Nombre para mostrar (opcional)" value="${esc(me.display_name || '')}"><button id="sv">Guardar</button></div>`;
-    const fhv = () => $('#fh').value === 'ninguno' ? null : { style: $('#fh').value, color: $('#fcu').checked ? $('#fc').value : null };
-    const pv = () => { const u = { username: me.username, badge: me.badge, cosmetics: cos, avatar: av, avatarCfg: acfg, display_name: $('#dn').value.trim(), facialHair: fhv() }; $('#pv').innerHTML = who(u); $('#bigpv').innerHTML = av3d(u, {}, 'big'); $('#combo').innerHTML = composite(u, stP.owned); }; pv();
+    const fhv = () => { const fh = $('#fh'), fcu = $('#fcu'), fc = $('#fc'); if (!fh || fh.value === 'ninguno') return null; return { style: fh.value, color: fcu && fcu.checked && fc ? fc.value : null }; };
+    const pv = () => { const dn = $('#dn'), pve = $('#pv'), big = $('#bigpv'), combo = $('#combo'); if (!dn || !pve || !big || !combo) return;
+      const u = { username: me.username, badge: me.badge, cosmetics: cos, avatar: av, avatarCfg: acfg, display_name: dn.value.trim(), facialHair: fhv() };
+      pve.innerHTML = who(u); big.innerHTML = av3d(u, { w: 200, h: 267 }, 'big'); combo.innerHTML = composite(u, stP.owned); }; pv();
     const ownL = stP.owned.filter(o => Avatar.LAYERS[o.item_id]); acfg.wear = { ...(acfg.wear || {}) };
     const ropa = () => { $('#ropa').innerHTML = ownL.length ? Avatar.SLOTS.map(sl => { const xs = ownL.filter(o => Avatar.LAYERS[o.item_id][0] === sl); if (!xs.length) return '';
       return `<div class="small" style="margin-top:6px">${SLOTN[sl]}</div><div class="chips">${xs.map(o => `<button class="chip ${acfg.wear[sl]?.id === o.item_id ? 'on' : 'alt'}" data-wr="${sl}:${o.item_id}:${o.color}">${esc(Store.byId(o.item_id)?.name || o.item_id)}</button>`).join('')}<button class="chip ${acfg.wear[sl] ? 'alt' : 'on'}" data-wr="${sl}::">Quitar</button></div>`; }).join('') : '<div class="small">Aún no tienes ropa: cómprala en la Tienda → Ropa y accesorios.</div>';
       $('#ropa').querySelectorAll('[data-wr]').forEach(b => b.onclick = () => { const [sl, id, col] = b.dataset.wr.split(':'); if (id) acfg.wear[sl] = { id, color: col }; else delete acfg.wear[sl]; ropa(); pv(); }); }; ropa();
     builder($('#bld'), acfg, new Set((me.unlocks || []).map(x => x.item_id)), pv);
-    ['#fh', '#fc', '#fcu', '#dn'].forEach(sel => $(sel).oninput = $(sel).onchange = pv);
+    ['#fh', '#fc', '#fcu', '#dn'].forEach(sel => { const el = $(sel); if (el) el.oninput = el.onchange = pv; });
     B.querySelectorAll('[data-cos]').forEach(b => b.onclick = () => { const [k, v] = b.dataset.cos.split(':'); if (v) cos[k] = v; else delete cos[k]; B.querySelectorAll(`[data-cos^="${k}:"]`).forEach(x => x.className = x.dataset.cos === `${k}:${v}` && v ? '' : 'alt'); pv(); });
     B.querySelectorAll('[data-em]').forEach(b => b.onclick = () => { av = b.dataset.em; B.querySelectorAll('[data-em]').forEach(x => x.className = x.dataset.em === av && av ? '' : 'alt'); pv(); });
-    $('#sv').onclick = async () => { try { await api('/profile', { avatar: av, display_name: $('#dn').value, facialHair: fhv() || 'ninguno', cosmetics: cos, avatarCfg: acfg }); render(); } catch (e) { flash(e.message); } }; }
+    const sv = $('#sv'); if (sv) sv.onclick = async () => { try { const dn = $('#dn'); await api('/profile', { avatar: av, display_name: dn ? dn.value : '', facialHair: fhv() || 'ninguno', cosmetics: cos, avatarCfg: acfg }); render(); } catch (e) { flash(e.message); } }; }
   if (tab === 'tienda') await storeView(B);
   if (tab === 'juegos') await (gameSel === 'rps' ? gamesView(B) : gameSel === 'pen' ? penView(B) : gameSel === 'bb' ? bbView(B) : gameSel === 'tc' ? tcView(B) : retosMenu(B));
   if (tab === 'perfil') { const g = document.createElement('div'); B.append(g); await storeView(g, true); }
@@ -162,7 +164,7 @@ const coverBanner = (u, owned = []) => {
     <img class="cover-bg" src="img/av3d/scenes/cover_bg.webp" alt="">
     <div class="cover-shade"></div>
     <div class="cover-row">
-      <div class="cover-av">${av3d(u, { w: 216, h: 288 }, 'cover')}</div>
+      <div class="cover-av">${av3d(u, { w: 180, h: 240, plain: true }, 'oncover')}</div>
       <div class="cover-meta">
         <div class="cover-hello">Hola,</div>
         <div class="cover-name">${u.badge ? u.badge + ' ' : ''}${nm}</div>
