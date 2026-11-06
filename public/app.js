@@ -136,7 +136,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
     const podiumSlot = (u, place) => {
       if (!u) return `<div class="tb-pod tb-pod-${place} empty"><div class="tb-pod-av"></div><div class="tb-pod-name">—</div></div>`;
       const nm = (u.display_name || u.username || '').toUpperCase();
-      const sz = place === 1 ? { w: 92, h: 122 } : { w: 72, h: 96 };
+      const sz = place === 1 ? { w: 72, h: 96 } : { w: 58, h: 77 };
       return `<div class="tb-pod tb-pod-${place}${u.id === meId ? ' me' : ''}">
         <div class="tb-pod-name">${esc(nm)}</div>
         ${auraWrap(`<div class="tb-pod-av">${Avatar.imgTag(Avatar.norm(u.avatarCfg).pick, { w: sz.w, h: sz.h, cls: 'av3dc' })}</div>`, u.streak)}
