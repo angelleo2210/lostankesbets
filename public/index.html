@@ -172,73 +172,61 @@ button.odds.on{background:#38bdf855;border-color:#7dd3fc;color:#e0f2fe;box-shado
 
 
 
-/* Naruto-style streak auras — particle sprites */
-.tb-aura{position:relative;display:inline-block;isolation:isolate;border-radius:18px;--aura-pad:18px}
-.tb-aura-sm{border-radius:12px;--aura-pad:10px}
-.tb-aura-core{position:relative;z-index:3;border-radius:inherit}
+
+/* Auras: solo borde fuego / borde azul + ❄️. Sin tint ni filter en la imagen. */
+.tb-aura{position:relative;display:inline-block;isolation:isolate;border-radius:18px;--aura-pad:14px}
+.tb-aura-sm{border-radius:12px;--aura-pad:8px}
+.tb-aura-core{position:relative;z-index:3;border-radius:inherit;overflow:hidden}
 .tb-aura-core .tb-pod-av,.tb-aura-core .tb-av{position:relative;overflow:hidden;border-radius:inherit;line-height:0}
 .tb-aura-core .tb-pod-av{border-radius:16px}
 .tb-aura-core .tb-av{border-radius:10px}
-.tb-aura-core .av3dc,.tb-aura-core img{display:block;width:100%;height:auto}
-.tb-aura-tint{position:absolute;inset:0;border-radius:inherit;z-index:4;pointer-events:none;mix-blend-mode:soft-light}
+.tb-aura-core .av3dc,.tb-aura-core img{display:block;width:100%;height:auto;filter:none!important}
 .tb-aura-parts{position:absolute;inset:calc(var(--aura-pad) * -1);z-index:2;pointer-events:none;overflow:visible}
-.tb-aura .ap{position:absolute;bottom:6%;left:var(--x);width:28px;height:36px;margin-left:-14px;background-repeat:no-repeat;background-size:contain;background-position:center bottom;transform:scale(var(--s));animation:none;opacity:0;filter:drop-shadow(0 0 4px #f9731688);will-change:transform,opacity}
-.tb-aura-sm .ap{width:16px;height:22px;margin-left:-8px}
-/* Fire sprites */
-.tb-aura.aura-fire .ap-flame{background-image:url(/img/auras/flame0.webp);animation:apRise var(--t) linear var(--d) infinite}
+.tb-aura .ap{position:absolute;left:50%;top:50%;width:26px;height:34px;margin:-17px 0 0 -13px;background-repeat:no-repeat;background-size:contain;background-position:center;opacity:0;will-change:transform,opacity;transform:rotate(var(--a)) translateY(calc(-50% - 4px)) rotate(calc(-1 * var(--a))) scale(var(--s));transform-origin:center center}
+.tb-aura-sm .ap{width:15px;height:20px;margin:-10px 0 0 -7.5px}
+/* Fire border W3 */
+.tb-aura.aura-fire{box-shadow:0 0 0 3px #f97316,0 0 14px 3px #ef444488,0 0 28px 6px #f59e0b44}
+.tb-aura.aura-fire::before{content:'';position:absolute;inset:-3px;border-radius:inherit;z-index:1;pointer-events:none;border:2px solid transparent;background:linear-gradient(#14171f,#14171f) padding-box,conic-gradient(from 0deg,#dc2626,#f97316,#fbbf24,#f97316,#dc2626,#f97316,#fbbf24,#dc2626) border-box;animation:fireSpin 2.4s linear infinite;opacity:.95}
+.tb-aura.aura-fire .ap-flame{background-image:url(/img/auras/flame0.webp);animation:flameOrbit var(--t) linear var(--d) infinite;filter:drop-shadow(0 0 4px #f97316)}
 .tb-aura.aura-fire .ap-flame[style*="--v:1"]{background-image:url(/img/auras/flame1.webp)}
 .tb-aura.aura-fire .ap-flame[style*="--v:2"]{background-image:url(/img/auras/flame2.webp)}
 .tb-aura.aura-fire .ap-flame[style*="--v:3"]{background-image:url(/img/auras/flame3.webp)}
-.tb-aura.aura-fire-hi .ap-flame-hi{background-image:url(/img/auras/flame_hi0.webp);animation:apRiseHi var(--t) linear var(--d) infinite;filter:drop-shadow(0 0 8px #ef4444cc) drop-shadow(0 0 14px #f59e0b99);width:34px;height:44px}
+/* Fire border W5+ more intense */
+.tb-aura.aura-fire-hi{box-shadow:0 0 0 4px #fbbf24,0 0 22px 6px #ef4444cc,0 0 44px 14px #f59e0b88}
+.tb-aura.aura-fire-hi::before{inset:-5px;border-width:3px;background:linear-gradient(#14171f,#14171f) padding-box,conic-gradient(from 0deg,#7f1d1d,#ef4444,#fbbf24,#fff7ed,#f97316,#dc2626,#fbbf24,#ef4444,#7f1d1d) border-box;animation:fireSpin 1.2s linear infinite}
+.tb-aura.aura-fire-hi .ap-flame-hi{background-image:url(/img/auras/flame_hi0.webp);width:32px;height:42px;margin:-21px 0 0 -16px;animation:flameOrbitHi var(--t) linear var(--d) infinite;filter:drop-shadow(0 0 7px #ef4444)}
+.tb-aura-sm.aura-fire-hi .ap-flame-hi{width:18px;height:24px;margin:-12px 0 0 -9px}
 .tb-aura.aura-fire-hi .ap-flame-hi[style*="--v:1"]{background-image:url(/img/auras/flame_hi1.webp)}
 .tb-aura.aura-fire-hi .ap-flame-hi[style*="--v:2"]{background-image:url(/img/auras/flame_hi2.webp)}
 .tb-aura.aura-fire-hi .ap-flame-hi[style*="--v:3"]{background-image:url(/img/auras/flame_hi3.webp)}
-.tb-aura.aura-fire .ap-ember{background-image:url(/img/auras/ember0.webp);width:12px;height:12px;animation:apEmber var(--t) linear var(--d) infinite;filter:drop-shadow(0 0 6px #fb923c)}
-.tb-aura.aura-fire .ap-ember[style*="--v:1"]{background-image:url(/img/auras/ember1.webp)}
-.tb-aura.aura-fire .ap-ember[style*="--v:2"]{background-image:url(/img/auras/ember2.webp)}
-.tb-aura.aura-fire .ap-ember[style*="--v:3"]{background-image:url(/img/auras/ember3.webp)}
-.tb-aura.aura-fire-hi .ap-ember{width:14px;height:14px;filter:drop-shadow(0 0 8px #ef4444)}
-/* Fire tint + base glow */
-.tb-aura.aura-fire{box-shadow:0 0 0 2px #fb923c88,0 0 22px 6px #ef444466}
-.tb-aura.aura-fire::before{content:'';position:absolute;inset:-12px;z-index:1;border-radius:22px;pointer-events:none;background:url(/img/auras/glow_fire.webp) center/cover no-repeat;opacity:.55;filter:blur(2px);animation:auraPulse 1.2s ease-in-out infinite alternate}
-.tb-aura.aura-fire .tb-aura-tint{background:linear-gradient(180deg,#ff4d1a99 0%,#ff7a1a55 40%,#7f1d1d66 100%);mix-blend-mode:color;opacity:.72}
-.tb-aura.aura-fire .tb-aura-core .av3dc,.tb-aura.aura-fire .tb-aura-core img{filter:sepia(.55) saturate(2.4) hue-rotate(-22deg) brightness(1.08) contrast(1.12)}
-.tb-aura.aura-fire-hi{box-shadow:0 0 0 3px #fbbf24cc,0 0 36px 12px #ef4444aa,0 0 60px 20px #f59e0b55}
-.tb-aura.aura-fire-hi::before{inset:-20px;opacity:.85;animation:auraPulseHi .7s ease-in-out infinite alternate}
-.tb-aura.aura-fire-hi .tb-aura-tint{background:linear-gradient(180deg,#ff2a00cc 0%,#ff6a00aa 35%,#991b1b88 100%);opacity:.9}
-.tb-aura.aura-fire-hi .tb-aura-core .av3dc,.tb-aura.aura-fire-hi .tb-aura-core img{filter:sepia(.7) saturate(2.8) hue-rotate(-28deg) brightness(1.12) contrast(1.18) drop-shadow(0 0 8px #f97316)}
-/* Ice sprites */
-.tb-aura.aura-ice .ap-snow,.tb-aura.aura-ice .ap-shard{bottom:auto;top:2%;}.tb-aura.aura-ice .ap-snow{background-image:url(/img/auras/snow0.webp);width:18px;height:18px;animation:apSnow var(--t) linear var(--d) infinite;filter:drop-shadow(0 0 4px #e0f2fe);opacity:0}
-.tb-aura.aura-ice .ap-snow[style*="--v:1"]{background-image:url(/img/auras/snow1.webp)}
-.tb-aura.aura-ice .ap-snow[style*="--v:2"]{background-image:url(/img/auras/snow2.webp)}
-.tb-aura.aura-ice .ap-snow[style*="--v:3"]{background-image:url(/img/auras/snow3.webp)}
-.tb-aura.aura-ice .ap-shard{background-image:url(/img/auras/shard0.webp);width:16px;height:20px;animation:apShard var(--t) ease-in var(--d) infinite;filter:drop-shadow(0 0 5px #38bdf8)}
-.tb-aura.aura-ice .ap-shard[style*="--v:1"]{background-image:url(/img/auras/shard1.webp)}
-.tb-aura.aura-ice .ap-shard[style*="--v:2"]{background-image:url(/img/auras/shard2.webp)}
-.tb-aura.aura-ice .ap-shard[style*="--v:3"]{background-image:url(/img/auras/shard3.webp)}
-.tb-aura.aura-ice{box-shadow:0 0 0 2px #7dd3fc99,0 0 18px 5px #38bdf866}
-.tb-aura.aura-ice::before{content:'';position:absolute;inset:-12px;z-index:1;border-radius:22px;pointer-events:none;background:url(/img/auras/glow_ice.webp) center/cover no-repeat;opacity:.5;filter:blur(2px);animation:auraPulse 1.8s ease-in-out infinite alternate}
-.tb-aura.aura-ice .tb-aura-tint{background:linear-gradient(180deg,#bae6fdcc 0%,#38bdf888 45%,#0c4a6e99 100%);mix-blend-mode:color;opacity:.78}
-.tb-aura.aura-ice .tb-aura-core .av3dc,.tb-aura.aura-ice .tb-aura-core img{filter:saturate(.35) hue-rotate(185deg) brightness(1.12) contrast(1.1) sepia(.25)}
-.tb-aura.aura-ice-hi{box-shadow:0 0 0 3px #e0f2fecc,0 0 32px 12px #38bdf8bb,0 0 50px 18px #0284c755}
-.tb-aura.aura-ice-hi::before{inset:-20px;opacity:.8;animation:auraPulseHi 1.1s ease-in-out infinite alternate}
-.tb-aura.aura-ice-hi .tb-aura-tint{background:linear-gradient(180deg,#e0f2feee 0%,#38bdf8cc 40%,#075985aa 100%);opacity:.92}
-.tb-aura.aura-ice-hi .tb-aura-core .av3dc,.tb-aura.aura-ice-hi .tb-aura-core img{filter:saturate(.2) hue-rotate(190deg) brightness(1.18) contrast(1.15) sepia(.3) drop-shadow(0 0 8px #7dd3fc)}
-.tb-aura.aura-ice-hi .ap-snow{width:22px;height:22px;filter:drop-shadow(0 0 6px #fff)}
-/* frost rim */
-.tb-aura.aura-ice::after,.tb-aura.aura-ice-hi::after{content:'';position:absolute;inset:-2px;border-radius:inherit;z-index:5;pointer-events:none;box-shadow:inset 0 0 12px 2px #e0f2fe88,inset 0 0 2px 1px #fff8;border:1px solid #bae6fd66}
-.tb-aura.aura-ice-hi::after{box-shadow:inset 0 0 18px 4px #e0f2febb,inset 0 0 3px 1px #fff;border-color:#e0f2feaa}
-@keyframes apRise{0%{transform:translate(-10%,20%) scale(calc(var(--s)*.7)) rotate(-6deg);opacity:0}12%{opacity:1}70%{opacity:.9}100%{transform:translate(8%,-118%) scale(calc(var(--s)*1.15)) rotate(8deg);opacity:0}}
-@keyframes apRiseHi{0%{transform:translate(-14%,25%) scale(calc(var(--s)*.65)) rotate(-10deg);opacity:0}8%{opacity:1}65%{opacity:1}100%{transform:translate(12%,-135%) scale(calc(var(--s)*1.3)) rotate(12deg);opacity:0}}
-@keyframes apEmber{0%{transform:translate(0,10%) scale(.4);opacity:0}15%{opacity:1}100%{transform:translate(calc((var(--v) - 1.5)*18px),-130%) scale(1.1);opacity:0}}
-@keyframes apSnow{0%{transform:translate(0,-10%) rotate(0deg) scale(var(--s));opacity:0}10%{opacity:.95}100%{transform:translate(calc((var(--v) - 1.5)*22px),115%) rotate(220deg) scale(calc(var(--s)*.85));opacity:0}}
-@keyframes apShard{0%{transform:translate(0,-5%) rotate(0) scale(var(--s));opacity:0}15%{opacity:.9}100%{transform:translate(calc((var(--v)-1.5)*14px),110%) rotate(40deg);opacity:0}}
-@keyframes auraPulse{from{opacity:.4;transform:scale(.96)}to{opacity:.7;transform:scale(1.05)}}
-@keyframes auraPulseHi{from{opacity:.55;transform:scale(.94)}to{opacity:.95;transform:scale(1.08)}}
+/* Ice: blue border + ❄️ flakes, no tint */
+.tb-aura.aura-ice{box-shadow:0 0 0 3px #38bdf8,0 0 12px 3px #7dd3fc66}
+.tb-aura.aura-ice::before{content:'';position:absolute;inset:-3px;border-radius:inherit;z-index:1;pointer-events:none;border:2px solid #7dd3fc;box-shadow:inset 0 0 0 1px #e0f2fe55;animation:icePulse 1.8s ease-in-out infinite alternate}
+.tb-aura.aura-ice-hi{box-shadow:0 0 0 4px #e0f2fe,0 0 20px 6px #38bdf8aa}
+.tb-aura.aura-ice-hi::before{inset:-5px;border-width:3px;border-color:#e0f2fe;animation:icePulseHi 1.1s ease-in-out infinite alternate}
+.tb-aura .ap-flake{left:var(--x);top:0;width:auto;height:auto;margin:0;font-style:normal;font-size:calc(14px * var(--s));line-height:1;transform:none;animation:flakeFall var(--t) linear var(--d) infinite;filter:drop-shadow(0 0 3px #bae6fd);opacity:0}
+.tb-aura-sm .ap-flake{font-size:calc(11px * var(--s))}
+.tb-aura.aura-ice-hi .ap-flake{font-size:calc(17px * var(--s));filter:drop-shadow(0 0 5px #fff)}
+@keyframes fireSpin{to{transform:rotate(360deg)}}
+@keyframes flameOrbit{
+  0%{opacity:0;transform:rotate(var(--a)) translateY(calc(-48% - 2px)) rotate(calc(-1 * var(--a))) scale(calc(var(--s)*.7))}
+  15%{opacity:1}
+  70%{opacity:.95}
+  100%{opacity:0;transform:rotate(calc(var(--a) + 18deg)) translateY(calc(-58% - 8px)) rotate(calc(-1 * var(--a) - 18deg)) scale(calc(var(--s)*1.15))}
+}
+@keyframes flameOrbitHi{
+  0%{opacity:0;transform:rotate(var(--a)) translateY(calc(-50% - 2px)) rotate(calc(-1 * var(--a))) scale(calc(var(--s)*.65))}
+  10%{opacity:1}
+  65%{opacity:1}
+  100%{opacity:0;transform:rotate(calc(var(--a) + 28deg)) translateY(calc(-68% - 12px)) rotate(calc(-1 * var(--a) - 28deg)) scale(calc(var(--s)*1.3))}
+}
+@keyframes flakeFall{0%{transform:translate(0,-10%) rotate(0);opacity:0}12%{opacity:1}100%{transform:translate(calc((var(--v) - 1.5)*16px),120%) rotate(200deg);opacity:0}}
+@keyframes icePulse{from{opacity:.75;box-shadow:inset 0 0 0 1px #e0f2fe44,0 0 8px #38bdf866}to{opacity:1;box-shadow:inset 0 0 0 1px #e0f2fe88,0 0 16px #7dd3fc99}}
+@keyframes icePulseHi{from{opacity:.85;box-shadow:inset 0 0 0 1px #fff8,0 0 12px #38bdf8aa}to{opacity:1;box-shadow:inset 0 0 0 2px #fff,0 0 24px #e0f2fecc}}
 @media(prefers-reduced-motion:reduce){
-  .tb-aura .ap,.tb-aura::before{animation:none!important;opacity:.85}
+  .tb-aura .ap,.tb-aura::before{animation:none!important;opacity:.9}
 }
 .tb-podium{overflow:visible;padding-top:22px}
 .tb-list,.tb-row{overflow:visible}
-.tb-pod-1 .tb-aura{filter:drop-shadow(0 0 12px #fbbf24aa)}
+.tb-pod-1 .tb-aura{filter:drop-shadow(0 0 10px #fbbf2488)}
 </style></head><body><main id="app"></main><script src="avatar.js"></script><script src="store.js"></script><script src="app.js"></script></body></html>

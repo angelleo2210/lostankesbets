@@ -306,34 +306,31 @@ const FIRE = (z, u = 'fx' + (++sq)) => `<svg width="${z}" height="${z}" viewBox=
 const ICE = z => `<svg width="${z}" height="${z}" viewBox="0 0 24 24" style="vertical-align:middle" aria-hidden="true"><g stroke="#bae6fd" stroke-width="2" stroke-linecap="round" fill="none">${[0, 60, 120].map(a => `<g transform="rotate(${a} 12 12)"><path d="M12 2v20"/><path d="M9 4.5l3 2.5 3-2.5M9 19.5l3-2.5 3 2.5"/></g>`).join('')}</g><circle cx="12" cy="12" r="2.2" fill="#e0f2fe"/><circle cx="11.3" cy="11.3" r=".7" fill="#fff"/></svg>`;
 const streakEmoji = st => { if (!st) return ''; if (st.kind === 'fuego') return st.intense ? '🔥🔥' : '🔥'; return st.intense ? '🧊🧊' : '🧊'; };
 const auraClass = st => { if (!st) return ''; if (st.kind === 'fuego') return st.intense ? 'aura-fire aura-fire-hi' : 'aura-fire'; return st.intense ? 'aura-ice aura-ice-hi' : 'aura-ice'; };
-/** Naruto-style particle aura: real flame/snow sprites around the avatar. */
+/** Borde Naruto: fuego (W3/W5+) o azul+❄️ (L2/L3+). Sin tints ni filtros en la imagen. */
 const auraWrap = (inner, st, { sm } = {}) => {
   const ac = auraClass(st); if (!ac) return inner;
   const hi = !!st.intense, fire = st.kind === 'fuego';
-  const n = sm ? (hi ? 14 : 9) : (hi ? 22 : 14);
   const parts = [];
-  for (let i = 0; i < n; i++) {
-    const side = i % 2 ? 1 : -1;
-    const x = (8 + (i * 37) % 84); // 8..92 %
-    const delay = ((i * 0.17) % 1.6).toFixed(2);
-    const dur = (fire ? (hi ? 0.55 : 0.85) : (hi ? 1.4 : 2.1)) + (i % 5) * 0.08;
-    const scale = sm ? (0.45 + (i % 4) * 0.12) : (0.7 + (i % 5) * 0.18);
-    const kind = fire
-      ? (i % 5 === 0 ? 'ember' : (hi ? 'flame-hi' : 'flame'))
-      : (i % 4 === 0 ? 'shard' : 'snow');
-    const varN = i % 4;
-    parts.push(`<i class="ap ap-${kind}" style="--x:${x}%;--d:${delay}s;--t:${dur.toFixed(2)}s;--s:${scale.toFixed(2)};--v:${varN}"></i>`);
+  if (fire) {
+    const n = sm ? (hi ? 10 : 6) : (hi ? 16 : 10);
+    for (let i = 0; i < n; i++) {
+      const ang = (i / n) * 360;
+      const delay = ((i * 0.11) % 1.2).toFixed(2);
+      const dur = (hi ? 0.55 : 0.85) + (i % 4) * 0.07;
+      const scale = sm ? (0.55 + (i % 3) * 0.1) : (0.85 + (i % 4) * 0.12);
+      const kind = hi ? 'flame-hi' : 'flame';
+      parts.push(`<i class="ap ap-${kind}" style="--a:${ang.toFixed(1)}deg;--d:${delay}s;--t:${dur.toFixed(2)}s;--s:${scale.toFixed(2)};--v:${i % 4}"></i>`);
+    }
+  } else {
+    const n = sm ? (hi ? 8 : 5) : (hi ? 12 : 7);
+    for (let i = 0; i < n; i++) {
+      const x = 8 + (i * 41) % 84;
+      const delay = ((i * 0.25) % 1.8).toFixed(2);
+      const dur = (hi ? 1.5 : 2.2) + (i % 3) * 0.15;
+      parts.push(`<i class="ap ap-flake" style="--x:${x}%;--d:${delay}s;--t:${dur.toFixed(2)}s;--s:${sm ? 0.85 : 1.1};--v:${i % 4}">❄️</i>`);
+    }
   }
-  // rising base ring of extra embers / snow along sides
-  const ring = sm ? 6 : 10;
-  for (let i = 0; i < ring; i++) {
-    const x = i % 2 ? 4 + (i * 3) % 12 : 88 + (i * 5) % 10;
-    const delay = ((i * 0.22) % 1.4).toFixed(2);
-    const dur = fire ? (hi ? 0.7 : 1.0) : (hi ? 1.6 : 2.4);
-    const kind = fire ? 'ember' : 'snow';
-    parts.push(`<i class="ap ap-${kind} ap-side" style="--x:${x}%;--d:${delay}s;--t:${dur}s;--s:${sm ? 0.5 : 0.75};--v:${i % 4}"></i>`);
-  }
-  return `<div class="tb-aura ${ac}${sm ? ' tb-aura-sm' : ''}"><div class="tb-aura-tint"></div><div class="tb-aura-parts" aria-hidden="true">${parts.join('')}</div><div class="tb-aura-core">${inner}</div></div>`;
+  return `<div class="tb-aura ${ac}${sm ? ' tb-aura-sm' : ''}"><div class="tb-aura-parts" aria-hidden="true">${parts.join('')}</div><div class="tb-aura-core">${inner}</div></div>`;
 };
 const streakTag = (st, big) => { if (!st) return ''; const I = !!st.intense, z = big ? 30 : 16;
   if (st.kind === 'fuego') return `<span class="stk fire ${I ? 'intense' : ''} ${big ? 'big' : ''}">${I ? FIRE(z + 4) + FIRE(z) : FIRE(z)} ${I ? (big ? 'Imparable · ' : 'Imparable ') : big ? 'En llamas · ' : ''}${I && !big ? 'x' + st.n : 'En racha x' + st.n}</span>`;
