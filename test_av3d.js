@@ -58,7 +58,7 @@ t('tabla: podium + feed + filtros + fila propia + glow 1º', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/app.js'), 'utf8');
   const i = src.indexOf("tab === 'tabla'"), j = src.indexOf("tab === 'perfil'");
   const block = src.slice(i, j === -1 ? i + 2500 : j);
-  assert.ok(block.includes('tb-podium') && block.includes('tb-pod-') && block.includes('tb-feed'));
+  assert.ok(block.includes('tb-podium') && block.includes('tb-podium-bills') && block.includes('podium-bills.webp') && block.includes('tb-feed'));
   assert.ok(block.includes('data-tp') && block.includes('hoy') && block.includes('semana') && block.includes('temporada'));
   assert.ok(block.includes('tb-row') && block.includes('winPct') && block.includes('streakEmoji') && block.includes('tb-you'));
   assert.ok(block.includes("/tabla?period="));
@@ -66,7 +66,8 @@ t('tabla: podium + feed + filtros + fila propia + glow 1º', () => {
   assert.ok(src.includes('FRAME_SRC') && src.includes('frame-fire.webp') && src.includes('frame-fire-hi.webp') && src.includes('frame-ice.webp') && src.includes('frame-ice-hi.webp'));
   assert.ok(src.includes('tb-frame') && !src.includes('ap-flake') && !src.includes('rectPts'));
   const css = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
-  assert.ok(css.includes('tb-pod-1') && css.includes('tb-pod-2') && css.includes('tb-pod-3'));
+  assert.ok(css.includes('tb-podium-bills') && css.includes('tb-pod-1') && css.includes('tb-pod-2') && css.includes('tb-pod-3'));
+  assert.ok(require('fs').existsSync(path.join(__dirname, 'public/img/podium-bills.webp')));
   assert.ok(css.includes('tb-row.me'));
   assert.ok(css.includes('.tb-frame') && css.includes('filter:none'));
   const fs2 = require('fs');

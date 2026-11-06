@@ -134,13 +134,12 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
       return `<div class="tb-feed-row"><b>${esc(nm)}</b> ${verb}${tit}</div>`;
     }).join('') || '<div class="tb-feed-row small">Sin actividad reciente</div>';
     const podiumSlot = (u, place) => {
-      if (!u) return `<div class="tb-pod tb-pod-${place} empty"><div class="tb-pod-av"></div><div class="tb-pod-base"><span>${place}</span></div></div>`;
+      if (!u) return `<div class="tb-pod tb-pod-${place} empty"><div class="tb-pod-av"></div><div class="tb-pod-name">—</div></div>`;
       const nm = (u.display_name || u.username || '').toUpperCase();
+      const sz = place === 1 ? { w: 92, h: 122 } : { w: 72, h: 96 };
       return `<div class="tb-pod tb-pod-${place}${u.id === meId ? ' me' : ''}">
-        ${auraWrap(`<div class="tb-pod-av">${Avatar.imgTag(Avatar.norm(u.avatarCfg).pick, { w: place === 1 ? 110 : 88, h: place === 1 ? 146 : 117, cls: 'av3dc' })}</div>`, u.streak)}
         <div class="tb-pod-name">${esc(nm)}</div>
-        <div class="tb-pod-base"><span class="tb-pod-n">${place}</span></div>
-        <div class="tb-pod-stats">🏆 ${u.wins} · 🪙 ${fmt(u.coins)}</div>
+        ${auraWrap(`<div class="tb-pod-av">${Avatar.imgTag(Avatar.norm(u.avatarCfg).pick, { w: sz.w, h: sz.h, cls: 'av3dc' })}</div>`, u.streak)}
       </div>`;
     };
     const rowHtml = rows.map((u, i) => {
@@ -166,7 +165,8 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
     const periods = [['hoy', 'Hoy'], ['semana', 'Semana'], ['temporada', 'Temporada']];
     B.innerHTML = `<div class="tb">
       <div class="tb-feed">${feed}</div>
-      <div class="tb-podium">
+      <div class="tb-podium tb-podium-bills">
+        <img class="tb-podium-bg" src="/img/podium-bills.webp" alt="" decoding="async">
         ${podiumSlot(top[1], 2)}
         ${podiumSlot(top[0], 1)}
         ${podiumSlot(top[2], 3)}
