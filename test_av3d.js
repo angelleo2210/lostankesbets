@@ -27,6 +27,15 @@ t('render/imgTag', () => {
   assert.match(Av.render({ pick: 2 }, { head: true }), /2_head\.webp/);
   assert.match(Av.imgTag(6, { w: 100, h: 133 }), /avatars\/6\.webp/);
 });
+t('líneas: odds grid alineado y sin Monto por fila', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'public/app.js'), 'utf8');
+  const i = src.indexOf('function lineCard'), j = src.indexOf('function boletoCard');
+  const lc = src.slice(i, j);
+  assert.ok(lc.includes('line-row') && lc.includes('class="odds') && lc.includes('data-add'));
+  assert.ok(!lc.includes('placeholder="Monto"') && !lc.includes('>Apostar</button>'));
+  const b = src.slice(src.indexOf('function boletoCard'), src.indexOf('function bindBets'));
+  assert.ok(src.includes('boleto.length === 1') && src.includes("/bet"));
+});
 t('portada sin pertenencias/jetski', () => { const src = fs.readFileSync(path.join(__dirname, 'public/app.js'), 'utf8');
   const i = src.indexOf('const coverBanner'); const j = src.indexOf('const composite');
   const cov = src.slice(i, j);

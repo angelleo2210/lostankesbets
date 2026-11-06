@@ -83,26 +83,50 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
   } catch (e) { flash(e.message); }
 }
 function lineCard(l) {
-  return `<div class="card"><h2>${esc(l.title)}</h2><div class="small">${l.kind === 'real' ? 'Real' : 'Ficticia'} · ${l.status === 'open' ? 'Abierta' : 'Cerrada a apuestas'}${l.starts ? ' · ' + new Date(l.starts).toLocaleString('es-US') : ''}</div>
-  ${l.options.map(o => `<div class="opt"><span>${esc(o.label)} <b>${od(o.odds)}</b></span>${l.status === 'open' ? `<input style="width:110px" type="number" min="1" placeholder="Monto" id="s${o.id}"><button style="width:90px" data-o="${o.id}">Apostar</button><button class="${boleto.some(b => b.id === o.id) ? '' : 'alt'}" style="width:48px" data-add="${o.id}">🎟️</button>` : ''}</div>`).join('')}</div>`;
+  const open = l.status === 'open';
+  const rows = l.options.map(o => {
+    const on = boleto.some(b => b.id === o.id);
+    const lab = `<div class="line-lab" title="${esc(o.label)}">${esc(o.label)}</div>`;
+    const cell = open
+      ? `<button type="button" class="odds ${on ? 'on' : ''}" data-add="${o.id}" aria-pressed="${on ? 'true' : 'false'}"><span class="odds-n">${od(o.odds)}</span></button>`
+      : `<div class="odds off"><span class="odds-n">${od(o.odds)}</span></div>`;
+    return `<div class="line-row">${lab}${cell}</div>`;
+  }).join('');
+  return `<div class="card line"><div class="line-hd"><h2>${esc(l.title)}</h2><div class="small">${l.kind === 'real' ? 'Real' : 'Ficticia'} · ${open ? 'Abierta' : 'Cerrada'}${l.starts ? ' · ' + new Date(l.starts).toLocaleString('es-US') : ''}</div></div><div class="line-grid">${rows}</div></div>`;
 }
 function boletoCard() {
-  if (!boleto.length) return '<div class="small">Toca 🎟️ en 2 a 15 líneas distintas para armar un parlay.</div>';
-  const d = boleto.reduce((m, b) => m * dec(b.odds), 1), ok = boleto.length >= 2;
-  return `<div class="card"><h2>🎟️ Boleto (${boleto.length}/15)</h2><div style="max-height:40vh;overflow-y:auto">${boleto.map(b => `<div class="opt"><span class="small">${esc(b.title)}: <b>${esc(b.label)} ${od(b.odds)}</b></span><button class="alt" style="width:44px" data-rm="${b.id}">✕</button></div>`).join('')}</div>
-  <div>Cuota combinada <b>${od(toAm(d))}</b></div><input type="number" min="1" placeholder="Monto" id="ps">
-  <div class="small" id="pw">${ok ? 'Escribe un monto' : 'Agrega ' + (2 - boleto.length) + ' más'}</div>
-  <div class="row"><button id="pgo" ${ok ? '' : 'disabled style="opacity:.5"'}>Apostar parlay</button><button class="alt" id="pclr">Vaciar</button></div></div>`;
+  if (!boleto.length) return '<div class="card slip empty"><div class="small">Toca una cuota para marcarla en azul. Luego escribe el monto aquí abajo.</div></div>';
+  const n = boleto.length, d = boleto.reduce((m, b) => m * dec(b.odds), 1);
+  const kind = n === 1 ? 'Simple' : 'Parlay';
+  return `<div class="card slip"><h2>🎟️ Boleto · ${kind} (${n}/15)</h2><div class="slip-list">${boleto.map(b => `<div class="slip-row"><span class="small">${esc(b.title)}: <b>${esc(b.label)} ${od(b.odds)}</b></span><button type="button" class="alt slip-x" data-rm="${b.id}" aria-label="Quitar">✕</button></div>`).join('')}</div>
+  <div class="slip-meta">${n === 1 ? 'Cuota' : 'Cuota combinada'} <b>${od(toAm(d))}</b></div>
+  <input type="number" min="1" inputmode="numeric" placeholder="Monto a apostar" id="ps">
+  <div class="small" id="pw">Escribe un monto</div>
+  <div class="row"><button type="button" id="pgo">Apostar</button><button type="button" class="alt" id="pclr">Vaciar</button></div></div>`;
 }
 function bindBets(ls = []) {
+  const payoutHint = () => {
+    const el = $('#pw'); if (!el || !boleto.length) return;
+    const s = Math.floor(Number($('#ps')?.value));
+    const mult = boleto.reduce((m, b) => m * dec(b.odds), 1);
+    el.textContent = s > 0 ? 'Ganarías ' + fmt(Math.floor(s * mult)) : 'Escribe un monto';
+  };
   A.querySelectorAll('[data-add]').forEach(b => b.onclick = () => { const id = Number(b.dataset.add), i = boleto.findIndex(x => x.id === id);
-    if (i >= 0) boleto.splice(i, 1); else { const l = ls.find(l => l.options.some(o => o.id === id)), o = l.options.find(o => o.id === id);
-      boleto = boleto.filter(x => x.line !== l.id); if (boleto.length >= 15) return flash('Máximo 15 selecciones'); boleto.push({ id, line: l.id, title: l.title, label: o.label, odds: o.odds }); } render(); });
+    if (i >= 0) boleto.splice(i, 1); else { const l = ls.find(l => l.options.some(o => o.id === id)), o = l && l.options.find(o => o.id === id);
+      if (!l || !o) return; boleto = boleto.filter(x => x.line !== l.id); if (boleto.length >= 15) return flash('Máximo 15 selecciones'); boleto.push({ id, line: l.id, title: l.title, label: o.label, odds: o.odds }); } render(); });
   A.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { boleto = boleto.filter(x => x.id !== Number(b.dataset.rm)); render(); });
   if ($('#pclr')) $('#pclr').onclick = () => { boleto = []; render(); };
-  if ($('#ps')) $('#ps').oninput = () => { const s = Math.floor(Number($('#ps').value)); if (boleto.length >= 2) $('#pw').textContent = s > 0 ? 'Ganarías ' + fmt(Math.floor(s * boleto.reduce((m, b) => m * dec(b.odds), 1))) : 'Escribe un monto'; };
-  if ($('#pgo')) $('#pgo').onclick = async () => { try { await api('/parlay', { optionIds: boleto.map(b => b.id), stake: Number($('#ps').value) }); boleto = []; tab = 'mias'; render(); } catch (e) { flash(e.message); } };
-  A.querySelectorAll('[data-o]').forEach(b => b.onclick = async () => { const s = Number($('#s' + b.dataset.o).value); try { await api('/bet', { optionId: Number(b.dataset.o), stake: s }); render(); } catch (e) { flash(e.message); } }); }
+  if ($('#ps')) $('#ps').oninput = payoutHint;
+  if ($('#pgo')) $('#pgo').onclick = async () => {
+    try {
+      const stake = Number($('#ps').value);
+      if (!boleto.length) return flash('Selecciona al menos una cuota');
+      if (boleto.length === 1) await api('/bet', { optionId: boleto[0].id, stake });
+      else await api('/parlay', { optionIds: boleto.map(b => b.id), stake });
+      boleto = []; tab = 'mias'; render();
+    } catch (e) { flash(e.message); }
+  };
+}
 async function adminView(B) {
   const ls = await api('/lines');
   const inv = await api('/admin/invites').catch(() => []); const us = await api('/admin/users').catch(() => []); const tps = await api('/admin/topups').catch(() => []);
