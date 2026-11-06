@@ -37,9 +37,8 @@ async function start() {
 async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInterval(tcBarT);
   if (tab === 'tienda') tab = 'lineas';
   me = await api('/me'); if (!RW.length) RW = await api('/rewards').catch(() => []);
-  const stCover = await api('/owned').catch(() => ({ owned: [] }));
   const tabs = [['lineas', 'Líneas'], ['reales', 'Reales'], ['mias', 'Mis apuestas'], ['tabla', 'Tabla'], ['juegos', 'Retos' + (me.retosPend ? ` (${me.retosPend})` : '')], ['perfil', 'Mi perfil']].concat(me.is_admin ? [['admin', 'Admin']] : []);
-  A.innerHTML = `${coverBanner(me, stCover.owned || [])}<nav>${tabs.map(([k, v]) => `<button class="${k === tab ? '' : 'alt'}" data-t="${k}">${v}</button>`).join('')}</nav>
+  A.innerHTML = `${coverBanner(me)}<nav>${tabs.map(([k, v]) => `<button class="${k === tab ? '' : 'alt'}" data-t="${k}">${v}</button>`).join('')}</nav>
   <div id="bono" class="bono"></div><p id="msg" class="err"></p><div id="body"></div><button class="alt" id="out">Salir</button>`;
   A.querySelectorAll('nav button').forEach(b => b.onclick = () => { tab = b.dataset.t; render(); });
   $('#out').onclick = () => { localStorage.removeItem('token'); token = null; start(); };
@@ -137,13 +136,8 @@ const _avBody = (u, size = 160) => `<div class="av3dw body">${Avatar.imgTag(pick
 const SHOW_CATS = new Set(['carros', 'motos', 'barcos', 'aviones', 'casas', 'relojes']);
 const SCENE3D = new Set(['moto_scooter','moto_naked','moto_pista','jet_basico','jet_turbo','jet_pro','yate_lancha','yate_velero','yate_catamaran','yate_blanco','yate_mega']);
 const propThumb = (id, color) => SCENE3D.has(id) ? `img/av3d/scenes/${id}.webp` : Store.img(id, color);
-const coverBanner = (u, owned = []) => {
-  const show = owned.map(o => ({ ...o, it: Store.byId(o.item_id) })).filter(o => o.it && SHOW_CATS.has(o.it.cat))
-    .sort((a, b) => (b.it.price - a.it.price) || a.it.name.localeCompare(b.it.name));
+const coverBanner = (u) => {
   const nm = esc(u.display_name || u.username);
-  const loot = show.length
-    ? show.map(o => `<div class="cover-item" title="${esc(o.it.name)}"><img src="${propThumb(o.item_id, o.color)}" alt="${esc(o.it.name)}"><span>${esc(o.it.name)}</span></div>`).join('')
-    : `<div class="cover-empty small">Aún no tienes carros, motos, barcos, aviones, casas ni relojes.</div>`;
   return `<section class="cover" aria-label="Portada">
     <img class="cover-bg" src="img/av3d/scenes/cover_bg.webp" alt="">
     <div class="cover-shade"></div>
@@ -155,7 +149,6 @@ const coverBanner = (u, owned = []) => {
         <div class="cover-coins">🪙 ${fmt(u.coins)}</div>
       </div>
     </div>
-    <div class="cover-loot" role="list">${loot}</div>
   </section>`;
 };
 
