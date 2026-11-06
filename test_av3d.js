@@ -62,8 +62,10 @@ t('tabla: podium + feed + filtros + fila propia + glow 1º', () => {
   assert.ok(block.includes('data-tp') && block.includes('hoy') && block.includes('semana') && block.includes('temporada'));
   assert.ok(block.includes('tb-row') && block.includes('winPct') && block.includes('streakEmoji') && block.includes('tb-you'));
   assert.ok(block.includes("/tabla?period="));
+  assert.ok(src.includes('auraClass') && block.includes('auraClass(u.streak)') && block.includes('tb-aura'));
   const css = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
   assert.ok(css.includes('pod1glow') && css.includes('tb-pod-1') && css.includes('tb-pod-2') && css.includes('tb-pod-3'));
   assert.ok(css.includes('tb-row.me'));
+  assert.ok(css.includes('aura-fire-hi') && css.includes('aura-ice-hi') && css.includes('auraFlame') && css.includes('auraSnow'));
 });
 console.log(n + ' tests avatares estáticos');

@@ -136,8 +136,9 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
     const podiumSlot = (u, place) => {
       if (!u) return `<div class="tb-pod tb-pod-${place} empty"><div class="tb-pod-av"></div><div class="tb-pod-base"><span>${place}</span></div></div>`;
       const nm = (u.display_name || u.username || '').toUpperCase();
+      const ac = auraClass(u.streak);
       return `<div class="tb-pod tb-pod-${place}${u.id === meId ? ' me' : ''}">
-        <div class="tb-pod-av">${Avatar.imgTag(Avatar.norm(u.avatarCfg).pick, { w: place === 1 ? 110 : 88, h: place === 1 ? 146 : 117, cls: 'av3dc' })}</div>
+        <div class="tb-aura ${ac}"><div class="tb-pod-av">${Avatar.imgTag(Avatar.norm(u.avatarCfg).pick, { w: place === 1 ? 110 : 88, h: place === 1 ? 146 : 117, cls: 'av3dc' })}</div><i class="tb-aura-fx" aria-hidden="true"></i></div>
         <div class="tb-pod-name">${esc(nm)}</div>
         <div class="tb-pod-base"><span class="tb-pod-n">${place}</span></div>
         <div class="tb-pod-stats">🏆 ${u.wins} · 🪙 ${fmt(u.coins)}</div>
@@ -147,9 +148,10 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
       const mine = u.id === meId;
       const nm = (u.display_name || u.username || '').toUpperCase();
       const stk = streakEmoji(u.streak);
+      const ac = auraClass(u.streak);
       return `<div class="tb-row${mine ? ' me' : ''}">
         <div class="tb-rank">${i + 1}</div>
-        <div class="tb-av">${Avatar.imgTag(Avatar.norm(u.avatarCfg).pick, { w: 44, h: 58, cls: 'av3dc' })}</div>
+        <div class="tb-aura ${ac} tb-aura-sm"><div class="tb-av">${Avatar.imgTag(Avatar.norm(u.avatarCfg).pick, { w: 44, h: 58, cls: 'av3dc' })}</div><i class="tb-aura-fx" aria-hidden="true"></i></div>
         <div class="tb-info">
           <div class="tb-name">${esc(nm)}${mine ? ' <span class="tb-you">Tú</span>' : ''}</div>
           <div class="tb-user">@${esc(u.username)}</div>
@@ -305,6 +307,7 @@ const composite = (u, owned) => {
 const FIRE = (z, u = 'fx' + (++sq)) => `<svg width="${z}" height="${z}" viewBox="0 0 24 24" style="vertical-align:middle" aria-hidden="true"><defs><radialGradient id="${u}a" cx=".5" cy=".75" r=".7"><stop offset="0" stop-color="#fde047"/><stop offset=".45" stop-color="#fb923c"/><stop offset="1" stop-color="#dc2626"/></radialGradient><radialGradient id="${u}b" cx=".5" cy=".7" r=".6"><stop offset="0" stop-color="#fff"/><stop offset=".5" stop-color="#fef08a"/><stop offset="1" stop-color="#f59e0b"/></radialGradient></defs><path d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-5 3-7 0 2 1 3 2 3 0-3-1-5 1-8z" fill="url(#${u}a)"/><path d="M12 11c.5 2 3 3 3 5.5a3 3 0 0 1-6 0c0-1.5 1-2.5 1.5-3.5.3 1 .8 1.4 1.3 1.4 0-1.3-.4-2.2.2-3.4z" fill="url(#${u}b)"/><ellipse cx="9.5" cy="12" rx="1" ry="2" fill="#fff" opacity=".45"/></svg>`;
 const ICE = z => `<svg width="${z}" height="${z}" viewBox="0 0 24 24" style="vertical-align:middle" aria-hidden="true"><g stroke="#bae6fd" stroke-width="2" stroke-linecap="round" fill="none">${[0, 60, 120].map(a => `<g transform="rotate(${a} 12 12)"><path d="M12 2v20"/><path d="M9 4.5l3 2.5 3-2.5M9 19.5l3-2.5 3 2.5"/></g>`).join('')}</g><circle cx="12" cy="12" r="2.2" fill="#e0f2fe"/><circle cx="11.3" cy="11.3" r=".7" fill="#fff"/></svg>`;
 const streakEmoji = st => { if (!st) return ''; if (st.kind === 'fuego') return st.intense ? '🔥🔥' : '🔥'; return st.intense ? '🧊🧊' : '🧊'; };
+const auraClass = st => { if (!st) return ''; if (st.kind === 'fuego') return st.intense ? 'aura-fire aura-fire-hi' : 'aura-fire'; return st.intense ? 'aura-ice aura-ice-hi' : 'aura-ice'; };
 const streakTag = (st, big) => { if (!st) return ''; const I = !!st.intense, z = big ? 30 : 16;
   if (st.kind === 'fuego') return `<span class="stk fire ${I ? 'intense' : ''} ${big ? 'big' : ''}">${I ? FIRE(z + 4) + FIRE(z) : FIRE(z)} ${I ? (big ? 'Imparable · ' : 'Imparable ') : big ? 'En llamas · ' : ''}${I && !big ? 'x' + st.n : 'En racha x' + st.n}</span>`;
   return `<span class="stk ice ${I ? 'intense' : ''} ${big ? 'big' : ''}">${I ? ICE(z + 4) + ICE(z) : ICE(z)} ${I ? (big ? 'Congelado · ' : 'Congelado ') : big ? 'Frío · ' : ''}${I && !big ? 'x' + st.n : 'Frío x' + st.n}</span>`; };

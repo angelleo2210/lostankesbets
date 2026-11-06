@@ -170,4 +170,88 @@ button.odds.on{background:#38bdf855;border-color:#7dd3fc;color:#e0f2fe;box-shado
 .tb-metrics{grid-column:3;display:flex;flex-wrap:wrap;gap:6px 10px;font-size:11px;color:#cbd5e1;align-items:center}
 .tb-stk{font-size:14px}
 
+
+/* Naruto-style streak auras (Tabla + podium) */
+.tb-aura{position:relative;display:inline-block;isolation:isolate;border-radius:18px}
+.tb-aura .tb-pod-av,.tb-aura .tb-av{position:relative;z-index:1;overflow:hidden;border-radius:inherit}
+.tb-aura .tb-pod-av{border-radius:16px}
+.tb-aura .tb-av{border-radius:10px}
+.tb-aura-sm{border-radius:12px}
+.tb-aura-fx{position:absolute;inset:-10px;border-radius:inherit;pointer-events:none;z-index:0;opacity:0}
+.tb-aura.aura-fire .tb-aura-fx,.tb-aura.aura-ice .tb-aura-fx{opacity:1}
+/* Fire W3+ */
+.tb-aura.aura-fire .tb-aura-fx{
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 85%, #ef4444cc 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 30% 40%, #f9731688 0%, transparent 65%),
+    radial-gradient(ellipse 55% 45% at 70% 35%, #fbbf2488 0%, transparent 60%);
+  box-shadow:0 0 18px 6px #ef444488,0 0 36px 10px #f9731644,inset 0 0 18px #dc262644;
+  filter:blur(1px);animation:auraFlame 1.1s ease-in-out infinite alternate;
+}
+.tb-aura.aura-fire .av3dc,.tb-aura.aura-fire img{filter:sepia(.35) saturate(1.8) hue-rotate(-18deg) brightness(1.06) contrast(1.05)}
+.tb-aura.aura-fire::after{
+  content:'';position:absolute;inset:-6px;border-radius:inherit;z-index:2;pointer-events:none;
+  box-shadow:0 0 0 2px #fb923c99,0 0 14px 3px #ef444466;
+  animation:auraRing 1.4s ease-in-out infinite alternate;
+}
+/* Fire W5+ intense */
+.tb-aura.aura-fire-hi .tb-aura-fx{
+  inset:-16px;
+  background:
+    radial-gradient(ellipse 75% 60% at 50% 90%, #dc2626ee 0%, transparent 72%),
+    radial-gradient(ellipse 65% 55% at 25% 45%, #f97316cc 0%, transparent 68%),
+    radial-gradient(ellipse 60% 50% at 75% 30%, #fde047aa 0%, transparent 62%),
+    radial-gradient(ellipse 40% 30% at 50% 20%, #fff7 0%, transparent 70%);
+  box-shadow:0 0 28px 10px #ef4444cc,0 0 52px 18px #f59e0b66,inset 0 0 24px #b91c1c66;
+  animation:auraFlameHi 0.75s ease-in-out infinite alternate;
+}
+.tb-aura.aura-fire-hi .av3dc,.tb-aura.aura-fire-hi img{filter:sepia(.45) saturate(2.2) hue-rotate(-25deg) brightness(1.1) contrast(1.08) drop-shadow(0 0 6px #f97316)}
+.tb-aura.aura-fire-hi::after{box-shadow:0 0 0 3px #fbbf24cc,0 0 22px 6px #ef444499,0 0 40px 12px #f59e0b55;animation:auraRingHi 0.9s ease-in-out infinite alternate}
+/* Ice L2+ */
+.tb-aura.aura-ice .tb-aura-fx{
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 80%, #38bdf8aa 0%, transparent 70%),
+    radial-gradient(ellipse 55% 45% at 35% 35%, #e0f2fe88 0%, transparent 65%),
+    radial-gradient(ellipse 50% 40% at 70% 40%, #7dd3fc66 0%, transparent 60%);
+  box-shadow:0 0 16px 5px #38bdf888,0 0 32px 10px #0ea5e944,inset 0 0 16px #bae6fd55;
+  filter:blur(1px);animation:auraFrost 1.6s ease-in-out infinite alternate;
+}
+.tb-aura.aura-ice .av3dc,.tb-aura.aura-ice img{filter:saturate(.55) hue-rotate(175deg) brightness(1.08) contrast(1.05) sepia(.15)}
+.tb-aura.aura-ice::after{
+  content:'';position:absolute;inset:-6px;border-radius:inherit;z-index:2;pointer-events:none;
+  box-shadow:0 0 0 2px #7dd3fc99,0 0 12px 3px #38bdf866;
+  background-image:radial-gradient(circle,#fff 0 1.2px,transparent 1.5px),radial-gradient(circle,#e0f2fe 0 1px,transparent 1.3px),radial-gradient(circle,#fff 0 .8px,transparent 1.1px);
+  background-size:18px 22px,14px 18px,22px 16px;background-position:0 0,8px 6px,4px 12px;
+  animation:auraSnow 2.4s linear infinite,auraRing 1.8s ease-in-out infinite alternate;
+  opacity:.9;mix-blend-mode:screen;
+}
+/* Ice L3+ stronger */
+.tb-aura.aura-ice-hi .tb-aura-fx{
+  inset:-16px;
+  background:
+    radial-gradient(ellipse 75% 60% at 50% 85%, #0ea5e9cc 0%, transparent 72%),
+    radial-gradient(ellipse 60% 50% at 30% 40%, #e0f2fecc 0%, transparent 68%),
+    radial-gradient(ellipse 55% 45% at 70% 30%, #67e8f9aa 0%, transparent 62%);
+  box-shadow:0 0 26px 10px #38bdf8cc,0 0 48px 16px #0284c766,inset 0 0 22px #bae6fd88;
+  animation:auraFrostHi 1.1s ease-in-out infinite alternate;
+}
+.tb-aura.aura-ice-hi .av3dc,.tb-aura.aura-ice-hi img{filter:saturate(.4) hue-rotate(185deg) brightness(1.12) contrast(1.1) sepia(.2) drop-shadow(0 0 6px #7dd3fc)}
+.tb-aura.aura-ice-hi::after{box-shadow:0 0 0 3px #e0f2fecc,0 0 20px 6px #38bdf899,0 0 36px 12px #0ea5e955;background-size:14px 18px,10px 14px,18px 12px;animation:auraSnowHi 1.6s linear infinite,auraRingHi 1.1s ease-in-out infinite alternate}
+@keyframes auraFlame{from{opacity:.75;transform:scale(.96) translateY(2px)}to{opacity:1;transform:scale(1.04) translateY(-2px)}}
+@keyframes auraFlameHi{from{opacity:.85;transform:scale(.94) translateY(3px)}to{opacity:1;transform:scale(1.08) translateY(-4px)}}
+@keyframes auraFrost{from{opacity:.7;transform:scale(.97)}to{opacity:1;transform:scale(1.03)}}
+@keyframes auraFrostHi{from{opacity:.8;transform:scale(.95)}to{opacity:1;transform:scale(1.06)}}
+@keyframes auraRing{from{opacity:.65}to{opacity:1}}
+@keyframes auraRingHi{from{opacity:.75}to{opacity:1}}
+@keyframes auraSnow{to{background-position:0 22px,8px 24px,4px 28px}}
+@keyframes auraSnowHi{to{background-position:0 18px,8px 20px,4px 24px}}
+@media(prefers-reduced-motion:reduce){
+  .tb-aura .tb-aura-fx,.tb-aura::after{animation:none!important}
+}
+/* keep podium place glow on outer frame without killing streak aura */
+.tb-pod-1 .tb-aura{filter:drop-shadow(0 0 10px #fbbf2488)}
+.tb-podium{overflow:visible;padding-top:18px}
+.tb-list{overflow:visible}
+.tb-row{overflow:visible}
+
 </style></head><body><main id="app"></main><script src="avatar.js"></script><script src="store.js"></script><script src="app.js"></script></body></html>
