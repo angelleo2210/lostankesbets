@@ -1,6 +1,6 @@
-// LosTankesBets: 11 avatares fijos (imagen). Sin capas ni colores.
+// LosTankesBets: 12 avatares fijos (imagen). Sin capas ni colores.
 (function (root) {
-  const N = 11;
+  const N = 12;
   const DEFAULT = { pick: 1 };
   const LAYERS = {}; // ropa por capas eliminada
   const SLOTS = [];
@@ -32,7 +32,7 @@
     if (typeof c !== 'object' || Array.isArray(c)) return { error: 'Avatar inválido' };
     if (c.pick != null || c.id != null) {
       const p = c.pick != null ? +c.pick : +c.id;
-      if (!Number.isFinite(p) || p < 1 || p > N) return { error: 'Elige un avatar del 1 al 11' };
+      if (!Number.isFinite(p) || p < 1 || p > N) return { error: 'Elige un avatar del 1 al 12' };
       return { cfg: { pick: p | 0 } };
     }
     // configs viejas (body/wear/hat/shirt/…) → pick 1

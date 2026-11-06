@@ -181,7 +181,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
   if (tab === 'perfil') { let av = me.avatar || '', cos = { ...(me.cosmetics || {}) }, acfg = Avatar.norm(me.avatarCfg); const mine = new Set((me.unlocks || []).map(u => u.item_id));
     B.innerHTML = `<div class="card"><h2>Mi perfil</h2><div class="small">Usuario: @${esc(me.username)}</div>${streakTag(me.streak, true)}
     <div style="display:flex;flex-wrap:wrap;gap:4px;margin:8px 0">${EMOJIS.map(e => `<button class="${e === av ? '' : 'alt'}" style="width:44px;padding:6px" data-em="${e}">${e}</button>`).join('')}<button class="alt" style="width:auto;padding:6px" data-em="">Sin emoji</button></div>
-    <h2>Tu avatar</h2><div class="small">Elige uno de los 11. Sin colores ni accesorios.</div>
+    <h2>Tu avatar</h2><div class="small">Elige uno de los 12. Sin colores ni accesorios.</div>
     <div class="av-pick" id="avpick">${Avatar.PICKS.map(n => `<button type="button" class="av-opt ${acfg.pick === n ? 'on' : ''}" data-pick="${n}">${Avatar.imgTag(n, { w: 90, h: 120, cls: 'av3dc' })}<span>${n}</span></button>`).join('')}</div>
     <div class="card avpv" id="bigpv" aria-label="Vista previa">${_avBody({ avatarCfg: acfg }, 220)}</div>
     <h2>Mi imagen de perfil</h2><div id="combo">${composite({ ...me, avatarCfg: acfg }, stP.owned)}</div>
