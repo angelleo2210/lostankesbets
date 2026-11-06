@@ -1,0 +1,7449 @@
+{
+ "version": 2,
+ "size": [
+  576,
+  768
+ ],
+ "layers": {
+  "atletico": {
+   "top_chaqueta": {
+    "slot": "arriba",
+    "color": "negro",
+    "hands": {
+     "clara": "atletico/arriba_top_chaqueta_manos_clara",
+     "media": "atletico/arriba_top_chaqueta_manos_media",
+     "oscura": "atletico/arriba_top_chaqueta_manos_oscura"
+    },
+    "src": "atletico/arriba_top_chaqueta",
+    "lum": 0.1107,
+    "erase": "atletico/arriba_top_chaqueta.erase"
+   },
+   "bot_jeans": {
+    "slot": "abajo",
+    "color": "azul",
+    "src": "atletico/abajo_bot_jeans",
+    "lum": 0.1308,
+    "erase": "atletico/abajo_bot_jeans.erase"
+   },
+   "zap_sport": {
+    "slot": "zapatos",
+    "color": "blanco",
+    "src": "atletico/zapatos_zap_sport",
+    "lum": 0.7627,
+    "erase": "atletico/zapatos_zap_sport.erase"
+   },
+   "top_hoodie": {
+    "slot": "arriba",
+    "color": "rojo",
+    "hands": {
+     "clara": "atletico/arriba_top_hoodie_manos_clara",
+     "media": "atletico/arriba_top_hoodie_manos_media",
+     "oscura": "atletico/arriba_top_hoodie_manos_oscura"
+    },
+    "src": "atletico/arriba_top_hoodie",
+    "lum": 0.1727,
+    "erase": "atletico/arriba_top_hoodie.erase"
+   },
+   "bot_joggers": {
+    "slot": "abajo",
+    "color": "negro",
+    "src": "atletico/abajo_bot_joggers",
+    "lum": 0.0816,
+    "erase": "atletico/abajo_bot_joggers.erase"
+   },
+   "zap_casual": {
+    "slot": "zapatos",
+    "color": "negro",
+    "src": "atletico/zapatos_zap_casual",
+    "lum": 0.1258,
+    "erase": "atletico/zapatos_zap_casual.erase"
+   },
+   "rizos": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "atletico/pelo_rizos",
+    "lum": 0.086,
+    "hair": true
+   },
+   "largo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "atletico/pelo_largo",
+    "lum": 0.101,
+    "hair": true
+   },
+   "puntas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "atletico/pelo_puntas",
+    "lum": 0.09,
+    "hair": true
+   },
+   "coleta": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "atletico/pelo_coleta",
+    "lum": 0.115,
+    "hair": true
+   },
+   "mullet": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "atletico/pelo_mullet",
+    "lum": 0.097,
+    "hair": true
+   },
+   "flequillo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "atletico/pelo_flequillo",
+    "lum": 0.094,
+    "hair": true
+   },
+   "emo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "atletico/pelo_emo",
+    "lum": 0.117,
+    "hair": true
+   },
+   "rastas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "atletico/pelo_rastas",
+    "lum": 0.076,
+    "hair": true
+   },
+   "ondulado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "atletico/pelo_ondulado",
+    "lum": 0.107,
+    "hair": true
+   },
+   "corto": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "atletico/pelo_corto",
+    "lum": 0.099,
+    "hair": true
+   },
+   "afro": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "atletico/pelo_afro",
+    "lum": 0.056,
+    "hair": true
+   },
+   "cresta": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "atletico/pelo_cresta",
+    "lum": 0.116,
+    "hair": true
+   },
+   "rapado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "atletico/pelo_rapado",
+    "lum": 0.154,
+    "hair": true
+   },
+   "mohicano": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "atletico/pelo_mohicano",
+    "lum": 0.105,
+    "hair": true
+   },
+   "mo\u00f1o": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "atletico/pelo_mo\u00f1o",
+    "lum": 0.123,
+    "hair": true
+   },
+   "raya_lado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "atletico/pelo_raya_lado",
+    "lum": 0.106,
+    "hair": true
+   },
+   "hacia_atras": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "atletico/pelo_hacia_atras",
+    "lum": 0.112,
+    "hair": true
+   },
+   "trenzas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "atletico/pelo_trenzas",
+    "lum": 0.137,
+    "hair": true
+   },
+   "militar": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "atletico/pelo_militar",
+    "lum": 0.11,
+    "hair": true
+   },
+   "base_camiseta": {
+    "slot": "arriba",
+    "color": "#17181c",
+    "src": "atletico/base_camiseta",
+    "lum": 0.0922,
+    "base": true
+   },
+   "base_largo": {
+    "slot": "abajo",
+    "color": "#3a3a3c",
+    "src": "atletico/base_largo",
+    "lum": 0.1892,
+    "base": true
+   },
+   "base_tenis": {
+    "slot": "zapatos",
+    "color": "#d9d9d6",
+    "src": "atletico/base_tenis",
+    "lum": 0.5963,
+    "base": true
+   },
+   "head_gorra_sport": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "atletico/acc_head_gorra_sport",
+    "lum": 0.243,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "atletico/acc_head_gorra_sport.erase"
+   },
+   "head_gorro_sport": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "atletico/acc_head_gorro_sport",
+    "lum": 0.227,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "atletico/acc_head_gorro_sport.erase"
+   },
+   "head_visera": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "atletico/acc_head_visera",
+    "lum": 0.264,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "atletico/acc_head_visera.erase"
+   },
+   "head_gorra_casual": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "atletico/acc_head_gorra_casual",
+    "lum": 0.252,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "atletico/acc_head_gorra_casual.erase"
+   },
+   "hat_gorra": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "atletico/acc_head_gorra_casual",
+    "lum": 0.252,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "atletico/acc_head_gorra_casual.erase"
+   },
+   "head_gorro_casual": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "atletico/acc_head_gorro_casual",
+    "lum": 0.248,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "atletico/acc_head_gorro_casual.erase"
+   },
+   "hat_gorro": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "atletico/acc_head_gorro_casual",
+    "lum": 0.248,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "atletico/acc_head_gorro_casual.erase"
+   },
+   "head_bucket": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "atletico/acc_head_bucket",
+    "lum": 0.232,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "atletico/acc_head_bucket.erase"
+   },
+   "head_gorra_lujo": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "atletico/acc_head_gorra_lujo",
+    "lum": 0.271,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "atletico/acc_head_gorra_lujo.erase"
+   },
+   "head_gorro_lujo": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "atletico/acc_head_gorro_lujo",
+    "lum": 0.2,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "atletico/acc_head_gorro_lujo.erase"
+   },
+   "head_fedora": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "atletico/acc_head_fedora",
+    "lum": 0.177,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "atletico/acc_head_fedora.erase"
+   },
+   "hat_vaquero": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "atletico/acc_hat_vaquero",
+    "lum": 0.178,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "atletico/acc_hat_vaquero.erase"
+   },
+   "hat_gorra_campeon": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "atletico/acc_hat_gorra_campeon",
+    "lum": 0.259,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "atletico/acc_hat_gorra_campeon.erase"
+   },
+   "hat_corona": {
+    "slot": "cabeza",
+    "color": null,
+    "src": "atletico/acc_hat_corona",
+    "lum": 0.486,
+    "erase": "atletico/acc_hat_corona.erase"
+   },
+   "hat_sombrero_dorado": {
+    "slot": "cabeza",
+    "color": null,
+    "src": "atletico/acc_hat_sombrero_dorado",
+    "lum": 0.442,
+    "erase": "atletico/acc_hat_sombrero_dorado.erase"
+   },
+   "gl_redondas": {
+    "slot": "lentes",
+    "color": null,
+    "src": "atletico/acc_g_redondas",
+    "lum": 0.0
+   },
+   "gl_sol": {
+    "slot": "lentes",
+    "color": null,
+    "src": "atletico/acc_g_sol",
+    "lum": 0.099
+   },
+   "gl_nerd": {
+    "slot": "lentes",
+    "color": null,
+    "src": "atletico/acc_g_nerd",
+    "lum": 0.185
+   },
+   "er_bolita": {
+    "slot": "aretes",
+    "color": "oro",
+    "src": "atletico/acc_e_bolita",
+    "lum": 0.0,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "er_aro": {
+    "slot": "aretes",
+    "color": "oro",
+    "src": "atletico/acc_e_aro",
+    "lum": 0.4,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "nk_cadena": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "atletico/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_oro": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "atletico/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_plata": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "atletico/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "nk_perlas": {
+    "slot": "cadenas",
+    "color": null,
+    "src": "atletico/acc_n_perlas",
+    "lum": 0.571
+   },
+   "nk_medallon": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "atletico/acc_n_medallon",
+    "lum": 0.497,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_diamantes": {
+    "slot": "cadenas",
+    "color": null,
+    "src": "atletico/acc_n_diamantes",
+    "lum": 0.668
+   },
+   "joy_pulsera": {
+    "slot": "pulseras",
+    "color": "oro",
+    "src": "atletico/acc_w_pulsera",
+    "lum": 0.415,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "acc_mochila": {
+    "slot": "mochila",
+    "color": "#c81e1e",
+    "src": "atletico/acc_t_mochila",
+    "lum": 0.209,
+    "sel": {
+     "c": 18,
+     "h": 30
+    }
+   },
+   "cara_redonda": {
+    "slot": "cara",
+    "skins": {
+     "clara": "atletico/cara_redonda_clara",
+     "media": "atletico/cara_redonda_media",
+     "oscura": "atletico/cara_redonda_oscura"
+    },
+    "erase": "atletico/cara.erase"
+   },
+   "cara_cuadrada": {
+    "slot": "cara",
+    "skins": {
+     "clara": "atletico/cara_cuadrada_clara",
+     "media": "atletico/cara_cuadrada_media",
+     "oscura": "atletico/cara_cuadrada_oscura"
+    },
+    "erase": "atletico/cara.erase"
+   },
+   "cara_corazon": {
+    "slot": "cara",
+    "skins": {
+     "clara": "atletico/cara_corazon_clara",
+     "media": "atletico/cara_corazon_media",
+     "oscura": "atletico/cara_corazon_oscura"
+    },
+    "erase": "atletico/cara.erase"
+   },
+   "cara_alargada": {
+    "slot": "cara",
+    "skins": {
+     "clara": "atletico/cara_alargada_clara",
+     "media": "atletico/cara_alargada_media",
+     "oscura": "atletico/cara_alargada_oscura"
+    },
+    "erase": "atletico/cara.erase"
+   },
+   "cara_ancha": {
+    "slot": "cara",
+    "skins": {
+     "clara": "atletico/cara_ancha_clara",
+     "media": "atletico/cara_ancha_media",
+     "oscura": "atletico/cara_ancha_oscura"
+    },
+    "erase": "atletico/cara.erase"
+   },
+   "cara_diamante": {
+    "slot": "cara",
+    "skins": {
+     "clara": "atletico/cara_diamante_clara",
+     "media": "atletico/cara_diamante_media",
+     "oscura": "atletico/cara_diamante_oscura"
+    },
+    "erase": "atletico/cara.erase"
+   },
+   "cara_pera": {
+    "slot": "cara",
+    "skins": {
+     "clara": "atletico/cara_pera_clara",
+     "media": "atletico/cara_pera_media",
+     "oscura": "atletico/cara_pera_oscura"
+    },
+    "erase": "atletico/cara.erase"
+   },
+   "cara_triangular": {
+    "slot": "cara",
+    "skins": {
+     "clara": "atletico/cara_triangular_clara",
+     "media": "atletico/cara_triangular_media",
+     "oscura": "atletico/cara_triangular_oscura"
+    },
+    "erase": "atletico/cara.erase"
+   },
+   "cara_suave": {
+    "slot": "cara",
+    "skins": {
+     "clara": "atletico/cara_suave_clara",
+     "media": "atletico/cara_suave_media",
+     "oscura": "atletico/cara_suave_oscura"
+    },
+    "erase": "atletico/cara.erase"
+   },
+   "ojos_felices": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "atletico/ojos_felices_clara",
+     "media": "atletico/ojos_felices_media",
+     "oscura": "atletico/ojos_felices_oscura"
+    }
+   },
+   "ojos_gui\u00f1o": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "atletico/ojos_gui\u00f1o_clara",
+     "media": "atletico/ojos_gui\u00f1o_media",
+     "oscura": "atletico/ojos_gui\u00f1o_oscura"
+    }
+   },
+   "ojos_sorprendidos": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "atletico/ojos_sorprendidos_clara",
+     "media": "atletico/ojos_sorprendidos_media",
+     "oscura": "atletico/ojos_sorprendidos_oscura"
+    }
+   },
+   "ojos_enojados": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "atletico/ojos_enojados_clara",
+     "media": "atletico/ojos_enojados_media",
+     "oscura": "atletico/ojos_enojados_oscura"
+    }
+   },
+   "ojos_estrellas": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "atletico/ojos_estrellas_clara",
+     "media": "atletico/ojos_estrellas_media",
+     "oscura": "atletico/ojos_estrellas_oscura"
+    }
+   },
+   "boca_carcajada": {
+    "slot": "boca",
+    "skins": {
+     "clara": "atletico/boca_carcajada_clara",
+     "media": "atletico/boca_carcajada_media",
+     "oscura": "atletico/boca_carcajada_oscura"
+    }
+   },
+   "boca_seria": {
+    "slot": "boca",
+    "skins": {
+     "clara": "atletico/boca_seria_clara",
+     "media": "atletico/boca_seria_media",
+     "oscura": "atletico/boca_seria_oscura"
+    }
+   },
+   "boca_lengua": {
+    "slot": "boca",
+    "skins": {
+     "clara": "atletico/boca_lengua_clara",
+     "media": "atletico/boca_lengua_media",
+     "oscura": "atletico/boca_lengua_oscura"
+    }
+   },
+   "boca_sorpresa": {
+    "slot": "boca",
+    "skins": {
+     "clara": "atletico/boca_sorpresa_clara",
+     "media": "atletico/boca_sorpresa_media",
+     "oscura": "atletico/boca_sorpresa_oscura"
+    }
+   },
+   "top_abrigo": {
+    "slot": "arriba",
+    "color": "#851114",
+    "src": "atletico/arriba_top_abrigo",
+    "lum": 0.16,
+    "hands": {
+     "clara": "atletico/arriba_top_abrigo_piel_clara",
+     "media": "atletico/arriba_top_abrigo_piel_media",
+     "oscura": "atletico/arriba_top_abrigo_piel_oscura"
+    },
+    "erase": "atletico/arriba_top_abrigo.erase"
+   },
+   "zap_vestir": {
+    "slot": "zapatos",
+    "color": "#2a3627",
+    "src": "atletico/zapatos_zap_vestir",
+    "lum": 0.2063,
+    "erase": "atletico/zapatos_zap_vestir.erase"
+   },
+   "bot_vestir": {
+    "slot": "abajo",
+    "color": "#152547",
+    "src": "atletico/abajo_bot_vestir",
+    "lum": 0.1423,
+    "erase": "atletico/abajo_bot_vestir.erase"
+   },
+   "bl_botas": {
+    "slot": "zapatos",
+    "color": "#2c452e",
+    "src": "atletico/zapatos_bl_botas",
+    "lum": 0.2488,
+    "erase": "atletico/zapatos_bl_botas.erase"
+   },
+   "bl_sin_mangas": {
+    "slot": "arriba",
+    "color": "#9d1a18",
+    "src": "atletico/arriba_bl_sin_mangas",
+    "lum": 0.1951,
+    "hands": {
+     "clara": "atletico/arriba_bl_sin_mangas_piel_clara",
+     "media": "atletico/arriba_bl_sin_mangas_piel_media",
+     "oscura": "atletico/arriba_bl_sin_mangas_piel_oscura"
+    },
+    "erase": "atletico/arriba_bl_sin_mangas.erase"
+   },
+   "bot_cargo": {
+    "slot": "abajo",
+    "color": "#1b2e54",
+    "src": "atletico/abajo_bot_cargo",
+    "lum": 0.174,
+    "erase": "atletico/abajo_bot_cargo.erase"
+   },
+   "bl_camisa": {
+    "slot": "arriba",
+    "color": "#89171a",
+    "src": "atletico/arriba_bl_camisa",
+    "lum": 0.1768,
+    "hands": {
+     "clara": "atletico/arriba_bl_camisa_piel_clara",
+     "media": "atletico/arriba_bl_camisa_piel_media",
+     "oscura": "atletico/arriba_bl_camisa_piel_oscura"
+    },
+    "erase": "atletico/arriba_bl_camisa.erase"
+   },
+   "bl_chores": {
+    "slot": "abajo",
+    "color": "#212f56",
+    "src": "atletico/abajo_bl_chores",
+    "lum": 0.1562,
+    "hands": {
+     "clara": "atletico/abajo_bl_chores_piel_clara",
+     "media": "atletico/abajo_bl_chores_piel_media",
+     "oscura": "atletico/abajo_bl_chores_piel_oscura"
+    },
+    "erase": "atletico/abajo_bl_chores.erase"
+   },
+   "med_deportivas": {
+    "slot": "medias",
+    "color": "#1b4a26",
+    "src": "atletico/medias_med_deportivas",
+    "lum": 0.2477
+   },
+   "bl_descalzo": {
+    "slot": "zapatos",
+    "color": null,
+    "hands": {
+     "clara": "atletico/zapatos_bl_descalzo_piel_clara",
+     "media": "atletico/zapatos_bl_descalzo_piel_media",
+     "oscura": "atletico/zapatos_bl_descalzo_piel_oscura"
+    },
+    "erase": "atletico/zapatos_bl_descalzo.erase"
+   },
+   "bl_cortas": {
+    "slot": "medias",
+    "color": "#30552a",
+    "src": "atletico/medias_bl_cortas",
+    "lum": 0.2961
+   },
+   "bl_largas": {
+    "slot": "medias",
+    "color": "#1b4427",
+    "src": "atletico/medias_bl_largas",
+    "lum": 0.2307
+   },
+   "med_disenador": {
+    "slot": "medias",
+    "color": "#2b442a",
+    "src": "atletico/medias_med_disenador",
+    "lum": 0.2776
+   },
+   "med_seda": {
+    "slot": "medias",
+    "color": "#293d29",
+    "src": "atletico/medias_med_seda",
+    "lum": 0.2271
+   }
+  },
+  "fuertecito": {
+   "top_hoodie": {
+    "slot": "arriba",
+    "color": "rojo",
+    "hands": {
+     "clara": "fuertecito/arriba_top_hoodie_manos_clara",
+     "media": "fuertecito/arriba_top_hoodie_manos_media",
+     "oscura": "fuertecito/arriba_top_hoodie_manos_oscura"
+    },
+    "src": "fuertecito/arriba_top_hoodie",
+    "lum": 0.1758,
+    "erase": "fuertecito/arriba_top_hoodie.erase"
+   },
+   "bot_joggers": {
+    "slot": "abajo",
+    "color": "negro",
+    "src": "fuertecito/abajo_bot_joggers",
+    "lum": 0.0873,
+    "erase": "fuertecito/abajo_bot_joggers.erase"
+   },
+   "zap_casual": {
+    "slot": "zapatos",
+    "color": "negro",
+    "src": "fuertecito/zapatos_zap_casual",
+    "lum": 0.1159,
+    "erase": "fuertecito/zapatos_zap_casual.erase"
+   },
+   "rizos": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "fuertecito/pelo_rizos",
+    "lum": 0.086,
+    "hair": true
+   },
+   "largo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "fuertecito/pelo_largo",
+    "lum": 0.101,
+    "hair": true
+   },
+   "puntas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "fuertecito/pelo_puntas",
+    "lum": 0.09,
+    "hair": true
+   },
+   "coleta": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "fuertecito/pelo_coleta",
+    "lum": 0.115,
+    "hair": true
+   },
+   "mullet": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "fuertecito/pelo_mullet",
+    "lum": 0.097,
+    "hair": true
+   },
+   "flequillo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "fuertecito/pelo_flequillo",
+    "lum": 0.094,
+    "hair": true
+   },
+   "emo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "fuertecito/pelo_emo",
+    "lum": 0.117,
+    "hair": true
+   },
+   "rastas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "fuertecito/pelo_rastas",
+    "lum": 0.076,
+    "hair": true
+   },
+   "ondulado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "fuertecito/pelo_ondulado",
+    "lum": 0.107,
+    "hair": true
+   },
+   "corto": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "fuertecito/pelo_corto",
+    "lum": 0.099,
+    "hair": true
+   },
+   "afro": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "fuertecito/pelo_afro",
+    "lum": 0.056,
+    "hair": true
+   },
+   "cresta": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "fuertecito/pelo_cresta",
+    "lum": 0.116,
+    "hair": true
+   },
+   "rapado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "fuertecito/pelo_rapado",
+    "lum": 0.154,
+    "hair": true
+   },
+   "mohicano": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "fuertecito/pelo_mohicano",
+    "lum": 0.105,
+    "hair": true
+   },
+   "mo\u00f1o": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "fuertecito/pelo_mo\u00f1o",
+    "lum": 0.123,
+    "hair": true
+   },
+   "raya_lado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "fuertecito/pelo_raya_lado",
+    "lum": 0.106,
+    "hair": true
+   },
+   "hacia_atras": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "fuertecito/pelo_hacia_atras",
+    "lum": 0.112,
+    "hair": true
+   },
+   "trenzas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "fuertecito/pelo_trenzas",
+    "lum": 0.137,
+    "hair": true
+   },
+   "militar": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "fuertecito/pelo_militar",
+    "lum": 0.11,
+    "hair": true
+   },
+   "base_camiseta": {
+    "slot": "arriba",
+    "color": "#17181c",
+    "src": "fuertecito/base_camiseta",
+    "lum": 0.0907,
+    "base": true
+   },
+   "base_largo": {
+    "slot": "abajo",
+    "color": "#3a3a3c",
+    "src": "fuertecito/base_largo",
+    "lum": 0.1718,
+    "base": true
+   },
+   "base_tenis": {
+    "slot": "zapatos",
+    "color": "#d9d9d6",
+    "src": "fuertecito/base_tenis",
+    "lum": 0.5646,
+    "base": true
+   },
+   "head_gorra_sport": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "fuertecito/acc_head_gorra_sport",
+    "lum": 0.243,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "fuertecito/acc_head_gorra_sport.erase"
+   },
+   "head_gorro_sport": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "fuertecito/acc_head_gorro_sport",
+    "lum": 0.227,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "fuertecito/acc_head_gorro_sport.erase"
+   },
+   "head_visera": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "fuertecito/acc_head_visera",
+    "lum": 0.264,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "fuertecito/acc_head_visera.erase"
+   },
+   "head_gorra_casual": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "fuertecito/acc_head_gorra_casual",
+    "lum": 0.252,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "fuertecito/acc_head_gorra_casual.erase"
+   },
+   "hat_gorra": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "fuertecito/acc_head_gorra_casual",
+    "lum": 0.252,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "fuertecito/acc_head_gorra_casual.erase"
+   },
+   "head_gorro_casual": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "fuertecito/acc_head_gorro_casual",
+    "lum": 0.248,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "fuertecito/acc_head_gorro_casual.erase"
+   },
+   "hat_gorro": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "fuertecito/acc_head_gorro_casual",
+    "lum": 0.248,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "fuertecito/acc_head_gorro_casual.erase"
+   },
+   "head_bucket": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "fuertecito/acc_head_bucket",
+    "lum": 0.232,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "fuertecito/acc_head_bucket.erase"
+   },
+   "head_gorra_lujo": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "fuertecito/acc_head_gorra_lujo",
+    "lum": 0.271,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "fuertecito/acc_head_gorra_lujo.erase"
+   },
+   "head_gorro_lujo": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "fuertecito/acc_head_gorro_lujo",
+    "lum": 0.2,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "fuertecito/acc_head_gorro_lujo.erase"
+   },
+   "head_fedora": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "fuertecito/acc_head_fedora",
+    "lum": 0.177,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "fuertecito/acc_head_fedora.erase"
+   },
+   "hat_vaquero": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "fuertecito/acc_hat_vaquero",
+    "lum": 0.178,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "fuertecito/acc_hat_vaquero.erase"
+   },
+   "hat_gorra_campeon": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "fuertecito/acc_hat_gorra_campeon",
+    "lum": 0.259,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "fuertecito/acc_hat_gorra_campeon.erase"
+   },
+   "hat_corona": {
+    "slot": "cabeza",
+    "color": null,
+    "src": "fuertecito/acc_hat_corona",
+    "lum": 0.486,
+    "erase": "fuertecito/acc_hat_corona.erase"
+   },
+   "hat_sombrero_dorado": {
+    "slot": "cabeza",
+    "color": null,
+    "src": "fuertecito/acc_hat_sombrero_dorado",
+    "lum": 0.442,
+    "erase": "fuertecito/acc_hat_sombrero_dorado.erase"
+   },
+   "gl_redondas": {
+    "slot": "lentes",
+    "color": null,
+    "src": "fuertecito/acc_g_redondas",
+    "lum": 0.0
+   },
+   "gl_sol": {
+    "slot": "lentes",
+    "color": null,
+    "src": "fuertecito/acc_g_sol",
+    "lum": 0.099
+   },
+   "gl_nerd": {
+    "slot": "lentes",
+    "color": null,
+    "src": "fuertecito/acc_g_nerd",
+    "lum": 0.185
+   },
+   "er_bolita": {
+    "slot": "aretes",
+    "color": "oro",
+    "src": "fuertecito/acc_e_bolita",
+    "lum": 0.0,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "er_aro": {
+    "slot": "aretes",
+    "color": "oro",
+    "src": "fuertecito/acc_e_aro",
+    "lum": 0.4,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "nk_cadena": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "fuertecito/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_oro": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "fuertecito/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_plata": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "fuertecito/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "nk_perlas": {
+    "slot": "cadenas",
+    "color": null,
+    "src": "fuertecito/acc_n_perlas",
+    "lum": 0.571
+   },
+   "nk_medallon": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "fuertecito/acc_n_medallon",
+    "lum": 0.497,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_diamantes": {
+    "slot": "cadenas",
+    "color": null,
+    "src": "fuertecito/acc_n_diamantes",
+    "lum": 0.668
+   },
+   "joy_pulsera": {
+    "slot": "pulseras",
+    "color": "oro",
+    "src": "fuertecito/acc_w_pulsera",
+    "lum": 0.415,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "acc_mochila": {
+    "slot": "mochila",
+    "color": "#c81e1e",
+    "src": "fuertecito/acc_t_mochila",
+    "lum": 0.209,
+    "sel": {
+     "c": 18,
+     "h": 30
+    }
+   },
+   "cara_redonda": {
+    "slot": "cara",
+    "skins": {
+     "clara": "fuertecito/cara_redonda_clara",
+     "media": "fuertecito/cara_redonda_media",
+     "oscura": "fuertecito/cara_redonda_oscura"
+    },
+    "erase": "fuertecito/cara.erase"
+   },
+   "cara_cuadrada": {
+    "slot": "cara",
+    "skins": {
+     "clara": "fuertecito/cara_cuadrada_clara",
+     "media": "fuertecito/cara_cuadrada_media",
+     "oscura": "fuertecito/cara_cuadrada_oscura"
+    },
+    "erase": "fuertecito/cara.erase"
+   },
+   "cara_corazon": {
+    "slot": "cara",
+    "skins": {
+     "clara": "fuertecito/cara_corazon_clara",
+     "media": "fuertecito/cara_corazon_media",
+     "oscura": "fuertecito/cara_corazon_oscura"
+    },
+    "erase": "fuertecito/cara.erase"
+   },
+   "cara_alargada": {
+    "slot": "cara",
+    "skins": {
+     "clara": "fuertecito/cara_alargada_clara",
+     "media": "fuertecito/cara_alargada_media",
+     "oscura": "fuertecito/cara_alargada_oscura"
+    },
+    "erase": "fuertecito/cara.erase"
+   },
+   "cara_ancha": {
+    "slot": "cara",
+    "skins": {
+     "clara": "fuertecito/cara_ancha_clara",
+     "media": "fuertecito/cara_ancha_media",
+     "oscura": "fuertecito/cara_ancha_oscura"
+    },
+    "erase": "fuertecito/cara.erase"
+   },
+   "cara_diamante": {
+    "slot": "cara",
+    "skins": {
+     "clara": "fuertecito/cara_diamante_clara",
+     "media": "fuertecito/cara_diamante_media",
+     "oscura": "fuertecito/cara_diamante_oscura"
+    },
+    "erase": "fuertecito/cara.erase"
+   },
+   "cara_pera": {
+    "slot": "cara",
+    "skins": {
+     "clara": "fuertecito/cara_pera_clara",
+     "media": "fuertecito/cara_pera_media",
+     "oscura": "fuertecito/cara_pera_oscura"
+    },
+    "erase": "fuertecito/cara.erase"
+   },
+   "cara_triangular": {
+    "slot": "cara",
+    "skins": {
+     "clara": "fuertecito/cara_triangular_clara",
+     "media": "fuertecito/cara_triangular_media",
+     "oscura": "fuertecito/cara_triangular_oscura"
+    },
+    "erase": "fuertecito/cara.erase"
+   },
+   "cara_suave": {
+    "slot": "cara",
+    "skins": {
+     "clara": "fuertecito/cara_suave_clara",
+     "media": "fuertecito/cara_suave_media",
+     "oscura": "fuertecito/cara_suave_oscura"
+    },
+    "erase": "fuertecito/cara.erase"
+   },
+   "ojos_felices": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "fuertecito/ojos_felices_clara",
+     "media": "fuertecito/ojos_felices_media",
+     "oscura": "fuertecito/ojos_felices_oscura"
+    }
+   },
+   "ojos_gui\u00f1o": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "fuertecito/ojos_gui\u00f1o_clara",
+     "media": "fuertecito/ojos_gui\u00f1o_media",
+     "oscura": "fuertecito/ojos_gui\u00f1o_oscura"
+    }
+   },
+   "ojos_sorprendidos": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "fuertecito/ojos_sorprendidos_clara",
+     "media": "fuertecito/ojos_sorprendidos_media",
+     "oscura": "fuertecito/ojos_sorprendidos_oscura"
+    }
+   },
+   "ojos_enojados": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "fuertecito/ojos_enojados_clara",
+     "media": "fuertecito/ojos_enojados_media",
+     "oscura": "fuertecito/ojos_enojados_oscura"
+    }
+   },
+   "ojos_estrellas": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "fuertecito/ojos_estrellas_clara",
+     "media": "fuertecito/ojos_estrellas_media",
+     "oscura": "fuertecito/ojos_estrellas_oscura"
+    }
+   },
+   "boca_carcajada": {
+    "slot": "boca",
+    "skins": {
+     "clara": "fuertecito/boca_carcajada_clara",
+     "media": "fuertecito/boca_carcajada_media",
+     "oscura": "fuertecito/boca_carcajada_oscura"
+    }
+   },
+   "boca_seria": {
+    "slot": "boca",
+    "skins": {
+     "clara": "fuertecito/boca_seria_clara",
+     "media": "fuertecito/boca_seria_media",
+     "oscura": "fuertecito/boca_seria_oscura"
+    }
+   },
+   "boca_lengua": {
+    "slot": "boca",
+    "skins": {
+     "clara": "fuertecito/boca_lengua_clara",
+     "media": "fuertecito/boca_lengua_media",
+     "oscura": "fuertecito/boca_lengua_oscura"
+    }
+   },
+   "boca_sorpresa": {
+    "slot": "boca",
+    "skins": {
+     "clara": "fuertecito/boca_sorpresa_clara",
+     "media": "fuertecito/boca_sorpresa_media",
+     "oscura": "fuertecito/boca_sorpresa_oscura"
+    }
+   },
+   "top_abrigo": {
+    "slot": "arriba",
+    "color": "#7f0f15",
+    "src": "fuertecito/arriba_top_abrigo",
+    "lum": 0.1473,
+    "hands": {
+     "clara": "fuertecito/arriba_top_abrigo_piel_clara",
+     "media": "fuertecito/arriba_top_abrigo_piel_media",
+     "oscura": "fuertecito/arriba_top_abrigo_piel_oscura"
+    },
+    "erase": "fuertecito/arriba_top_abrigo.erase"
+   },
+   "zap_vestir": {
+    "slot": "zapatos",
+    "color": "#283223",
+    "src": "fuertecito/zapatos_zap_vestir",
+    "lum": 0.1972,
+    "erase": "fuertecito/zapatos_zap_vestir.erase"
+   },
+   "bot_vestir": {
+    "slot": "abajo",
+    "color": "#152547",
+    "src": "fuertecito/abajo_bot_vestir",
+    "lum": 0.1382,
+    "erase": "fuertecito/abajo_bot_vestir.erase"
+   },
+   "bl_botas": {
+    "slot": "zapatos",
+    "color": "#294931",
+    "src": "fuertecito/zapatos_bl_botas",
+    "lum": 0.2543,
+    "erase": "fuertecito/zapatos_bl_botas.erase"
+   },
+   "bl_sin_mangas": {
+    "slot": "arriba",
+    "color": "#931717",
+    "src": "fuertecito/arriba_bl_sin_mangas",
+    "lum": 0.1797,
+    "hands": {
+     "clara": "fuertecito/arriba_bl_sin_mangas_piel_clara",
+     "media": "fuertecito/arriba_bl_sin_mangas_piel_media",
+     "oscura": "fuertecito/arriba_bl_sin_mangas_piel_oscura"
+    },
+    "erase": "fuertecito/arriba_bl_sin_mangas.erase"
+   },
+   "bot_cargo": {
+    "slot": "abajo",
+    "color": "#132d5e",
+    "src": "fuertecito/abajo_bot_cargo",
+    "lum": 0.1644,
+    "erase": "fuertecito/abajo_bot_cargo.erase"
+   },
+   "zap_sport": {
+    "slot": "zapatos",
+    "color": "#406841",
+    "src": "fuertecito/zapatos_zap_sport",
+    "lum": 0.3671,
+    "erase": "fuertecito/zapatos_zap_sport.erase"
+   },
+   "top_chaqueta": {
+    "slot": "arriba",
+    "color": "#7e1518",
+    "src": "fuertecito/arriba_top_chaqueta",
+    "lum": 0.1587,
+    "hands": {
+     "clara": "fuertecito/arriba_top_chaqueta_piel_clara",
+     "media": "fuertecito/arriba_top_chaqueta_piel_media",
+     "oscura": "fuertecito/arriba_top_chaqueta_piel_oscura"
+    },
+    "erase": "fuertecito/arriba_top_chaqueta.erase"
+   },
+   "bot_jeans": {
+    "slot": "abajo",
+    "color": "#16263d",
+    "src": "fuertecito/abajo_bot_jeans",
+    "lum": 0.145,
+    "erase": "fuertecito/abajo_bot_jeans.erase"
+   },
+   "bl_camisa": {
+    "slot": "arriba",
+    "color": "#901519",
+    "src": "fuertecito/arriba_bl_camisa",
+    "lum": 0.1739,
+    "hands": {
+     "clara": "fuertecito/arriba_bl_camisa_piel_clara",
+     "media": "fuertecito/arriba_bl_camisa_piel_media",
+     "oscura": "fuertecito/arriba_bl_camisa_piel_oscura"
+    },
+    "erase": "fuertecito/arriba_bl_camisa.erase"
+   },
+   "bl_chores": {
+    "slot": "abajo",
+    "color": "#1c2d57",
+    "src": "fuertecito/abajo_bl_chores",
+    "lum": 0.1495,
+    "hands": {
+     "clara": "fuertecito/abajo_bl_chores_piel_clara",
+     "media": "fuertecito/abajo_bl_chores_piel_media",
+     "oscura": "fuertecito/abajo_bl_chores_piel_oscura"
+    },
+    "erase": "fuertecito/abajo_bl_chores.erase"
+   },
+   "med_deportivas": {
+    "slot": "medias",
+    "color": "#0e4622",
+    "src": "fuertecito/medias_med_deportivas",
+    "lum": 0.2233
+   },
+   "bl_descalzo": {
+    "slot": "zapatos",
+    "color": null,
+    "hands": {
+     "clara": "fuertecito/zapatos_bl_descalzo_piel_clara",
+     "media": "fuertecito/zapatos_bl_descalzo_piel_media",
+     "oscura": "fuertecito/zapatos_bl_descalzo_piel_oscura"
+    },
+    "erase": "fuertecito/zapatos_bl_descalzo.erase"
+   },
+   "bl_cortas": {
+    "slot": "medias",
+    "color": "#30552a",
+    "src": "fuertecito/medias_bl_cortas",
+    "lum": 0.2961
+   },
+   "bl_largas": {
+    "slot": "medias",
+    "color": "#1b4427",
+    "src": "fuertecito/medias_bl_largas",
+    "lum": 0.2307
+   },
+   "med_disenador": {
+    "slot": "medias",
+    "color": "#2b442a",
+    "src": "fuertecito/medias_med_disenador",
+    "lum": 0.2776
+   },
+   "med_seda": {
+    "slot": "medias",
+    "color": "#293d29",
+    "src": "fuertecito/medias_med_seda",
+    "lum": 0.2271
+   }
+  },
+  "promedio": {
+   "largo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "promedio/pelo_largo",
+    "lum": 0.101,
+    "hair": true
+   },
+   "puntas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "promedio/pelo_puntas",
+    "lum": 0.09,
+    "hair": true
+   },
+   "coleta": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "promedio/pelo_coleta",
+    "lum": 0.115,
+    "hair": true
+   },
+   "mullet": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "promedio/pelo_mullet",
+    "lum": 0.097,
+    "hair": true
+   },
+   "flequillo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "promedio/pelo_flequillo",
+    "lum": 0.094,
+    "hair": true
+   },
+   "emo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "promedio/pelo_emo",
+    "lum": 0.117,
+    "hair": true
+   },
+   "rastas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "promedio/pelo_rastas",
+    "lum": 0.076,
+    "hair": true
+   },
+   "ondulado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "promedio/pelo_ondulado",
+    "lum": 0.107,
+    "hair": true
+   },
+   "rizos": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "promedio/pelo_rizos",
+    "lum": 0.086,
+    "hair": true
+   },
+   "corto": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "promedio/pelo_corto",
+    "lum": 0.099,
+    "hair": true
+   },
+   "afro": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "promedio/pelo_afro",
+    "lum": 0.056,
+    "hair": true
+   },
+   "cresta": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "promedio/pelo_cresta",
+    "lum": 0.116,
+    "hair": true
+   },
+   "rapado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "promedio/pelo_rapado",
+    "lum": 0.154,
+    "hair": true
+   },
+   "mohicano": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "promedio/pelo_mohicano",
+    "lum": 0.105,
+    "hair": true
+   },
+   "mo\u00f1o": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "promedio/pelo_mo\u00f1o",
+    "lum": 0.123,
+    "hair": true
+   },
+   "raya_lado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "promedio/pelo_raya_lado",
+    "lum": 0.106,
+    "hair": true
+   },
+   "hacia_atras": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "promedio/pelo_hacia_atras",
+    "lum": 0.112,
+    "hair": true
+   },
+   "trenzas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "promedio/pelo_trenzas",
+    "lum": 0.137,
+    "hair": true
+   },
+   "militar": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "promedio/pelo_militar",
+    "lum": 0.11,
+    "hair": true
+   },
+   "base_camiseta": {
+    "slot": "arriba",
+    "color": "#17181c",
+    "src": "promedio/base_camiseta",
+    "lum": 0.0877,
+    "base": true
+   },
+   "base_largo": {
+    "slot": "abajo",
+    "color": "#3a3a3c",
+    "src": "promedio/base_largo",
+    "lum": 0.1774,
+    "base": true
+   },
+   "base_tenis": {
+    "slot": "zapatos",
+    "color": "#d9d9d6",
+    "src": "promedio/base_tenis",
+    "lum": 0.5679,
+    "base": true
+   },
+   "head_gorra_sport": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "promedio/acc_head_gorra_sport",
+    "lum": 0.243,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "promedio/acc_head_gorra_sport.erase"
+   },
+   "head_gorro_sport": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "promedio/acc_head_gorro_sport",
+    "lum": 0.227,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "promedio/acc_head_gorro_sport.erase"
+   },
+   "head_visera": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "promedio/acc_head_visera",
+    "lum": 0.264,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "promedio/acc_head_visera.erase"
+   },
+   "head_gorra_casual": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "promedio/acc_head_gorra_casual",
+    "lum": 0.252,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "promedio/acc_head_gorra_casual.erase"
+   },
+   "hat_gorra": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "promedio/acc_head_gorra_casual",
+    "lum": 0.252,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "promedio/acc_head_gorra_casual.erase"
+   },
+   "head_gorro_casual": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "promedio/acc_head_gorro_casual",
+    "lum": 0.248,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "promedio/acc_head_gorro_casual.erase"
+   },
+   "hat_gorro": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "promedio/acc_head_gorro_casual",
+    "lum": 0.248,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "promedio/acc_head_gorro_casual.erase"
+   },
+   "head_bucket": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "promedio/acc_head_bucket",
+    "lum": 0.232,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "promedio/acc_head_bucket.erase"
+   },
+   "head_gorra_lujo": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "promedio/acc_head_gorra_lujo",
+    "lum": 0.271,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "promedio/acc_head_gorra_lujo.erase"
+   },
+   "head_gorro_lujo": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "promedio/acc_head_gorro_lujo",
+    "lum": 0.2,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "promedio/acc_head_gorro_lujo.erase"
+   },
+   "head_fedora": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "promedio/acc_head_fedora",
+    "lum": 0.177,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "promedio/acc_head_fedora.erase"
+   },
+   "hat_vaquero": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "promedio/acc_hat_vaquero",
+    "lum": 0.178,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "promedio/acc_hat_vaquero.erase"
+   },
+   "hat_gorra_campeon": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "promedio/acc_hat_gorra_campeon",
+    "lum": 0.259,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "promedio/acc_hat_gorra_campeon.erase"
+   },
+   "hat_corona": {
+    "slot": "cabeza",
+    "color": null,
+    "src": "promedio/acc_hat_corona",
+    "lum": 0.486,
+    "erase": "promedio/acc_hat_corona.erase"
+   },
+   "hat_sombrero_dorado": {
+    "slot": "cabeza",
+    "color": null,
+    "src": "promedio/acc_hat_sombrero_dorado",
+    "lum": 0.442,
+    "erase": "promedio/acc_hat_sombrero_dorado.erase"
+   },
+   "gl_redondas": {
+    "slot": "lentes",
+    "color": null,
+    "src": "promedio/acc_g_redondas",
+    "lum": 0.0
+   },
+   "gl_sol": {
+    "slot": "lentes",
+    "color": null,
+    "src": "promedio/acc_g_sol",
+    "lum": 0.099
+   },
+   "gl_nerd": {
+    "slot": "lentes",
+    "color": null,
+    "src": "promedio/acc_g_nerd",
+    "lum": 0.185
+   },
+   "er_bolita": {
+    "slot": "aretes",
+    "color": "oro",
+    "src": "promedio/acc_e_bolita",
+    "lum": 0.0,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "er_aro": {
+    "slot": "aretes",
+    "color": "oro",
+    "src": "promedio/acc_e_aro",
+    "lum": 0.4,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "nk_cadena": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "promedio/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_oro": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "promedio/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_plata": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "promedio/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "nk_perlas": {
+    "slot": "cadenas",
+    "color": null,
+    "src": "promedio/acc_n_perlas",
+    "lum": 0.571
+   },
+   "nk_medallon": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "promedio/acc_n_medallon",
+    "lum": 0.497,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_diamantes": {
+    "slot": "cadenas",
+    "color": null,
+    "src": "promedio/acc_n_diamantes",
+    "lum": 0.668
+   },
+   "joy_pulsera": {
+    "slot": "pulseras",
+    "color": "oro",
+    "src": "promedio/acc_w_pulsera",
+    "lum": 0.415,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "acc_mochila": {
+    "slot": "mochila",
+    "color": "#c81e1e",
+    "src": "promedio/acc_t_mochila",
+    "lum": 0.209,
+    "sel": {
+     "c": 18,
+     "h": 30
+    }
+   },
+   "cara_redonda": {
+    "slot": "cara",
+    "skins": {
+     "clara": "promedio/cara_redonda_clara",
+     "media": "promedio/cara_redonda_media",
+     "oscura": "promedio/cara_redonda_oscura"
+    },
+    "erase": "promedio/cara.erase"
+   },
+   "cara_cuadrada": {
+    "slot": "cara",
+    "skins": {
+     "clara": "promedio/cara_cuadrada_clara",
+     "media": "promedio/cara_cuadrada_media",
+     "oscura": "promedio/cara_cuadrada_oscura"
+    },
+    "erase": "promedio/cara.erase"
+   },
+   "cara_corazon": {
+    "slot": "cara",
+    "skins": {
+     "clara": "promedio/cara_corazon_clara",
+     "media": "promedio/cara_corazon_media",
+     "oscura": "promedio/cara_corazon_oscura"
+    },
+    "erase": "promedio/cara.erase"
+   },
+   "cara_alargada": {
+    "slot": "cara",
+    "skins": {
+     "clara": "promedio/cara_alargada_clara",
+     "media": "promedio/cara_alargada_media",
+     "oscura": "promedio/cara_alargada_oscura"
+    },
+    "erase": "promedio/cara.erase"
+   },
+   "cara_ancha": {
+    "slot": "cara",
+    "skins": {
+     "clara": "promedio/cara_ancha_clara",
+     "media": "promedio/cara_ancha_media",
+     "oscura": "promedio/cara_ancha_oscura"
+    },
+    "erase": "promedio/cara.erase"
+   },
+   "cara_diamante": {
+    "slot": "cara",
+    "skins": {
+     "clara": "promedio/cara_diamante_clara",
+     "media": "promedio/cara_diamante_media",
+     "oscura": "promedio/cara_diamante_oscura"
+    },
+    "erase": "promedio/cara.erase"
+   },
+   "cara_pera": {
+    "slot": "cara",
+    "skins": {
+     "clara": "promedio/cara_pera_clara",
+     "media": "promedio/cara_pera_media",
+     "oscura": "promedio/cara_pera_oscura"
+    },
+    "erase": "promedio/cara.erase"
+   },
+   "cara_triangular": {
+    "slot": "cara",
+    "skins": {
+     "clara": "promedio/cara_triangular_clara",
+     "media": "promedio/cara_triangular_media",
+     "oscura": "promedio/cara_triangular_oscura"
+    },
+    "erase": "promedio/cara.erase"
+   },
+   "cara_suave": {
+    "slot": "cara",
+    "skins": {
+     "clara": "promedio/cara_suave_clara",
+     "media": "promedio/cara_suave_media",
+     "oscura": "promedio/cara_suave_oscura"
+    },
+    "erase": "promedio/cara.erase"
+   },
+   "ojos_felices": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "promedio/ojos_felices_clara",
+     "media": "promedio/ojos_felices_media",
+     "oscura": "promedio/ojos_felices_oscura"
+    }
+   },
+   "ojos_gui\u00f1o": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "promedio/ojos_gui\u00f1o_clara",
+     "media": "promedio/ojos_gui\u00f1o_media",
+     "oscura": "promedio/ojos_gui\u00f1o_oscura"
+    }
+   },
+   "ojos_sorprendidos": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "promedio/ojos_sorprendidos_clara",
+     "media": "promedio/ojos_sorprendidos_media",
+     "oscura": "promedio/ojos_sorprendidos_oscura"
+    }
+   },
+   "ojos_enojados": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "promedio/ojos_enojados_clara",
+     "media": "promedio/ojos_enojados_media",
+     "oscura": "promedio/ojos_enojados_oscura"
+    }
+   },
+   "ojos_estrellas": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "promedio/ojos_estrellas_clara",
+     "media": "promedio/ojos_estrellas_media",
+     "oscura": "promedio/ojos_estrellas_oscura"
+    }
+   },
+   "boca_carcajada": {
+    "slot": "boca",
+    "skins": {
+     "clara": "promedio/boca_carcajada_clara",
+     "media": "promedio/boca_carcajada_media",
+     "oscura": "promedio/boca_carcajada_oscura"
+    }
+   },
+   "boca_seria": {
+    "slot": "boca",
+    "skins": {
+     "clara": "promedio/boca_seria_clara",
+     "media": "promedio/boca_seria_media",
+     "oscura": "promedio/boca_seria_oscura"
+    }
+   },
+   "boca_lengua": {
+    "slot": "boca",
+    "skins": {
+     "clara": "promedio/boca_lengua_clara",
+     "media": "promedio/boca_lengua_media",
+     "oscura": "promedio/boca_lengua_oscura"
+    }
+   },
+   "boca_sorpresa": {
+    "slot": "boca",
+    "skins": {
+     "clara": "promedio/boca_sorpresa_clara",
+     "media": "promedio/boca_sorpresa_media",
+     "oscura": "promedio/boca_sorpresa_oscura"
+    }
+   },
+   "top_abrigo": {
+    "slot": "arriba",
+    "color": "#781014",
+    "src": "promedio/arriba_top_abrigo",
+    "lum": 0.1529,
+    "hands": {
+     "clara": "promedio/arriba_top_abrigo_piel_clara",
+     "media": "promedio/arriba_top_abrigo_piel_media",
+     "oscura": "promedio/arriba_top_abrigo_piel_oscura"
+    },
+    "erase": "promedio/arriba_top_abrigo.erase"
+   },
+   "zap_vestir": {
+    "slot": "zapatos",
+    "color": "#272b21",
+    "src": "promedio/zapatos_zap_vestir",
+    "lum": 0.1797,
+    "erase": "promedio/zapatos_zap_vestir.erase"
+   },
+   "bot_vestir": {
+    "slot": "abajo",
+    "color": "#152546",
+    "src": "promedio/abajo_bot_vestir",
+    "lum": 0.1386,
+    "erase": "promedio/abajo_bot_vestir.erase"
+   },
+   "bl_botas": {
+    "slot": "zapatos",
+    "color": "#304831",
+    "src": "promedio/zapatos_bl_botas",
+    "lum": 0.2525,
+    "erase": "promedio/zapatos_bl_botas.erase"
+   },
+   "bl_sin_mangas": {
+    "slot": "arriba",
+    "color": "#8e1718",
+    "src": "promedio/arriba_bl_sin_mangas",
+    "lum": 0.1729,
+    "hands": {
+     "clara": "promedio/arriba_bl_sin_mangas_piel_clara",
+     "media": "promedio/arriba_bl_sin_mangas_piel_media",
+     "oscura": "promedio/arriba_bl_sin_mangas_piel_oscura"
+    },
+    "erase": "promedio/arriba_bl_sin_mangas.erase"
+   },
+   "bot_cargo": {
+    "slot": "abajo",
+    "color": "#142a52",
+    "src": "promedio/abajo_bot_cargo",
+    "lum": 0.1592,
+    "erase": "promedio/abajo_bot_cargo.erase"
+   },
+   "zap_sport": {
+    "slot": "zapatos",
+    "color": "#3a6a45",
+    "src": "promedio/zapatos_zap_sport",
+    "lum": 0.3661,
+    "erase": "promedio/zapatos_zap_sport.erase"
+   },
+   "top_hoodie": {
+    "slot": "arriba",
+    "color": "#921617",
+    "src": "promedio/arriba_top_hoodie",
+    "lum": 0.178,
+    "hands": {
+     "clara": "promedio/arriba_top_hoodie_piel_clara",
+     "media": "promedio/arriba_top_hoodie_piel_media",
+     "oscura": "promedio/arriba_top_hoodie_piel_oscura"
+    },
+    "erase": "promedio/arriba_top_hoodie.erase"
+   },
+   "bot_joggers": {
+    "slot": "abajo",
+    "color": "#1a2c52",
+    "src": "promedio/abajo_bot_joggers",
+    "lum": 0.1651,
+    "erase": "promedio/abajo_bot_joggers.erase"
+   },
+   "zap_casual": {
+    "slot": "zapatos",
+    "color": "#435e49",
+    "src": "promedio/zapatos_zap_casual",
+    "lum": 0.3647,
+    "erase": "promedio/zapatos_zap_casual.erase"
+   },
+   "top_chaqueta": {
+    "slot": "arriba",
+    "color": "#83161a",
+    "src": "promedio/arriba_top_chaqueta",
+    "lum": 0.1665,
+    "hands": {
+     "clara": "promedio/arriba_top_chaqueta_piel_clara",
+     "media": "promedio/arriba_top_chaqueta_piel_media",
+     "oscura": "promedio/arriba_top_chaqueta_piel_oscura"
+    },
+    "erase": "promedio/arriba_top_chaqueta.erase"
+   },
+   "bot_jeans": {
+    "slot": "abajo",
+    "color": "#1a2940",
+    "src": "promedio/abajo_bot_jeans",
+    "lum": 0.1574,
+    "erase": "promedio/abajo_bot_jeans.erase"
+   },
+   "bl_camisa": {
+    "slot": "arriba",
+    "color": "#941317",
+    "src": "promedio/arriba_bl_camisa",
+    "lum": 0.1713,
+    "hands": {
+     "clara": "promedio/arriba_bl_camisa_piel_clara",
+     "media": "promedio/arriba_bl_camisa_piel_media",
+     "oscura": "promedio/arriba_bl_camisa_piel_oscura"
+    },
+    "erase": "promedio/arriba_bl_camisa.erase"
+   },
+   "bl_chores": {
+    "slot": "abajo",
+    "color": "#202d5a",
+    "src": "promedio/abajo_bl_chores",
+    "lum": 0.1489,
+    "hands": {
+     "clara": "promedio/abajo_bl_chores_piel_clara",
+     "media": "promedio/abajo_bl_chores_piel_media",
+     "oscura": "promedio/abajo_bl_chores_piel_oscura"
+    },
+    "erase": "promedio/abajo_bl_chores.erase"
+   },
+   "med_deportivas": {
+    "slot": "medias",
+    "color": "#104c23",
+    "src": "promedio/medias_med_deportivas",
+    "lum": 0.2408
+   },
+   "bl_descalzo": {
+    "slot": "zapatos",
+    "color": null,
+    "hands": {
+     "clara": "promedio/zapatos_bl_descalzo_piel_clara",
+     "media": "promedio/zapatos_bl_descalzo_piel_media",
+     "oscura": "promedio/zapatos_bl_descalzo_piel_oscura"
+    },
+    "erase": "promedio/zapatos_bl_descalzo.erase"
+   },
+   "bl_cortas": {
+    "slot": "medias",
+    "color": "#30552a",
+    "src": "promedio/medias_bl_cortas",
+    "lum": 0.2961
+   },
+   "bl_largas": {
+    "slot": "medias",
+    "color": "#1b4427",
+    "src": "promedio/medias_bl_largas",
+    "lum": 0.2307
+   },
+   "med_disenador": {
+    "slot": "medias",
+    "color": "#2b442a",
+    "src": "promedio/medias_med_disenador",
+    "lum": 0.2776
+   },
+   "med_seda": {
+    "slot": "medias",
+    "color": "#293d29",
+    "src": "promedio/medias_med_seda",
+    "lum": 0.2271
+   }
+  },
+  "gordito": {
+   "largo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "gordito/pelo_largo",
+    "lum": 0.101,
+    "hair": true
+   },
+   "puntas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "gordito/pelo_puntas",
+    "lum": 0.09,
+    "hair": true
+   },
+   "coleta": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "gordito/pelo_coleta",
+    "lum": 0.115,
+    "hair": true
+   },
+   "mullet": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "gordito/pelo_mullet",
+    "lum": 0.097,
+    "hair": true
+   },
+   "flequillo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "gordito/pelo_flequillo",
+    "lum": 0.094,
+    "hair": true
+   },
+   "emo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "gordito/pelo_emo",
+    "lum": 0.117,
+    "hair": true
+   },
+   "rastas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "gordito/pelo_rastas",
+    "lum": 0.076,
+    "hair": true
+   },
+   "ondulado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "gordito/pelo_ondulado",
+    "lum": 0.107,
+    "hair": true
+   },
+   "rizos": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "gordito/pelo_rizos",
+    "lum": 0.086,
+    "hair": true
+   },
+   "corto": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "gordito/pelo_corto",
+    "lum": 0.099,
+    "hair": true
+   },
+   "afro": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "gordito/pelo_afro",
+    "lum": 0.056,
+    "hair": true
+   },
+   "cresta": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "gordito/pelo_cresta",
+    "lum": 0.116,
+    "hair": true
+   },
+   "rapado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "gordito/pelo_rapado",
+    "lum": 0.154,
+    "hair": true
+   },
+   "mohicano": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "gordito/pelo_mohicano",
+    "lum": 0.105,
+    "hair": true
+   },
+   "mo\u00f1o": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "gordito/pelo_mo\u00f1o",
+    "lum": 0.123,
+    "hair": true
+   },
+   "raya_lado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "gordito/pelo_raya_lado",
+    "lum": 0.106,
+    "hair": true
+   },
+   "hacia_atras": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "gordito/pelo_hacia_atras",
+    "lum": 0.112,
+    "hair": true
+   },
+   "trenzas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "gordito/pelo_trenzas",
+    "lum": 0.137,
+    "hair": true
+   },
+   "militar": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "gordito/pelo_militar",
+    "lum": 0.11,
+    "hair": true
+   },
+   "base_camiseta": {
+    "slot": "arriba",
+    "color": "#17181c",
+    "src": "gordito/base_camiseta",
+    "lum": 0.0939,
+    "base": true
+   },
+   "base_largo": {
+    "slot": "abajo",
+    "color": "#3a3a3c",
+    "src": "gordito/base_largo",
+    "lum": 0.1765,
+    "base": true
+   },
+   "base_tenis": {
+    "slot": "zapatos",
+    "color": "#d9d9d6",
+    "src": "gordito/base_tenis",
+    "lum": 0.5575,
+    "base": true
+   },
+   "head_gorra_sport": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "gordito/acc_head_gorra_sport",
+    "lum": 0.243,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "gordito/acc_head_gorra_sport.erase"
+   },
+   "head_gorro_sport": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "gordito/acc_head_gorro_sport",
+    "lum": 0.227,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "gordito/acc_head_gorro_sport.erase"
+   },
+   "head_visera": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "gordito/acc_head_visera",
+    "lum": 0.264,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "gordito/acc_head_visera.erase"
+   },
+   "head_gorra_casual": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "gordito/acc_head_gorra_casual",
+    "lum": 0.252,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "gordito/acc_head_gorra_casual.erase"
+   },
+   "hat_gorra": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "gordito/acc_head_gorra_casual",
+    "lum": 0.252,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "gordito/acc_head_gorra_casual.erase"
+   },
+   "head_gorro_casual": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "gordito/acc_head_gorro_casual",
+    "lum": 0.248,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "gordito/acc_head_gorro_casual.erase"
+   },
+   "hat_gorro": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "gordito/acc_head_gorro_casual",
+    "lum": 0.248,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "gordito/acc_head_gorro_casual.erase"
+   },
+   "head_bucket": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "gordito/acc_head_bucket",
+    "lum": 0.232,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "gordito/acc_head_bucket.erase"
+   },
+   "head_gorra_lujo": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "gordito/acc_head_gorra_lujo",
+    "lum": 0.271,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "gordito/acc_head_gorra_lujo.erase"
+   },
+   "head_gorro_lujo": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "gordito/acc_head_gorro_lujo",
+    "lum": 0.2,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "gordito/acc_head_gorro_lujo.erase"
+   },
+   "head_fedora": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "gordito/acc_head_fedora",
+    "lum": 0.177,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "gordito/acc_head_fedora.erase"
+   },
+   "hat_vaquero": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "gordito/acc_hat_vaquero",
+    "lum": 0.178,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "gordito/acc_hat_vaquero.erase"
+   },
+   "hat_gorra_campeon": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "gordito/acc_hat_gorra_campeon",
+    "lum": 0.259,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "gordito/acc_hat_gorra_campeon.erase"
+   },
+   "hat_corona": {
+    "slot": "cabeza",
+    "color": null,
+    "src": "gordito/acc_hat_corona",
+    "lum": 0.486,
+    "erase": "gordito/acc_hat_corona.erase"
+   },
+   "hat_sombrero_dorado": {
+    "slot": "cabeza",
+    "color": null,
+    "src": "gordito/acc_hat_sombrero_dorado",
+    "lum": 0.442,
+    "erase": "gordito/acc_hat_sombrero_dorado.erase"
+   },
+   "gl_redondas": {
+    "slot": "lentes",
+    "color": null,
+    "src": "gordito/acc_g_redondas",
+    "lum": 0.0
+   },
+   "gl_sol": {
+    "slot": "lentes",
+    "color": null,
+    "src": "gordito/acc_g_sol",
+    "lum": 0.099
+   },
+   "gl_nerd": {
+    "slot": "lentes",
+    "color": null,
+    "src": "gordito/acc_g_nerd",
+    "lum": 0.185
+   },
+   "er_bolita": {
+    "slot": "aretes",
+    "color": "oro",
+    "src": "gordito/acc_e_bolita",
+    "lum": 0.0,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "er_aro": {
+    "slot": "aretes",
+    "color": "oro",
+    "src": "gordito/acc_e_aro",
+    "lum": 0.4,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "nk_cadena": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "gordito/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_oro": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "gordito/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_plata": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "gordito/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "nk_perlas": {
+    "slot": "cadenas",
+    "color": null,
+    "src": "gordito/acc_n_perlas",
+    "lum": 0.571
+   },
+   "nk_medallon": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "gordito/acc_n_medallon",
+    "lum": 0.497,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_diamantes": {
+    "slot": "cadenas",
+    "color": null,
+    "src": "gordito/acc_n_diamantes",
+    "lum": 0.668
+   },
+   "joy_pulsera": {
+    "slot": "pulseras",
+    "color": "oro",
+    "src": "gordito/acc_w_pulsera",
+    "lum": 0.415,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "acc_mochila": {
+    "slot": "mochila",
+    "color": "#c81e1e",
+    "src": "gordito/acc_t_mochila",
+    "lum": 0.209,
+    "sel": {
+     "c": 18,
+     "h": 30
+    }
+   },
+   "cara_redonda": {
+    "slot": "cara",
+    "skins": {
+     "clara": "gordito/cara_redonda_clara",
+     "media": "gordito/cara_redonda_media",
+     "oscura": "gordito/cara_redonda_oscura"
+    },
+    "erase": "gordito/cara.erase"
+   },
+   "cara_cuadrada": {
+    "slot": "cara",
+    "skins": {
+     "clara": "gordito/cara_cuadrada_clara",
+     "media": "gordito/cara_cuadrada_media",
+     "oscura": "gordito/cara_cuadrada_oscura"
+    },
+    "erase": "gordito/cara.erase"
+   },
+   "cara_corazon": {
+    "slot": "cara",
+    "skins": {
+     "clara": "gordito/cara_corazon_clara",
+     "media": "gordito/cara_corazon_media",
+     "oscura": "gordito/cara_corazon_oscura"
+    },
+    "erase": "gordito/cara.erase"
+   },
+   "cara_alargada": {
+    "slot": "cara",
+    "skins": {
+     "clara": "gordito/cara_alargada_clara",
+     "media": "gordito/cara_alargada_media",
+     "oscura": "gordito/cara_alargada_oscura"
+    },
+    "erase": "gordito/cara.erase"
+   },
+   "cara_ancha": {
+    "slot": "cara",
+    "skins": {
+     "clara": "gordito/cara_ancha_clara",
+     "media": "gordito/cara_ancha_media",
+     "oscura": "gordito/cara_ancha_oscura"
+    },
+    "erase": "gordito/cara.erase"
+   },
+   "cara_diamante": {
+    "slot": "cara",
+    "skins": {
+     "clara": "gordito/cara_diamante_clara",
+     "media": "gordito/cara_diamante_media",
+     "oscura": "gordito/cara_diamante_oscura"
+    },
+    "erase": "gordito/cara.erase"
+   },
+   "cara_pera": {
+    "slot": "cara",
+    "skins": {
+     "clara": "gordito/cara_pera_clara",
+     "media": "gordito/cara_pera_media",
+     "oscura": "gordito/cara_pera_oscura"
+    },
+    "erase": "gordito/cara.erase"
+   },
+   "cara_triangular": {
+    "slot": "cara",
+    "skins": {
+     "clara": "gordito/cara_triangular_clara",
+     "media": "gordito/cara_triangular_media",
+     "oscura": "gordito/cara_triangular_oscura"
+    },
+    "erase": "gordito/cara.erase"
+   },
+   "cara_suave": {
+    "slot": "cara",
+    "skins": {
+     "clara": "gordito/cara_suave_clara",
+     "media": "gordito/cara_suave_media",
+     "oscura": "gordito/cara_suave_oscura"
+    },
+    "erase": "gordito/cara.erase"
+   },
+   "ojos_felices": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "gordito/ojos_felices_clara",
+     "media": "gordito/ojos_felices_media",
+     "oscura": "gordito/ojos_felices_oscura"
+    }
+   },
+   "ojos_gui\u00f1o": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "gordito/ojos_gui\u00f1o_clara",
+     "media": "gordito/ojos_gui\u00f1o_media",
+     "oscura": "gordito/ojos_gui\u00f1o_oscura"
+    }
+   },
+   "ojos_sorprendidos": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "gordito/ojos_sorprendidos_clara",
+     "media": "gordito/ojos_sorprendidos_media",
+     "oscura": "gordito/ojos_sorprendidos_oscura"
+    }
+   },
+   "ojos_enojados": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "gordito/ojos_enojados_clara",
+     "media": "gordito/ojos_enojados_media",
+     "oscura": "gordito/ojos_enojados_oscura"
+    }
+   },
+   "ojos_estrellas": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "gordito/ojos_estrellas_clara",
+     "media": "gordito/ojos_estrellas_media",
+     "oscura": "gordito/ojos_estrellas_oscura"
+    }
+   },
+   "boca_carcajada": {
+    "slot": "boca",
+    "skins": {
+     "clara": "gordito/boca_carcajada_clara",
+     "media": "gordito/boca_carcajada_media",
+     "oscura": "gordito/boca_carcajada_oscura"
+    }
+   },
+   "boca_seria": {
+    "slot": "boca",
+    "skins": {
+     "clara": "gordito/boca_seria_clara",
+     "media": "gordito/boca_seria_media",
+     "oscura": "gordito/boca_seria_oscura"
+    }
+   },
+   "boca_lengua": {
+    "slot": "boca",
+    "skins": {
+     "clara": "gordito/boca_lengua_clara",
+     "media": "gordito/boca_lengua_media",
+     "oscura": "gordito/boca_lengua_oscura"
+    }
+   },
+   "boca_sorpresa": {
+    "slot": "boca",
+    "skins": {
+     "clara": "gordito/boca_sorpresa_clara",
+     "media": "gordito/boca_sorpresa_media",
+     "oscura": "gordito/boca_sorpresa_oscura"
+    }
+   },
+   "top_abrigo": {
+    "slot": "arriba",
+    "color": "#731317",
+    "src": "gordito/arriba_top_abrigo",
+    "lum": 0.1531,
+    "hands": {
+     "clara": "gordito/arriba_top_abrigo_piel_clara",
+     "media": "gordito/arriba_top_abrigo_piel_media",
+     "oscura": "gordito/arriba_top_abrigo_piel_oscura"
+    },
+    "erase": "gordito/arriba_top_abrigo.erase"
+   },
+   "zap_vestir": {
+    "slot": "zapatos",
+    "color": "#283521",
+    "src": "gordito/zapatos_zap_vestir",
+    "lum": 0.2024,
+    "erase": "gordito/zapatos_zap_vestir.erase"
+   },
+   "bot_vestir": {
+    "slot": "abajo",
+    "color": "#15223f",
+    "src": "gordito/abajo_bot_vestir",
+    "lum": 0.1279,
+    "erase": "gordito/abajo_bot_vestir.erase"
+   },
+   "bot_cargo": {
+    "slot": "abajo",
+    "color": "#142a54",
+    "src": "gordito/abajo_bot_cargo",
+    "lum": 0.1572,
+    "erase": "gordito/abajo_bot_cargo.erase"
+   },
+   "zap_sport": {
+    "slot": "zapatos",
+    "color": "#31623c",
+    "src": "gordito/zapatos_zap_sport",
+    "lum": 0.3417,
+    "erase": "gordito/zapatos_zap_sport.erase"
+   },
+   "top_hoodie": {
+    "slot": "arriba",
+    "color": "#871818",
+    "src": "gordito/arriba_top_hoodie",
+    "lum": 0.1774,
+    "hands": {
+     "clara": "gordito/arriba_top_hoodie_piel_clara",
+     "media": "gordito/arriba_top_hoodie_piel_media",
+     "oscura": "gordito/arriba_top_hoodie_piel_oscura"
+    },
+    "erase": "gordito/arriba_top_hoodie.erase"
+   },
+   "bot_joggers": {
+    "slot": "abajo",
+    "color": "#18284a",
+    "src": "gordito/abajo_bot_joggers",
+    "lum": 0.151,
+    "erase": "gordito/abajo_bot_joggers.erase"
+   },
+   "zap_casual": {
+    "slot": "zapatos",
+    "color": "#3a5a41",
+    "src": "gordito/zapatos_zap_casual",
+    "lum": 0.3498,
+    "erase": "gordito/zapatos_zap_casual.erase"
+   },
+   "top_chaqueta": {
+    "slot": "arriba",
+    "color": "#801619",
+    "src": "gordito/arriba_top_chaqueta",
+    "lum": 0.1655,
+    "hands": {
+     "clara": "gordito/arriba_top_chaqueta_piel_clara",
+     "media": "gordito/arriba_top_chaqueta_piel_media",
+     "oscura": "gordito/arriba_top_chaqueta_piel_oscura"
+    },
+    "erase": "gordito/arriba_top_chaqueta.erase"
+   },
+   "bot_jeans": {
+    "slot": "abajo",
+    "color": "#1d283a",
+    "src": "gordito/abajo_bot_jeans",
+    "lum": 0.153,
+    "erase": "gordito/abajo_bot_jeans.erase"
+   },
+   "med_deportivas": {
+    "slot": "medias",
+    "color": "#1a5321",
+    "src": "gordito/medias_med_deportivas",
+    "lum": 0.2635
+   },
+   "bl_camisa": {
+    "slot": "arriba",
+    "color": "#8d1719",
+    "src": "gordito/arriba_bl_camisa",
+    "lum": 0.1755,
+    "hands": {
+     "clara": "gordito/arriba_bl_camisa_piel_clara",
+     "media": "gordito/arriba_bl_camisa_piel_media",
+     "oscura": "gordito/arriba_bl_camisa_piel_oscura"
+    },
+    "erase": "gordito/arriba_bl_camisa.erase"
+   },
+   "bl_botas": {
+    "slot": "zapatos",
+    "color": "#2f4630",
+    "src": "gordito/zapatos_bl_botas",
+    "lum": 0.2519,
+    "erase": "gordito/zapatos_bl_botas.erase"
+   },
+   "bl_sin_mangas": {
+    "slot": "arriba",
+    "color": "#8e1d1b",
+    "src": "gordito/arriba_bl_sin_mangas",
+    "lum": 0.1941,
+    "hands": {
+     "clara": "gordito/arriba_bl_sin_mangas_piel_clara",
+     "media": "gordito/arriba_bl_sin_mangas_piel_media",
+     "oscura": "gordito/arriba_bl_sin_mangas_piel_oscura"
+    },
+    "erase": "gordito/arriba_bl_sin_mangas.erase"
+   },
+   "bl_chores": {
+    "slot": "abajo",
+    "color": "#1e2d58",
+    "src": "gordito/abajo_bl_chores",
+    "lum": 0.1484,
+    "hands": {
+     "clara": "gordito/abajo_bl_chores_piel_clara",
+     "media": "gordito/abajo_bl_chores_piel_media",
+     "oscura": "gordito/abajo_bl_chores_piel_oscura"
+    },
+    "erase": "gordito/abajo_bl_chores.erase"
+   },
+   "bl_descalzo": {
+    "slot": "zapatos",
+    "color": null,
+    "hands": {
+     "clara": "gordito/zapatos_bl_descalzo_piel_clara",
+     "media": "gordito/zapatos_bl_descalzo_piel_media",
+     "oscura": "gordito/zapatos_bl_descalzo_piel_oscura"
+    },
+    "erase": "gordito/zapatos_bl_descalzo.erase"
+   },
+   "bl_cortas": {
+    "slot": "medias",
+    "color": "#30552a",
+    "src": "gordito/medias_bl_cortas",
+    "lum": 0.2961
+   },
+   "bl_largas": {
+    "slot": "medias",
+    "color": "#1b4427",
+    "src": "gordito/medias_bl_largas",
+    "lum": 0.2307
+   },
+   "med_disenador": {
+    "slot": "medias",
+    "color": "#2b442a",
+    "src": "gordito/medias_med_disenador",
+    "lum": 0.2776
+   },
+   "med_seda": {
+    "slot": "medias",
+    "color": "#293d29",
+    "src": "gordito/medias_med_seda",
+    "lum": 0.2271
+   }
+  },
+  "flaquito": {
+   "largo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "flaquito/pelo_largo",
+    "lum": 0.101,
+    "hair": true
+   },
+   "puntas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "flaquito/pelo_puntas",
+    "lum": 0.09,
+    "hair": true
+   },
+   "coleta": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "flaquito/pelo_coleta",
+    "lum": 0.115,
+    "hair": true
+   },
+   "mullet": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "flaquito/pelo_mullet",
+    "lum": 0.097,
+    "hair": true
+   },
+   "flequillo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "flaquito/pelo_flequillo",
+    "lum": 0.094,
+    "hair": true
+   },
+   "emo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "flaquito/pelo_emo",
+    "lum": 0.117,
+    "hair": true
+   },
+   "rastas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "flaquito/pelo_rastas",
+    "lum": 0.076,
+    "hair": true
+   },
+   "ondulado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "flaquito/pelo_ondulado",
+    "lum": 0.107,
+    "hair": true
+   },
+   "rizos": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "flaquito/pelo_rizos",
+    "lum": 0.086,
+    "hair": true
+   },
+   "corto": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "flaquito/pelo_corto",
+    "lum": 0.099,
+    "hair": true
+   },
+   "afro": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "flaquito/pelo_afro",
+    "lum": 0.056,
+    "hair": true
+   },
+   "cresta": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "flaquito/pelo_cresta",
+    "lum": 0.116,
+    "hair": true
+   },
+   "rapado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "flaquito/pelo_rapado",
+    "lum": 0.154,
+    "hair": true
+   },
+   "mohicano": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "flaquito/pelo_mohicano",
+    "lum": 0.105,
+    "hair": true
+   },
+   "mo\u00f1o": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "flaquito/pelo_mo\u00f1o",
+    "lum": 0.123,
+    "hair": true
+   },
+   "raya_lado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "flaquito/pelo_raya_lado",
+    "lum": 0.106,
+    "hair": true
+   },
+   "hacia_atras": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "flaquito/pelo_hacia_atras",
+    "lum": 0.112,
+    "hair": true
+   },
+   "trenzas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "flaquito/pelo_trenzas",
+    "lum": 0.137,
+    "hair": true
+   },
+   "militar": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "flaquito/pelo_militar",
+    "lum": 0.11,
+    "hair": true
+   },
+   "base_camiseta": {
+    "slot": "arriba",
+    "color": "#17181c",
+    "src": "flaquito/base_camiseta",
+    "lum": 0.0914,
+    "base": true
+   },
+   "base_largo": {
+    "slot": "abajo",
+    "color": "#3a3a3c",
+    "src": "flaquito/base_largo",
+    "lum": 0.182,
+    "base": true
+   },
+   "base_tenis": {
+    "slot": "zapatos",
+    "color": "#d9d9d6",
+    "src": "flaquito/base_tenis",
+    "lum": 0.5551,
+    "base": true
+   },
+   "head_gorra_sport": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "flaquito/acc_head_gorra_sport",
+    "lum": 0.243,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "flaquito/acc_head_gorra_sport.erase"
+   },
+   "head_gorro_sport": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "flaquito/acc_head_gorro_sport",
+    "lum": 0.227,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "flaquito/acc_head_gorro_sport.erase"
+   },
+   "head_visera": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "flaquito/acc_head_visera",
+    "lum": 0.264,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "flaquito/acc_head_visera.erase"
+   },
+   "head_gorra_casual": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "flaquito/acc_head_gorra_casual",
+    "lum": 0.252,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "flaquito/acc_head_gorra_casual.erase"
+   },
+   "hat_gorra": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "flaquito/acc_head_gorra_casual",
+    "lum": 0.252,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "flaquito/acc_head_gorra_casual.erase"
+   },
+   "head_gorro_casual": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "flaquito/acc_head_gorro_casual",
+    "lum": 0.248,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "flaquito/acc_head_gorro_casual.erase"
+   },
+   "hat_gorro": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "flaquito/acc_head_gorro_casual",
+    "lum": 0.248,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "flaquito/acc_head_gorro_casual.erase"
+   },
+   "head_bucket": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "flaquito/acc_head_bucket",
+    "lum": 0.232,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "flaquito/acc_head_bucket.erase"
+   },
+   "head_gorra_lujo": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "flaquito/acc_head_gorra_lujo",
+    "lum": 0.271,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "flaquito/acc_head_gorra_lujo.erase"
+   },
+   "head_gorro_lujo": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "flaquito/acc_head_gorro_lujo",
+    "lum": 0.2,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "flaquito/acc_head_gorro_lujo.erase"
+   },
+   "head_fedora": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "flaquito/acc_head_fedora",
+    "lum": 0.177,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "flaquito/acc_head_fedora.erase"
+   },
+   "hat_vaquero": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "flaquito/acc_hat_vaquero",
+    "lum": 0.178,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "flaquito/acc_hat_vaquero.erase"
+   },
+   "hat_gorra_campeon": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "flaquito/acc_hat_gorra_campeon",
+    "lum": 0.259,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "flaquito/acc_hat_gorra_campeon.erase"
+   },
+   "hat_corona": {
+    "slot": "cabeza",
+    "color": null,
+    "src": "flaquito/acc_hat_corona",
+    "lum": 0.486,
+    "erase": "flaquito/acc_hat_corona.erase"
+   },
+   "hat_sombrero_dorado": {
+    "slot": "cabeza",
+    "color": null,
+    "src": "flaquito/acc_hat_sombrero_dorado",
+    "lum": 0.442,
+    "erase": "flaquito/acc_hat_sombrero_dorado.erase"
+   },
+   "gl_redondas": {
+    "slot": "lentes",
+    "color": null,
+    "src": "flaquito/acc_g_redondas",
+    "lum": 0.0
+   },
+   "gl_sol": {
+    "slot": "lentes",
+    "color": null,
+    "src": "flaquito/acc_g_sol",
+    "lum": 0.099
+   },
+   "gl_nerd": {
+    "slot": "lentes",
+    "color": null,
+    "src": "flaquito/acc_g_nerd",
+    "lum": 0.185
+   },
+   "er_bolita": {
+    "slot": "aretes",
+    "color": "oro",
+    "src": "flaquito/acc_e_bolita",
+    "lum": 0.0,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "er_aro": {
+    "slot": "aretes",
+    "color": "oro",
+    "src": "flaquito/acc_e_aro",
+    "lum": 0.4,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "nk_cadena": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "flaquito/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_oro": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "flaquito/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_plata": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "flaquito/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "nk_perlas": {
+    "slot": "cadenas",
+    "color": null,
+    "src": "flaquito/acc_n_perlas",
+    "lum": 0.571
+   },
+   "nk_medallon": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "flaquito/acc_n_medallon",
+    "lum": 0.497,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_diamantes": {
+    "slot": "cadenas",
+    "color": null,
+    "src": "flaquito/acc_n_diamantes",
+    "lum": 0.668
+   },
+   "joy_pulsera": {
+    "slot": "pulseras",
+    "color": "oro",
+    "src": "flaquito/acc_w_pulsera",
+    "lum": 0.415,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "acc_mochila": {
+    "slot": "mochila",
+    "color": "#c81e1e",
+    "src": "flaquito/acc_t_mochila",
+    "lum": 0.209,
+    "sel": {
+     "c": 18,
+     "h": 30
+    }
+   },
+   "cara_redonda": {
+    "slot": "cara",
+    "skins": {
+     "clara": "flaquito/cara_redonda_clara",
+     "media": "flaquito/cara_redonda_media",
+     "oscura": "flaquito/cara_redonda_oscura"
+    },
+    "erase": "flaquito/cara.erase"
+   },
+   "cara_cuadrada": {
+    "slot": "cara",
+    "skins": {
+     "clara": "flaquito/cara_cuadrada_clara",
+     "media": "flaquito/cara_cuadrada_media",
+     "oscura": "flaquito/cara_cuadrada_oscura"
+    },
+    "erase": "flaquito/cara.erase"
+   },
+   "cara_corazon": {
+    "slot": "cara",
+    "skins": {
+     "clara": "flaquito/cara_corazon_clara",
+     "media": "flaquito/cara_corazon_media",
+     "oscura": "flaquito/cara_corazon_oscura"
+    },
+    "erase": "flaquito/cara.erase"
+   },
+   "cara_alargada": {
+    "slot": "cara",
+    "skins": {
+     "clara": "flaquito/cara_alargada_clara",
+     "media": "flaquito/cara_alargada_media",
+     "oscura": "flaquito/cara_alargada_oscura"
+    },
+    "erase": "flaquito/cara.erase"
+   },
+   "cara_ancha": {
+    "slot": "cara",
+    "skins": {
+     "clara": "flaquito/cara_ancha_clara",
+     "media": "flaquito/cara_ancha_media",
+     "oscura": "flaquito/cara_ancha_oscura"
+    },
+    "erase": "flaquito/cara.erase"
+   },
+   "cara_diamante": {
+    "slot": "cara",
+    "skins": {
+     "clara": "flaquito/cara_diamante_clara",
+     "media": "flaquito/cara_diamante_media",
+     "oscura": "flaquito/cara_diamante_oscura"
+    },
+    "erase": "flaquito/cara.erase"
+   },
+   "cara_pera": {
+    "slot": "cara",
+    "skins": {
+     "clara": "flaquito/cara_pera_clara",
+     "media": "flaquito/cara_pera_media",
+     "oscura": "flaquito/cara_pera_oscura"
+    },
+    "erase": "flaquito/cara.erase"
+   },
+   "cara_triangular": {
+    "slot": "cara",
+    "skins": {
+     "clara": "flaquito/cara_triangular_clara",
+     "media": "flaquito/cara_triangular_media",
+     "oscura": "flaquito/cara_triangular_oscura"
+    },
+    "erase": "flaquito/cara.erase"
+   },
+   "cara_suave": {
+    "slot": "cara",
+    "skins": {
+     "clara": "flaquito/cara_suave_clara",
+     "media": "flaquito/cara_suave_media",
+     "oscura": "flaquito/cara_suave_oscura"
+    },
+    "erase": "flaquito/cara.erase"
+   },
+   "ojos_felices": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "flaquito/ojos_felices_clara",
+     "media": "flaquito/ojos_felices_media",
+     "oscura": "flaquito/ojos_felices_oscura"
+    }
+   },
+   "ojos_gui\u00f1o": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "flaquito/ojos_gui\u00f1o_clara",
+     "media": "flaquito/ojos_gui\u00f1o_media",
+     "oscura": "flaquito/ojos_gui\u00f1o_oscura"
+    }
+   },
+   "ojos_sorprendidos": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "flaquito/ojos_sorprendidos_clara",
+     "media": "flaquito/ojos_sorprendidos_media",
+     "oscura": "flaquito/ojos_sorprendidos_oscura"
+    }
+   },
+   "ojos_enojados": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "flaquito/ojos_enojados_clara",
+     "media": "flaquito/ojos_enojados_media",
+     "oscura": "flaquito/ojos_enojados_oscura"
+    }
+   },
+   "ojos_estrellas": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "flaquito/ojos_estrellas_clara",
+     "media": "flaquito/ojos_estrellas_media",
+     "oscura": "flaquito/ojos_estrellas_oscura"
+    }
+   },
+   "boca_carcajada": {
+    "slot": "boca",
+    "skins": {
+     "clara": "flaquito/boca_carcajada_clara",
+     "media": "flaquito/boca_carcajada_media",
+     "oscura": "flaquito/boca_carcajada_oscura"
+    }
+   },
+   "boca_seria": {
+    "slot": "boca",
+    "skins": {
+     "clara": "flaquito/boca_seria_clara",
+     "media": "flaquito/boca_seria_media",
+     "oscura": "flaquito/boca_seria_oscura"
+    }
+   },
+   "boca_lengua": {
+    "slot": "boca",
+    "skins": {
+     "clara": "flaquito/boca_lengua_clara",
+     "media": "flaquito/boca_lengua_media",
+     "oscura": "flaquito/boca_lengua_oscura"
+    }
+   },
+   "boca_sorpresa": {
+    "slot": "boca",
+    "skins": {
+     "clara": "flaquito/boca_sorpresa_clara",
+     "media": "flaquito/boca_sorpresa_media",
+     "oscura": "flaquito/boca_sorpresa_oscura"
+    }
+   },
+   "top_abrigo": {
+    "slot": "arriba",
+    "color": "#6e1318",
+    "src": "flaquito/arriba_top_abrigo",
+    "lum": 0.1525,
+    "hands": {
+     "clara": "flaquito/arriba_top_abrigo_piel_clara",
+     "media": "flaquito/arriba_top_abrigo_piel_media",
+     "oscura": "flaquito/arriba_top_abrigo_piel_oscura"
+    },
+    "erase": "flaquito/arriba_top_abrigo.erase"
+   },
+   "zap_vestir": {
+    "slot": "zapatos",
+    "color": "#282e24",
+    "src": "flaquito/zapatos_zap_vestir",
+    "lum": 0.184,
+    "erase": "flaquito/zapatos_zap_vestir.erase"
+   },
+   "bot_vestir": {
+    "slot": "abajo",
+    "color": "#182542",
+    "src": "flaquito/abajo_bot_vestir",
+    "lum": 0.14,
+    "erase": "flaquito/abajo_bot_vestir.erase"
+   },
+   "bl_botas": {
+    "slot": "zapatos",
+    "color": "#293e29",
+    "src": "flaquito/zapatos_bl_botas",
+    "lum": 0.226,
+    "erase": "flaquito/zapatos_bl_botas.erase"
+   },
+   "bl_sin_mangas": {
+    "slot": "arriba",
+    "color": "#85181a",
+    "src": "flaquito/arriba_bl_sin_mangas",
+    "lum": 0.1736,
+    "hands": {
+     "clara": "flaquito/arriba_bl_sin_mangas_piel_clara",
+     "media": "flaquito/arriba_bl_sin_mangas_piel_media",
+     "oscura": "flaquito/arriba_bl_sin_mangas_piel_oscura"
+    },
+    "erase": "flaquito/arriba_bl_sin_mangas.erase"
+   },
+   "bot_cargo": {
+    "slot": "abajo",
+    "color": "#152d59",
+    "src": "flaquito/abajo_bot_cargo",
+    "lum": 0.1702,
+    "erase": "flaquito/abajo_bot_cargo.erase"
+   },
+   "zap_sport": {
+    "slot": "zapatos",
+    "color": "#356942",
+    "src": "flaquito/zapatos_zap_sport",
+    "lum": 0.3622,
+    "erase": "flaquito/zapatos_zap_sport.erase"
+   },
+   "top_hoodie": {
+    "slot": "arriba",
+    "color": "#8b191a",
+    "src": "flaquito/arriba_top_hoodie",
+    "lum": 0.182,
+    "hands": {
+     "clara": "flaquito/arriba_top_hoodie_piel_clara",
+     "media": "flaquito/arriba_top_hoodie_piel_media",
+     "oscura": "flaquito/arriba_top_hoodie_piel_oscura"
+    },
+    "erase": "flaquito/arriba_top_hoodie.erase"
+   },
+   "bot_joggers": {
+    "slot": "abajo",
+    "color": "#182c56",
+    "src": "flaquito/abajo_bot_joggers",
+    "lum": 0.1689,
+    "erase": "flaquito/abajo_bot_joggers.erase"
+   },
+   "zap_casual": {
+    "slot": "zapatos",
+    "color": "#3b6247",
+    "src": "flaquito/zapatos_zap_casual",
+    "lum": 0.3794,
+    "erase": "flaquito/zapatos_zap_casual.erase"
+   },
+   "top_chaqueta": {
+    "slot": "arriba",
+    "color": "#7f1d1e",
+    "src": "flaquito/arriba_top_chaqueta",
+    "lum": 0.1922,
+    "hands": {
+     "clara": "flaquito/arriba_top_chaqueta_piel_clara",
+     "media": "flaquito/arriba_top_chaqueta_piel_media",
+     "oscura": "flaquito/arriba_top_chaqueta_piel_oscura"
+    },
+    "erase": "flaquito/arriba_top_chaqueta.erase"
+   },
+   "bot_jeans": {
+    "slot": "abajo",
+    "color": "#1d2940",
+    "src": "flaquito/abajo_bot_jeans",
+    "lum": 0.1591,
+    "erase": "flaquito/abajo_bot_jeans.erase"
+   },
+   "bl_camisa": {
+    "slot": "arriba",
+    "color": "#89181b",
+    "src": "flaquito/arriba_bl_camisa",
+    "lum": 0.1777,
+    "hands": {
+     "clara": "flaquito/arriba_bl_camisa_piel_clara",
+     "media": "flaquito/arriba_bl_camisa_piel_media",
+     "oscura": "flaquito/arriba_bl_camisa_piel_oscura"
+    },
+    "erase": "flaquito/arriba_bl_camisa.erase"
+   },
+   "bl_chores": {
+    "slot": "abajo",
+    "color": "#202f5b",
+    "src": "flaquito/abajo_bl_chores",
+    "lum": 0.1575,
+    "hands": {
+     "clara": "flaquito/abajo_bl_chores_piel_clara",
+     "media": "flaquito/abajo_bl_chores_piel_media",
+     "oscura": "flaquito/abajo_bl_chores_piel_oscura"
+    },
+    "erase": "flaquito/abajo_bl_chores.erase"
+   },
+   "med_deportivas": {
+    "slot": "medias",
+    "color": "#1a4a22",
+    "src": "flaquito/medias_med_deportivas",
+    "lum": 0.2469
+   },
+   "bl_descalzo": {
+    "slot": "zapatos",
+    "color": null,
+    "hands": {
+     "clara": "flaquito/zapatos_bl_descalzo_piel_clara",
+     "media": "flaquito/zapatos_bl_descalzo_piel_media",
+     "oscura": "flaquito/zapatos_bl_descalzo_piel_oscura"
+    },
+    "erase": "flaquito/zapatos_bl_descalzo.erase"
+   },
+   "bl_cortas": {
+    "slot": "medias",
+    "color": "#30552a",
+    "src": "flaquito/medias_bl_cortas",
+    "lum": 0.2961
+   },
+   "bl_largas": {
+    "slot": "medias",
+    "color": "#1b4427",
+    "src": "flaquito/medias_bl_largas",
+    "lum": 0.2307
+   },
+   "med_disenador": {
+    "slot": "medias",
+    "color": "#2b442a",
+    "src": "flaquito/medias_med_disenador",
+    "lum": 0.2776
+   },
+   "med_seda": {
+    "slot": "medias",
+    "color": "#293d29",
+    "src": "flaquito/medias_med_seda",
+    "lum": 0.2271
+   }
+  },
+  "corpulento": {
+   "largo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "corpulento/pelo_largo",
+    "lum": 0.101,
+    "hair": true
+   },
+   "puntas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "corpulento/pelo_puntas",
+    "lum": 0.09,
+    "hair": true
+   },
+   "coleta": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "corpulento/pelo_coleta",
+    "lum": 0.115,
+    "hair": true
+   },
+   "mullet": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "corpulento/pelo_mullet",
+    "lum": 0.097,
+    "hair": true
+   },
+   "flequillo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "corpulento/pelo_flequillo",
+    "lum": 0.094,
+    "hair": true
+   },
+   "emo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "corpulento/pelo_emo",
+    "lum": 0.117,
+    "hair": true
+   },
+   "rastas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "corpulento/pelo_rastas",
+    "lum": 0.076,
+    "hair": true
+   },
+   "ondulado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "corpulento/pelo_ondulado",
+    "lum": 0.107,
+    "hair": true
+   },
+   "rizos": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "corpulento/pelo_rizos",
+    "lum": 0.086,
+    "hair": true
+   },
+   "corto": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "corpulento/pelo_corto",
+    "lum": 0.099,
+    "hair": true
+   },
+   "afro": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "corpulento/pelo_afro",
+    "lum": 0.056,
+    "hair": true
+   },
+   "cresta": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "corpulento/pelo_cresta",
+    "lum": 0.116,
+    "hair": true
+   },
+   "rapado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "corpulento/pelo_rapado",
+    "lum": 0.154,
+    "hair": true
+   },
+   "mohicano": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "corpulento/pelo_mohicano",
+    "lum": 0.105,
+    "hair": true
+   },
+   "mo\u00f1o": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "corpulento/pelo_mo\u00f1o",
+    "lum": 0.123,
+    "hair": true
+   },
+   "raya_lado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "corpulento/pelo_raya_lado",
+    "lum": 0.106,
+    "hair": true
+   },
+   "hacia_atras": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "corpulento/pelo_hacia_atras",
+    "lum": 0.112,
+    "hair": true
+   },
+   "trenzas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "corpulento/pelo_trenzas",
+    "lum": 0.137,
+    "hair": true
+   },
+   "militar": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "corpulento/pelo_militar",
+    "lum": 0.11,
+    "hair": true
+   },
+   "base_camiseta": {
+    "slot": "arriba",
+    "color": "#17181c",
+    "src": "corpulento/base_camiseta",
+    "lum": 0.1063,
+    "base": true
+   },
+   "base_largo": {
+    "slot": "abajo",
+    "color": "#3a3a3c",
+    "src": "corpulento/base_largo",
+    "lum": 0.1779,
+    "base": true
+   },
+   "base_tenis": {
+    "slot": "zapatos",
+    "color": "#d9d9d6",
+    "src": "corpulento/base_tenis",
+    "lum": 0.5789,
+    "base": true
+   },
+   "head_gorra_sport": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "corpulento/acc_head_gorra_sport",
+    "lum": 0.243,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "corpulento/acc_head_gorra_sport.erase"
+   },
+   "head_gorro_sport": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "corpulento/acc_head_gorro_sport",
+    "lum": 0.227,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "corpulento/acc_head_gorro_sport.erase"
+   },
+   "head_visera": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "corpulento/acc_head_visera",
+    "lum": 0.264,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "corpulento/acc_head_visera.erase"
+   },
+   "head_gorra_casual": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "corpulento/acc_head_gorra_casual",
+    "lum": 0.252,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "corpulento/acc_head_gorra_casual.erase"
+   },
+   "hat_gorra": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "corpulento/acc_head_gorra_casual",
+    "lum": 0.252,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "corpulento/acc_head_gorra_casual.erase"
+   },
+   "head_gorro_casual": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "corpulento/acc_head_gorro_casual",
+    "lum": 0.248,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "corpulento/acc_head_gorro_casual.erase"
+   },
+   "hat_gorro": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "corpulento/acc_head_gorro_casual",
+    "lum": 0.248,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "corpulento/acc_head_gorro_casual.erase"
+   },
+   "head_bucket": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "corpulento/acc_head_bucket",
+    "lum": 0.232,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "corpulento/acc_head_bucket.erase"
+   },
+   "head_gorra_lujo": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "corpulento/acc_head_gorra_lujo",
+    "lum": 0.271,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "corpulento/acc_head_gorra_lujo.erase"
+   },
+   "head_gorro_lujo": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "corpulento/acc_head_gorro_lujo",
+    "lum": 0.2,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "corpulento/acc_head_gorro_lujo.erase"
+   },
+   "head_fedora": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "corpulento/acc_head_fedora",
+    "lum": 0.177,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "corpulento/acc_head_fedora.erase"
+   },
+   "hat_vaquero": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "corpulento/acc_hat_vaquero",
+    "lum": 0.178,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "corpulento/acc_hat_vaquero.erase"
+   },
+   "hat_gorra_campeon": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "corpulento/acc_hat_gorra_campeon",
+    "lum": 0.259,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "corpulento/acc_hat_gorra_campeon.erase"
+   },
+   "hat_corona": {
+    "slot": "cabeza",
+    "color": null,
+    "src": "corpulento/acc_hat_corona",
+    "lum": 0.486,
+    "erase": "corpulento/acc_hat_corona.erase"
+   },
+   "hat_sombrero_dorado": {
+    "slot": "cabeza",
+    "color": null,
+    "src": "corpulento/acc_hat_sombrero_dorado",
+    "lum": 0.442,
+    "erase": "corpulento/acc_hat_sombrero_dorado.erase"
+   },
+   "gl_redondas": {
+    "slot": "lentes",
+    "color": null,
+    "src": "corpulento/acc_g_redondas",
+    "lum": 0.0
+   },
+   "gl_sol": {
+    "slot": "lentes",
+    "color": null,
+    "src": "corpulento/acc_g_sol",
+    "lum": 0.099
+   },
+   "gl_nerd": {
+    "slot": "lentes",
+    "color": null,
+    "src": "corpulento/acc_g_nerd",
+    "lum": 0.185
+   },
+   "er_bolita": {
+    "slot": "aretes",
+    "color": "oro",
+    "src": "corpulento/acc_e_bolita",
+    "lum": 0.0,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "er_aro": {
+    "slot": "aretes",
+    "color": "oro",
+    "src": "corpulento/acc_e_aro",
+    "lum": 0.4,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "nk_cadena": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "corpulento/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_oro": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "corpulento/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_plata": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "corpulento/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "nk_perlas": {
+    "slot": "cadenas",
+    "color": null,
+    "src": "corpulento/acc_n_perlas",
+    "lum": 0.571
+   },
+   "nk_medallon": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "corpulento/acc_n_medallon",
+    "lum": 0.497,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_diamantes": {
+    "slot": "cadenas",
+    "color": null,
+    "src": "corpulento/acc_n_diamantes",
+    "lum": 0.668
+   },
+   "joy_pulsera": {
+    "slot": "pulseras",
+    "color": "oro",
+    "src": "corpulento/acc_w_pulsera",
+    "lum": 0.415,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "acc_mochila": {
+    "slot": "mochila",
+    "color": "#c81e1e",
+    "src": "corpulento/acc_t_mochila",
+    "lum": 0.209,
+    "sel": {
+     "c": 18,
+     "h": 30
+    }
+   },
+   "cara_redonda": {
+    "slot": "cara",
+    "skins": {
+     "clara": "corpulento/cara_redonda_clara",
+     "media": "corpulento/cara_redonda_media",
+     "oscura": "corpulento/cara_redonda_oscura"
+    },
+    "erase": "corpulento/cara.erase"
+   },
+   "cara_cuadrada": {
+    "slot": "cara",
+    "skins": {
+     "clara": "corpulento/cara_cuadrada_clara",
+     "media": "corpulento/cara_cuadrada_media",
+     "oscura": "corpulento/cara_cuadrada_oscura"
+    },
+    "erase": "corpulento/cara.erase"
+   },
+   "cara_corazon": {
+    "slot": "cara",
+    "skins": {
+     "clara": "corpulento/cara_corazon_clara",
+     "media": "corpulento/cara_corazon_media",
+     "oscura": "corpulento/cara_corazon_oscura"
+    },
+    "erase": "corpulento/cara.erase"
+   },
+   "cara_alargada": {
+    "slot": "cara",
+    "skins": {
+     "clara": "corpulento/cara_alargada_clara",
+     "media": "corpulento/cara_alargada_media",
+     "oscura": "corpulento/cara_alargada_oscura"
+    },
+    "erase": "corpulento/cara.erase"
+   },
+   "cara_ancha": {
+    "slot": "cara",
+    "skins": {
+     "clara": "corpulento/cara_ancha_clara",
+     "media": "corpulento/cara_ancha_media",
+     "oscura": "corpulento/cara_ancha_oscura"
+    },
+    "erase": "corpulento/cara.erase"
+   },
+   "cara_diamante": {
+    "slot": "cara",
+    "skins": {
+     "clara": "corpulento/cara_diamante_clara",
+     "media": "corpulento/cara_diamante_media",
+     "oscura": "corpulento/cara_diamante_oscura"
+    },
+    "erase": "corpulento/cara.erase"
+   },
+   "cara_pera": {
+    "slot": "cara",
+    "skins": {
+     "clara": "corpulento/cara_pera_clara",
+     "media": "corpulento/cara_pera_media",
+     "oscura": "corpulento/cara_pera_oscura"
+    },
+    "erase": "corpulento/cara.erase"
+   },
+   "cara_triangular": {
+    "slot": "cara",
+    "skins": {
+     "clara": "corpulento/cara_triangular_clara",
+     "media": "corpulento/cara_triangular_media",
+     "oscura": "corpulento/cara_triangular_oscura"
+    },
+    "erase": "corpulento/cara.erase"
+   },
+   "cara_suave": {
+    "slot": "cara",
+    "skins": {
+     "clara": "corpulento/cara_suave_clara",
+     "media": "corpulento/cara_suave_media",
+     "oscura": "corpulento/cara_suave_oscura"
+    },
+    "erase": "corpulento/cara.erase"
+   },
+   "ojos_felices": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "corpulento/ojos_felices_clara",
+     "media": "corpulento/ojos_felices_media",
+     "oscura": "corpulento/ojos_felices_oscura"
+    }
+   },
+   "ojos_gui\u00f1o": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "corpulento/ojos_gui\u00f1o_clara",
+     "media": "corpulento/ojos_gui\u00f1o_media",
+     "oscura": "corpulento/ojos_gui\u00f1o_oscura"
+    }
+   },
+   "ojos_sorprendidos": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "corpulento/ojos_sorprendidos_clara",
+     "media": "corpulento/ojos_sorprendidos_media",
+     "oscura": "corpulento/ojos_sorprendidos_oscura"
+    }
+   },
+   "ojos_enojados": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "corpulento/ojos_enojados_clara",
+     "media": "corpulento/ojos_enojados_media",
+     "oscura": "corpulento/ojos_enojados_oscura"
+    }
+   },
+   "ojos_estrellas": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "corpulento/ojos_estrellas_clara",
+     "media": "corpulento/ojos_estrellas_media",
+     "oscura": "corpulento/ojos_estrellas_oscura"
+    }
+   },
+   "boca_carcajada": {
+    "slot": "boca",
+    "skins": {
+     "clara": "corpulento/boca_carcajada_clara",
+     "media": "corpulento/boca_carcajada_media",
+     "oscura": "corpulento/boca_carcajada_oscura"
+    }
+   },
+   "boca_seria": {
+    "slot": "boca",
+    "skins": {
+     "clara": "corpulento/boca_seria_clara",
+     "media": "corpulento/boca_seria_media",
+     "oscura": "corpulento/boca_seria_oscura"
+    }
+   },
+   "boca_lengua": {
+    "slot": "boca",
+    "skins": {
+     "clara": "corpulento/boca_lengua_clara",
+     "media": "corpulento/boca_lengua_media",
+     "oscura": "corpulento/boca_lengua_oscura"
+    }
+   },
+   "boca_sorpresa": {
+    "slot": "boca",
+    "skins": {
+     "clara": "corpulento/boca_sorpresa_clara",
+     "media": "corpulento/boca_sorpresa_media",
+     "oscura": "corpulento/boca_sorpresa_oscura"
+    }
+   },
+   "top_abrigo": {
+    "slot": "arriba",
+    "color": "#791315",
+    "src": "corpulento/arriba_top_abrigo",
+    "lum": 0.1621,
+    "hands": {
+     "clara": "corpulento/arriba_top_abrigo_piel_clara",
+     "media": "corpulento/arriba_top_abrigo_piel_media",
+     "oscura": "corpulento/arriba_top_abrigo_piel_oscura"
+    },
+    "erase": "corpulento/arriba_top_abrigo.erase"
+   },
+   "zap_vestir": {
+    "slot": "zapatos",
+    "color": "#282c22",
+    "src": "corpulento/zapatos_zap_vestir",
+    "lum": 0.1761,
+    "erase": "corpulento/zapatos_zap_vestir.erase"
+   },
+   "bot_vestir": {
+    "slot": "abajo",
+    "color": "#17233f",
+    "src": "corpulento/abajo_bot_vestir",
+    "lum": 0.1354,
+    "erase": "corpulento/abajo_bot_vestir.erase"
+   },
+   "bl_botas": {
+    "slot": "zapatos",
+    "color": "#273a2d",
+    "src": "corpulento/zapatos_bl_botas",
+    "lum": 0.2152,
+    "erase": "corpulento/zapatos_bl_botas.erase"
+   },
+   "bl_sin_mangas": {
+    "slot": "arriba",
+    "color": "#921819",
+    "src": "corpulento/arriba_bl_sin_mangas",
+    "lum": 0.1851,
+    "hands": {
+     "clara": "corpulento/arriba_bl_sin_mangas_piel_clara",
+     "media": "corpulento/arriba_bl_sin_mangas_piel_media",
+     "oscura": "corpulento/arriba_bl_sin_mangas_piel_oscura"
+    },
+    "erase": "corpulento/arriba_bl_sin_mangas.erase"
+   },
+   "bot_cargo": {
+    "slot": "abajo",
+    "color": "#142a53",
+    "src": "corpulento/abajo_bot_cargo",
+    "lum": 0.1615,
+    "erase": "corpulento/abajo_bot_cargo.erase"
+   },
+   "zap_sport": {
+    "slot": "zapatos",
+    "color": "#445d42",
+    "src": "corpulento/zapatos_zap_sport",
+    "lum": 0.339,
+    "erase": "corpulento/zapatos_zap_sport.erase"
+   },
+   "top_hoodie": {
+    "slot": "arriba",
+    "color": "#8e1a19",
+    "src": "corpulento/arriba_top_hoodie",
+    "lum": 0.187,
+    "hands": {
+     "clara": "corpulento/arriba_top_hoodie_piel_clara",
+     "media": "corpulento/arriba_top_hoodie_piel_media",
+     "oscura": "corpulento/arriba_top_hoodie_piel_oscura"
+    },
+    "erase": "corpulento/arriba_top_hoodie.erase"
+   },
+   "bot_joggers": {
+    "slot": "abajo",
+    "color": "#172c4f",
+    "src": "corpulento/abajo_bot_joggers",
+    "lum": 0.1657,
+    "erase": "corpulento/abajo_bot_joggers.erase"
+   },
+   "zap_casual": {
+    "slot": "zapatos",
+    "color": "#3e6742",
+    "src": "corpulento/zapatos_zap_casual",
+    "lum": 0.388,
+    "erase": "corpulento/zapatos_zap_casual.erase"
+   },
+   "top_chaqueta": {
+    "slot": "arriba",
+    "color": "#851b1c",
+    "src": "corpulento/arriba_top_chaqueta",
+    "lum": 0.1809,
+    "hands": {
+     "clara": "corpulento/arriba_top_chaqueta_piel_clara",
+     "media": "corpulento/arriba_top_chaqueta_piel_media",
+     "oscura": "corpulento/arriba_top_chaqueta_piel_oscura"
+    },
+    "erase": "corpulento/arriba_top_chaqueta.erase"
+   },
+   "bot_jeans": {
+    "slot": "abajo",
+    "color": "#1c283b",
+    "src": "corpulento/abajo_bot_jeans",
+    "lum": 0.1545,
+    "erase": "corpulento/abajo_bot_jeans.erase"
+   },
+   "bl_camisa": {
+    "slot": "arriba",
+    "color": "#911c1c",
+    "src": "corpulento/arriba_bl_camisa",
+    "lum": 0.1943,
+    "hands": {
+     "clara": "corpulento/arriba_bl_camisa_piel_clara",
+     "media": "corpulento/arriba_bl_camisa_piel_media",
+     "oscura": "corpulento/arriba_bl_camisa_piel_oscura"
+    },
+    "erase": "corpulento/arriba_bl_camisa.erase"
+   },
+   "bl_chores": {
+    "slot": "abajo",
+    "color": "#213159",
+    "src": "corpulento/abajo_bl_chores",
+    "lum": 0.1598,
+    "hands": {
+     "clara": "corpulento/abajo_bl_chores_piel_clara",
+     "media": "corpulento/abajo_bl_chores_piel_media",
+     "oscura": "corpulento/abajo_bl_chores_piel_oscura"
+    },
+    "erase": "corpulento/abajo_bl_chores.erase"
+   },
+   "med_deportivas": {
+    "slot": "medias",
+    "color": "#1a4e25",
+    "src": "corpulento/medias_med_deportivas",
+    "lum": 0.2575
+   },
+   "bl_descalzo": {
+    "slot": "zapatos",
+    "color": null,
+    "hands": {
+     "clara": "corpulento/zapatos_bl_descalzo_piel_clara",
+     "media": "corpulento/zapatos_bl_descalzo_piel_media",
+     "oscura": "corpulento/zapatos_bl_descalzo_piel_oscura"
+    },
+    "erase": "corpulento/zapatos_bl_descalzo.erase"
+   },
+   "bl_cortas": {
+    "slot": "medias",
+    "color": "#30552a",
+    "src": "corpulento/medias_bl_cortas",
+    "lum": 0.2961
+   },
+   "bl_largas": {
+    "slot": "medias",
+    "color": "#1b4427",
+    "src": "corpulento/medias_bl_largas",
+    "lum": 0.2307
+   },
+   "med_disenador": {
+    "slot": "medias",
+    "color": "#2b442a",
+    "src": "corpulento/medias_med_disenador",
+    "lum": 0.2776
+   },
+   "med_seda": {
+    "slot": "medias",
+    "color": "#293d29",
+    "src": "corpulento/medias_med_seda",
+    "lum": 0.2271
+   }
+  },
+  "delgado": {
+   "largo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "delgado/pelo_largo",
+    "lum": 0.101,
+    "hair": true
+   },
+   "puntas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "delgado/pelo_puntas",
+    "lum": 0.09,
+    "hair": true
+   },
+   "coleta": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "delgado/pelo_coleta",
+    "lum": 0.115,
+    "hair": true
+   },
+   "mullet": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "delgado/pelo_mullet",
+    "lum": 0.097,
+    "hair": true
+   },
+   "flequillo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "delgado/pelo_flequillo",
+    "lum": 0.094,
+    "hair": true
+   },
+   "emo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "delgado/pelo_emo",
+    "lum": 0.117,
+    "hair": true
+   },
+   "rastas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "delgado/pelo_rastas",
+    "lum": 0.076,
+    "hair": true
+   },
+   "ondulado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "delgado/pelo_ondulado",
+    "lum": 0.107,
+    "hair": true
+   },
+   "rizos": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "delgado/pelo_rizos",
+    "lum": 0.086,
+    "hair": true
+   },
+   "corto": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "delgado/pelo_corto",
+    "lum": 0.099,
+    "hair": true
+   },
+   "afro": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "delgado/pelo_afro",
+    "lum": 0.056,
+    "hair": true
+   },
+   "cresta": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "delgado/pelo_cresta",
+    "lum": 0.116,
+    "hair": true
+   },
+   "rapado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "delgado/pelo_rapado",
+    "lum": 0.154,
+    "hair": true
+   },
+   "mohicano": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "delgado/pelo_mohicano",
+    "lum": 0.105,
+    "hair": true
+   },
+   "mo\u00f1o": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "delgado/pelo_mo\u00f1o",
+    "lum": 0.123,
+    "hair": true
+   },
+   "raya_lado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "delgado/pelo_raya_lado",
+    "lum": 0.106,
+    "hair": true
+   },
+   "hacia_atras": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "delgado/pelo_hacia_atras",
+    "lum": 0.112,
+    "hair": true
+   },
+   "trenzas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "delgado/pelo_trenzas",
+    "lum": 0.137,
+    "hair": true
+   },
+   "militar": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "delgado/pelo_militar",
+    "lum": 0.11,
+    "hair": true
+   },
+   "base_camiseta": {
+    "slot": "arriba",
+    "color": "#17181c",
+    "src": "delgado/base_camiseta",
+    "lum": 0.0926,
+    "base": true
+   },
+   "base_largo": {
+    "slot": "abajo",
+    "color": "#3a3a3c",
+    "src": "delgado/base_largo",
+    "lum": 0.1859,
+    "base": true
+   },
+   "base_tenis": {
+    "slot": "zapatos",
+    "color": "#d9d9d6",
+    "src": "delgado/base_tenis",
+    "lum": 0.5643,
+    "base": true
+   },
+   "head_gorra_sport": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "delgado/acc_head_gorra_sport",
+    "lum": 0.243,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "delgado/acc_head_gorra_sport.erase"
+   },
+   "head_gorro_sport": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "delgado/acc_head_gorro_sport",
+    "lum": 0.227,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "delgado/acc_head_gorro_sport.erase"
+   },
+   "head_visera": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "delgado/acc_head_visera",
+    "lum": 0.264,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "delgado/acc_head_visera.erase"
+   },
+   "head_gorra_casual": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "delgado/acc_head_gorra_casual",
+    "lum": 0.252,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "delgado/acc_head_gorra_casual.erase"
+   },
+   "hat_gorra": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "delgado/acc_head_gorra_casual",
+    "lum": 0.252,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "delgado/acc_head_gorra_casual.erase"
+   },
+   "head_gorro_casual": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "delgado/acc_head_gorro_casual",
+    "lum": 0.248,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "delgado/acc_head_gorro_casual.erase"
+   },
+   "hat_gorro": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "delgado/acc_head_gorro_casual",
+    "lum": 0.248,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "delgado/acc_head_gorro_casual.erase"
+   },
+   "head_bucket": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "delgado/acc_head_bucket",
+    "lum": 0.232,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "delgado/acc_head_bucket.erase"
+   },
+   "head_gorra_lujo": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "delgado/acc_head_gorra_lujo",
+    "lum": 0.271,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "delgado/acc_head_gorra_lujo.erase"
+   },
+   "head_gorro_lujo": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "delgado/acc_head_gorro_lujo",
+    "lum": 0.2,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "delgado/acc_head_gorro_lujo.erase"
+   },
+   "head_fedora": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "delgado/acc_head_fedora",
+    "lum": 0.177,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "delgado/acc_head_fedora.erase"
+   },
+   "hat_vaquero": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "delgado/acc_hat_vaquero",
+    "lum": 0.178,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "delgado/acc_hat_vaquero.erase"
+   },
+   "hat_gorra_campeon": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "delgado/acc_hat_gorra_campeon",
+    "lum": 0.259,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "delgado/acc_hat_gorra_campeon.erase"
+   },
+   "hat_corona": {
+    "slot": "cabeza",
+    "color": null,
+    "src": "delgado/acc_hat_corona",
+    "lum": 0.486,
+    "erase": "delgado/acc_hat_corona.erase"
+   },
+   "hat_sombrero_dorado": {
+    "slot": "cabeza",
+    "color": null,
+    "src": "delgado/acc_hat_sombrero_dorado",
+    "lum": 0.442,
+    "erase": "delgado/acc_hat_sombrero_dorado.erase"
+   },
+   "gl_redondas": {
+    "slot": "lentes",
+    "color": null,
+    "src": "delgado/acc_g_redondas",
+    "lum": 0.0
+   },
+   "gl_sol": {
+    "slot": "lentes",
+    "color": null,
+    "src": "delgado/acc_g_sol",
+    "lum": 0.099
+   },
+   "gl_nerd": {
+    "slot": "lentes",
+    "color": null,
+    "src": "delgado/acc_g_nerd",
+    "lum": 0.185
+   },
+   "er_bolita": {
+    "slot": "aretes",
+    "color": "oro",
+    "src": "delgado/acc_e_bolita",
+    "lum": 0.0,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "er_aro": {
+    "slot": "aretes",
+    "color": "oro",
+    "src": "delgado/acc_e_aro",
+    "lum": 0.4,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "nk_cadena": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "delgado/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_oro": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "delgado/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_plata": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "delgado/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "nk_perlas": {
+    "slot": "cadenas",
+    "color": null,
+    "src": "delgado/acc_n_perlas",
+    "lum": 0.571
+   },
+   "nk_medallon": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "delgado/acc_n_medallon",
+    "lum": 0.497,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_diamantes": {
+    "slot": "cadenas",
+    "color": null,
+    "src": "delgado/acc_n_diamantes",
+    "lum": 0.668
+   },
+   "joy_pulsera": {
+    "slot": "pulseras",
+    "color": "oro",
+    "src": "delgado/acc_w_pulsera",
+    "lum": 0.415,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "acc_mochila": {
+    "slot": "mochila",
+    "color": "#c81e1e",
+    "src": "delgado/acc_t_mochila",
+    "lum": 0.209,
+    "sel": {
+     "c": 18,
+     "h": 30
+    }
+   },
+   "cara_redonda": {
+    "slot": "cara",
+    "skins": {
+     "clara": "delgado/cara_redonda_clara",
+     "media": "delgado/cara_redonda_media",
+     "oscura": "delgado/cara_redonda_oscura"
+    },
+    "erase": "delgado/cara.erase"
+   },
+   "cara_cuadrada": {
+    "slot": "cara",
+    "skins": {
+     "clara": "delgado/cara_cuadrada_clara",
+     "media": "delgado/cara_cuadrada_media",
+     "oscura": "delgado/cara_cuadrada_oscura"
+    },
+    "erase": "delgado/cara.erase"
+   },
+   "cara_corazon": {
+    "slot": "cara",
+    "skins": {
+     "clara": "delgado/cara_corazon_clara",
+     "media": "delgado/cara_corazon_media",
+     "oscura": "delgado/cara_corazon_oscura"
+    },
+    "erase": "delgado/cara.erase"
+   },
+   "cara_alargada": {
+    "slot": "cara",
+    "skins": {
+     "clara": "delgado/cara_alargada_clara",
+     "media": "delgado/cara_alargada_media",
+     "oscura": "delgado/cara_alargada_oscura"
+    },
+    "erase": "delgado/cara.erase"
+   },
+   "cara_ancha": {
+    "slot": "cara",
+    "skins": {
+     "clara": "delgado/cara_ancha_clara",
+     "media": "delgado/cara_ancha_media",
+     "oscura": "delgado/cara_ancha_oscura"
+    },
+    "erase": "delgado/cara.erase"
+   },
+   "cara_diamante": {
+    "slot": "cara",
+    "skins": {
+     "clara": "delgado/cara_diamante_clara",
+     "media": "delgado/cara_diamante_media",
+     "oscura": "delgado/cara_diamante_oscura"
+    },
+    "erase": "delgado/cara.erase"
+   },
+   "cara_pera": {
+    "slot": "cara",
+    "skins": {
+     "clara": "delgado/cara_pera_clara",
+     "media": "delgado/cara_pera_media",
+     "oscura": "delgado/cara_pera_oscura"
+    },
+    "erase": "delgado/cara.erase"
+   },
+   "cara_triangular": {
+    "slot": "cara",
+    "skins": {
+     "clara": "delgado/cara_triangular_clara",
+     "media": "delgado/cara_triangular_media",
+     "oscura": "delgado/cara_triangular_oscura"
+    },
+    "erase": "delgado/cara.erase"
+   },
+   "cara_suave": {
+    "slot": "cara",
+    "skins": {
+     "clara": "delgado/cara_suave_clara",
+     "media": "delgado/cara_suave_media",
+     "oscura": "delgado/cara_suave_oscura"
+    },
+    "erase": "delgado/cara.erase"
+   },
+   "ojos_felices": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "delgado/ojos_felices_clara",
+     "media": "delgado/ojos_felices_media",
+     "oscura": "delgado/ojos_felices_oscura"
+    }
+   },
+   "ojos_gui\u00f1o": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "delgado/ojos_gui\u00f1o_clara",
+     "media": "delgado/ojos_gui\u00f1o_media",
+     "oscura": "delgado/ojos_gui\u00f1o_oscura"
+    }
+   },
+   "ojos_sorprendidos": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "delgado/ojos_sorprendidos_clara",
+     "media": "delgado/ojos_sorprendidos_media",
+     "oscura": "delgado/ojos_sorprendidos_oscura"
+    }
+   },
+   "ojos_enojados": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "delgado/ojos_enojados_clara",
+     "media": "delgado/ojos_enojados_media",
+     "oscura": "delgado/ojos_enojados_oscura"
+    }
+   },
+   "ojos_estrellas": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "delgado/ojos_estrellas_clara",
+     "media": "delgado/ojos_estrellas_media",
+     "oscura": "delgado/ojos_estrellas_oscura"
+    }
+   },
+   "boca_carcajada": {
+    "slot": "boca",
+    "skins": {
+     "clara": "delgado/boca_carcajada_clara",
+     "media": "delgado/boca_carcajada_media",
+     "oscura": "delgado/boca_carcajada_oscura"
+    }
+   },
+   "boca_seria": {
+    "slot": "boca",
+    "skins": {
+     "clara": "delgado/boca_seria_clara",
+     "media": "delgado/boca_seria_media",
+     "oscura": "delgado/boca_seria_oscura"
+    }
+   },
+   "boca_lengua": {
+    "slot": "boca",
+    "skins": {
+     "clara": "delgado/boca_lengua_clara",
+     "media": "delgado/boca_lengua_media",
+     "oscura": "delgado/boca_lengua_oscura"
+    }
+   },
+   "boca_sorpresa": {
+    "slot": "boca",
+    "skins": {
+     "clara": "delgado/boca_sorpresa_clara",
+     "media": "delgado/boca_sorpresa_media",
+     "oscura": "delgado/boca_sorpresa_oscura"
+    }
+   },
+   "top_abrigo": {
+    "slot": "arriba",
+    "color": "#751217",
+    "src": "delgado/arriba_top_abrigo",
+    "lum": 0.1567,
+    "hands": {
+     "clara": "delgado/arriba_top_abrigo_piel_clara",
+     "media": "delgado/arriba_top_abrigo_piel_media",
+     "oscura": "delgado/arriba_top_abrigo_piel_oscura"
+    },
+    "erase": "delgado/arriba_top_abrigo.erase"
+   },
+   "zap_vestir": {
+    "slot": "zapatos",
+    "color": "#223323",
+    "src": "delgado/zapatos_zap_vestir",
+    "lum": 0.2008,
+    "erase": "delgado/zapatos_zap_vestir.erase"
+   },
+   "bot_vestir": {
+    "slot": "abajo",
+    "color": "#162648",
+    "src": "delgado/abajo_bot_vestir",
+    "lum": 0.1425,
+    "erase": "delgado/abajo_bot_vestir.erase"
+   },
+   "bl_botas": {
+    "slot": "zapatos",
+    "color": "#2d4830",
+    "src": "delgado/zapatos_bl_botas",
+    "lum": 0.2535,
+    "erase": "delgado/zapatos_bl_botas.erase"
+   },
+   "bl_sin_mangas": {
+    "slot": "arriba",
+    "color": "#9f1b1b",
+    "src": "delgado/arriba_bl_sin_mangas",
+    "lum": 0.196,
+    "hands": {
+     "clara": "delgado/arriba_bl_sin_mangas_piel_clara",
+     "media": "delgado/arriba_bl_sin_mangas_piel_media",
+     "oscura": "delgado/arriba_bl_sin_mangas_piel_oscura"
+    },
+    "erase": "delgado/arriba_bl_sin_mangas.erase"
+   },
+   "bot_cargo": {
+    "slot": "abajo",
+    "color": "#192c53",
+    "src": "delgado/abajo_bot_cargo",
+    "lum": 0.1659,
+    "erase": "delgado/abajo_bot_cargo.erase"
+   },
+   "zap_sport": {
+    "slot": "zapatos",
+    "color": "#508448",
+    "src": "delgado/zapatos_zap_sport",
+    "lum": 0.4393,
+    "erase": "delgado/zapatos_zap_sport.erase"
+   },
+   "top_hoodie": {
+    "slot": "arriba",
+    "color": "#951819",
+    "src": "delgado/arriba_top_hoodie",
+    "lum": 0.1835,
+    "hands": {
+     "clara": "delgado/arriba_top_hoodie_piel_clara",
+     "media": "delgado/arriba_top_hoodie_piel_media",
+     "oscura": "delgado/arriba_top_hoodie_piel_oscura"
+    },
+    "erase": "delgado/arriba_top_hoodie.erase"
+   },
+   "bot_joggers": {
+    "slot": "abajo",
+    "color": "#192e55",
+    "src": "delgado/abajo_bot_joggers",
+    "lum": 0.1721,
+    "erase": "delgado/abajo_bot_joggers.erase"
+   },
+   "zap_casual": {
+    "slot": "zapatos",
+    "color": "#385844",
+    "src": "delgado/zapatos_zap_casual",
+    "lum": 0.3523,
+    "erase": "delgado/zapatos_zap_casual.erase"
+   },
+   "top_chaqueta": {
+    "slot": "arriba",
+    "color": "#7d1d1e",
+    "src": "delgado/arriba_top_chaqueta",
+    "lum": 0.1804,
+    "hands": {
+     "clara": "delgado/arriba_top_chaqueta_piel_clara",
+     "media": "delgado/arriba_top_chaqueta_piel_media",
+     "oscura": "delgado/arriba_top_chaqueta_piel_oscura"
+    },
+    "erase": "delgado/arriba_top_chaqueta.erase"
+   },
+   "bot_jeans": {
+    "slot": "abajo",
+    "color": "#1b2b44",
+    "src": "delgado/abajo_bot_jeans",
+    "lum": 0.1627,
+    "erase": "delgado/abajo_bot_jeans.erase"
+   },
+   "bl_camisa": {
+    "slot": "arriba",
+    "color": "#89181b",
+    "src": "delgado/arriba_bl_camisa",
+    "lum": 0.1798,
+    "hands": {
+     "clara": "delgado/arriba_bl_camisa_piel_clara",
+     "media": "delgado/arriba_bl_camisa_piel_media",
+     "oscura": "delgado/arriba_bl_camisa_piel_oscura"
+    },
+    "erase": "delgado/arriba_bl_camisa.erase"
+   },
+   "bl_chores": {
+    "slot": "abajo",
+    "color": "#1f2e58",
+    "src": "delgado/abajo_bl_chores",
+    "lum": 0.1544,
+    "hands": {
+     "clara": "delgado/abajo_bl_chores_piel_clara",
+     "media": "delgado/abajo_bl_chores_piel_media",
+     "oscura": "delgado/abajo_bl_chores_piel_oscura"
+    },
+    "erase": "delgado/abajo_bl_chores.erase"
+   },
+   "med_deportivas": {
+    "slot": "medias",
+    "color": "#174c1c",
+    "src": "delgado/medias_med_deportivas",
+    "lum": 0.2433
+   },
+   "bl_descalzo": {
+    "slot": "zapatos",
+    "color": null,
+    "hands": {
+     "clara": "delgado/zapatos_bl_descalzo_piel_clara",
+     "media": "delgado/zapatos_bl_descalzo_piel_media",
+     "oscura": "delgado/zapatos_bl_descalzo_piel_oscura"
+    },
+    "erase": "delgado/zapatos_bl_descalzo.erase"
+   },
+   "bl_cortas": {
+    "slot": "medias",
+    "color": "#30552a",
+    "src": "delgado/medias_bl_cortas",
+    "lum": 0.2961
+   },
+   "bl_largas": {
+    "slot": "medias",
+    "color": "#1b4427",
+    "src": "delgado/medias_bl_largas",
+    "lum": 0.2307
+   },
+   "med_disenador": {
+    "slot": "medias",
+    "color": "#2b442a",
+    "src": "delgado/medias_med_disenador",
+    "lum": 0.2776
+   },
+   "med_seda": {
+    "slot": "medias",
+    "color": "#293d29",
+    "src": "delgado/medias_med_seda",
+    "lum": 0.2271
+   }
+  },
+  "musculoso": {
+   "largo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "musculoso/pelo_largo",
+    "lum": 0.101,
+    "hair": true
+   },
+   "puntas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "musculoso/pelo_puntas",
+    "lum": 0.09,
+    "hair": true
+   },
+   "coleta": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "musculoso/pelo_coleta",
+    "lum": 0.115,
+    "hair": true
+   },
+   "mullet": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "musculoso/pelo_mullet",
+    "lum": 0.097,
+    "hair": true
+   },
+   "flequillo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "musculoso/pelo_flequillo",
+    "lum": 0.094,
+    "hair": true
+   },
+   "emo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "musculoso/pelo_emo",
+    "lum": 0.117,
+    "hair": true
+   },
+   "rastas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "musculoso/pelo_rastas",
+    "lum": 0.076,
+    "hair": true
+   },
+   "ondulado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "musculoso/pelo_ondulado",
+    "lum": 0.107,
+    "hair": true
+   },
+   "rizos": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "musculoso/pelo_rizos",
+    "lum": 0.086,
+    "hair": true
+   },
+   "corto": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "musculoso/pelo_corto",
+    "lum": 0.099,
+    "hair": true
+   },
+   "afro": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "musculoso/pelo_afro",
+    "lum": 0.056,
+    "hair": true
+   },
+   "cresta": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "musculoso/pelo_cresta",
+    "lum": 0.116,
+    "hair": true
+   },
+   "rapado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "musculoso/pelo_rapado",
+    "lum": 0.154,
+    "hair": true
+   },
+   "mohicano": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "musculoso/pelo_mohicano",
+    "lum": 0.105,
+    "hair": true
+   },
+   "mo\u00f1o": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "musculoso/pelo_mo\u00f1o",
+    "lum": 0.123,
+    "hair": true
+   },
+   "raya_lado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "musculoso/pelo_raya_lado",
+    "lum": 0.106,
+    "hair": true
+   },
+   "hacia_atras": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "musculoso/pelo_hacia_atras",
+    "lum": 0.112,
+    "hair": true
+   },
+   "trenzas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "musculoso/pelo_trenzas",
+    "lum": 0.137,
+    "hair": true
+   },
+   "militar": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "musculoso/pelo_militar",
+    "lum": 0.11,
+    "hair": true
+   },
+   "base_camiseta": {
+    "slot": "arriba",
+    "color": "#17181c",
+    "src": "musculoso/base_camiseta",
+    "lum": 0.0854,
+    "base": true
+   },
+   "base_largo": {
+    "slot": "abajo",
+    "color": "#3a3a3c",
+    "src": "musculoso/base_largo",
+    "lum": 0.1796,
+    "base": true
+   },
+   "base_tenis": {
+    "slot": "zapatos",
+    "color": "#d9d9d6",
+    "src": "musculoso/base_tenis",
+    "lum": 0.574,
+    "base": true
+   },
+   "head_gorra_sport": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "musculoso/acc_head_gorra_sport",
+    "lum": 0.243,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "musculoso/acc_head_gorra_sport.erase"
+   },
+   "head_gorro_sport": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "musculoso/acc_head_gorro_sport",
+    "lum": 0.227,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "musculoso/acc_head_gorro_sport.erase"
+   },
+   "head_visera": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "musculoso/acc_head_visera",
+    "lum": 0.264,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "musculoso/acc_head_visera.erase"
+   },
+   "head_gorra_casual": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "musculoso/acc_head_gorra_casual",
+    "lum": 0.252,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "musculoso/acc_head_gorra_casual.erase"
+   },
+   "hat_gorra": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "musculoso/acc_head_gorra_casual",
+    "lum": 0.252,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "musculoso/acc_head_gorra_casual.erase"
+   },
+   "head_gorro_casual": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "musculoso/acc_head_gorro_casual",
+    "lum": 0.248,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "musculoso/acc_head_gorro_casual.erase"
+   },
+   "hat_gorro": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "musculoso/acc_head_gorro_casual",
+    "lum": 0.248,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "musculoso/acc_head_gorro_casual.erase"
+   },
+   "head_bucket": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "musculoso/acc_head_bucket",
+    "lum": 0.232,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "musculoso/acc_head_bucket.erase"
+   },
+   "head_gorra_lujo": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "musculoso/acc_head_gorra_lujo",
+    "lum": 0.271,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "musculoso/acc_head_gorra_lujo.erase"
+   },
+   "head_gorro_lujo": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "musculoso/acc_head_gorro_lujo",
+    "lum": 0.2,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "musculoso/acc_head_gorro_lujo.erase"
+   },
+   "head_fedora": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "musculoso/acc_head_fedora",
+    "lum": 0.177,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "musculoso/acc_head_fedora.erase"
+   },
+   "hat_vaquero": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "musculoso/acc_hat_vaquero",
+    "lum": 0.178,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "musculoso/acc_hat_vaquero.erase"
+   },
+   "hat_gorra_campeon": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "musculoso/acc_hat_gorra_campeon",
+    "lum": 0.259,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "musculoso/acc_hat_gorra_campeon.erase"
+   },
+   "hat_corona": {
+    "slot": "cabeza",
+    "color": null,
+    "src": "musculoso/acc_hat_corona",
+    "lum": 0.486,
+    "erase": "musculoso/acc_hat_corona.erase"
+   },
+   "hat_sombrero_dorado": {
+    "slot": "cabeza",
+    "color": null,
+    "src": "musculoso/acc_hat_sombrero_dorado",
+    "lum": 0.442,
+    "erase": "musculoso/acc_hat_sombrero_dorado.erase"
+   },
+   "gl_redondas": {
+    "slot": "lentes",
+    "color": null,
+    "src": "musculoso/acc_g_redondas",
+    "lum": 0.0
+   },
+   "gl_sol": {
+    "slot": "lentes",
+    "color": null,
+    "src": "musculoso/acc_g_sol",
+    "lum": 0.099
+   },
+   "gl_nerd": {
+    "slot": "lentes",
+    "color": null,
+    "src": "musculoso/acc_g_nerd",
+    "lum": 0.185
+   },
+   "er_bolita": {
+    "slot": "aretes",
+    "color": "oro",
+    "src": "musculoso/acc_e_bolita",
+    "lum": 0.0,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "er_aro": {
+    "slot": "aretes",
+    "color": "oro",
+    "src": "musculoso/acc_e_aro",
+    "lum": 0.4,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "nk_cadena": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "musculoso/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_oro": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "musculoso/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_plata": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "musculoso/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "nk_perlas": {
+    "slot": "cadenas",
+    "color": null,
+    "src": "musculoso/acc_n_perlas",
+    "lum": 0.571
+   },
+   "nk_medallon": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "musculoso/acc_n_medallon",
+    "lum": 0.497,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_diamantes": {
+    "slot": "cadenas",
+    "color": null,
+    "src": "musculoso/acc_n_diamantes",
+    "lum": 0.668
+   },
+   "joy_pulsera": {
+    "slot": "pulseras",
+    "color": "oro",
+    "src": "musculoso/acc_w_pulsera",
+    "lum": 0.415,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "acc_mochila": {
+    "slot": "mochila",
+    "color": "#c81e1e",
+    "src": "musculoso/acc_t_mochila",
+    "lum": 0.209,
+    "sel": {
+     "c": 18,
+     "h": 30
+    }
+   },
+   "cara_redonda": {
+    "slot": "cara",
+    "skins": {
+     "clara": "musculoso/cara_redonda_clara",
+     "media": "musculoso/cara_redonda_media",
+     "oscura": "musculoso/cara_redonda_oscura"
+    },
+    "erase": "musculoso/cara.erase"
+   },
+   "cara_cuadrada": {
+    "slot": "cara",
+    "skins": {
+     "clara": "musculoso/cara_cuadrada_clara",
+     "media": "musculoso/cara_cuadrada_media",
+     "oscura": "musculoso/cara_cuadrada_oscura"
+    },
+    "erase": "musculoso/cara.erase"
+   },
+   "cara_corazon": {
+    "slot": "cara",
+    "skins": {
+     "clara": "musculoso/cara_corazon_clara",
+     "media": "musculoso/cara_corazon_media",
+     "oscura": "musculoso/cara_corazon_oscura"
+    },
+    "erase": "musculoso/cara.erase"
+   },
+   "cara_alargada": {
+    "slot": "cara",
+    "skins": {
+     "clara": "musculoso/cara_alargada_clara",
+     "media": "musculoso/cara_alargada_media",
+     "oscura": "musculoso/cara_alargada_oscura"
+    },
+    "erase": "musculoso/cara.erase"
+   },
+   "cara_ancha": {
+    "slot": "cara",
+    "skins": {
+     "clara": "musculoso/cara_ancha_clara",
+     "media": "musculoso/cara_ancha_media",
+     "oscura": "musculoso/cara_ancha_oscura"
+    },
+    "erase": "musculoso/cara.erase"
+   },
+   "cara_diamante": {
+    "slot": "cara",
+    "skins": {
+     "clara": "musculoso/cara_diamante_clara",
+     "media": "musculoso/cara_diamante_media",
+     "oscura": "musculoso/cara_diamante_oscura"
+    },
+    "erase": "musculoso/cara.erase"
+   },
+   "cara_pera": {
+    "slot": "cara",
+    "skins": {
+     "clara": "musculoso/cara_pera_clara",
+     "media": "musculoso/cara_pera_media",
+     "oscura": "musculoso/cara_pera_oscura"
+    },
+    "erase": "musculoso/cara.erase"
+   },
+   "cara_triangular": {
+    "slot": "cara",
+    "skins": {
+     "clara": "musculoso/cara_triangular_clara",
+     "media": "musculoso/cara_triangular_media",
+     "oscura": "musculoso/cara_triangular_oscura"
+    },
+    "erase": "musculoso/cara.erase"
+   },
+   "cara_suave": {
+    "slot": "cara",
+    "skins": {
+     "clara": "musculoso/cara_suave_clara",
+     "media": "musculoso/cara_suave_media",
+     "oscura": "musculoso/cara_suave_oscura"
+    },
+    "erase": "musculoso/cara.erase"
+   },
+   "ojos_felices": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "musculoso/ojos_felices_clara",
+     "media": "musculoso/ojos_felices_media",
+     "oscura": "musculoso/ojos_felices_oscura"
+    }
+   },
+   "ojos_gui\u00f1o": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "musculoso/ojos_gui\u00f1o_clara",
+     "media": "musculoso/ojos_gui\u00f1o_media",
+     "oscura": "musculoso/ojos_gui\u00f1o_oscura"
+    }
+   },
+   "ojos_sorprendidos": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "musculoso/ojos_sorprendidos_clara",
+     "media": "musculoso/ojos_sorprendidos_media",
+     "oscura": "musculoso/ojos_sorprendidos_oscura"
+    }
+   },
+   "ojos_enojados": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "musculoso/ojos_enojados_clara",
+     "media": "musculoso/ojos_enojados_media",
+     "oscura": "musculoso/ojos_enojados_oscura"
+    }
+   },
+   "ojos_estrellas": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "musculoso/ojos_estrellas_clara",
+     "media": "musculoso/ojos_estrellas_media",
+     "oscura": "musculoso/ojos_estrellas_oscura"
+    }
+   },
+   "boca_carcajada": {
+    "slot": "boca",
+    "skins": {
+     "clara": "musculoso/boca_carcajada_clara",
+     "media": "musculoso/boca_carcajada_media",
+     "oscura": "musculoso/boca_carcajada_oscura"
+    }
+   },
+   "boca_seria": {
+    "slot": "boca",
+    "skins": {
+     "clara": "musculoso/boca_seria_clara",
+     "media": "musculoso/boca_seria_media",
+     "oscura": "musculoso/boca_seria_oscura"
+    }
+   },
+   "boca_lengua": {
+    "slot": "boca",
+    "skins": {
+     "clara": "musculoso/boca_lengua_clara",
+     "media": "musculoso/boca_lengua_media",
+     "oscura": "musculoso/boca_lengua_oscura"
+    }
+   },
+   "boca_sorpresa": {
+    "slot": "boca",
+    "skins": {
+     "clara": "musculoso/boca_sorpresa_clara",
+     "media": "musculoso/boca_sorpresa_media",
+     "oscura": "musculoso/boca_sorpresa_oscura"
+    }
+   },
+   "top_abrigo": {
+    "slot": "arriba",
+    "color": "#791316",
+    "src": "musculoso/arriba_top_abrigo",
+    "lum": 0.1614,
+    "hands": {
+     "clara": "musculoso/arriba_top_abrigo_piel_clara",
+     "media": "musculoso/arriba_top_abrigo_piel_media",
+     "oscura": "musculoso/arriba_top_abrigo_piel_oscura"
+    },
+    "erase": "musculoso/arriba_top_abrigo.erase"
+   },
+   "zap_vestir": {
+    "slot": "zapatos",
+    "color": "#2b3424",
+    "src": "musculoso/zapatos_zap_vestir",
+    "lum": 0.2004,
+    "erase": "musculoso/zapatos_zap_vestir.erase"
+   },
+   "bot_vestir": {
+    "slot": "abajo",
+    "color": "#122854",
+    "src": "musculoso/abajo_bot_vestir",
+    "lum": 0.1489,
+    "erase": "musculoso/abajo_bot_vestir.erase"
+   },
+   "bl_botas": {
+    "slot": "zapatos",
+    "color": "#2a3f26",
+    "src": "musculoso/zapatos_bl_botas",
+    "lum": 0.2241,
+    "erase": "musculoso/zapatos_bl_botas.erase"
+   },
+   "bl_sin_mangas": {
+    "slot": "arriba",
+    "color": "#901817",
+    "src": "musculoso/arriba_bl_sin_mangas",
+    "lum": 0.1752,
+    "hands": {
+     "clara": "musculoso/arriba_bl_sin_mangas_piel_clara",
+     "media": "musculoso/arriba_bl_sin_mangas_piel_media",
+     "oscura": "musculoso/arriba_bl_sin_mangas_piel_oscura"
+    },
+    "erase": "musculoso/arriba_bl_sin_mangas.erase"
+   },
+   "bot_cargo": {
+    "slot": "abajo",
+    "color": "#142e58",
+    "src": "musculoso/abajo_bot_cargo",
+    "lum": 0.168,
+    "erase": "musculoso/abajo_bot_cargo.erase"
+   },
+   "zap_sport": {
+    "slot": "zapatos",
+    "color": "#356338",
+    "src": "musculoso/zapatos_zap_sport",
+    "lum": 0.3376,
+    "erase": "musculoso/zapatos_zap_sport.erase"
+   },
+   "top_hoodie": {
+    "slot": "arriba",
+    "color": "#881517",
+    "src": "musculoso/arriba_top_hoodie",
+    "lum": 0.17,
+    "hands": {
+     "clara": "musculoso/arriba_top_hoodie_piel_clara",
+     "media": "musculoso/arriba_top_hoodie_piel_media",
+     "oscura": "musculoso/arriba_top_hoodie_piel_oscura"
+    },
+    "erase": "musculoso/arriba_top_hoodie.erase"
+   },
+   "bot_joggers": {
+    "slot": "abajo",
+    "color": "#162950",
+    "src": "musculoso/abajo_bot_joggers",
+    "lum": 0.1528,
+    "erase": "musculoso/abajo_bot_joggers.erase"
+   },
+   "zap_casual": {
+    "slot": "zapatos",
+    "color": "#3f5c45",
+    "src": "musculoso/zapatos_zap_casual",
+    "lum": 0.379,
+    "erase": "musculoso/zapatos_zap_casual.erase"
+   },
+   "top_chaqueta": {
+    "slot": "arriba",
+    "color": "#791b1c",
+    "src": "musculoso/arriba_top_chaqueta",
+    "lum": 0.1737,
+    "hands": {
+     "clara": "musculoso/arriba_top_chaqueta_piel_clara",
+     "media": "musculoso/arriba_top_chaqueta_piel_media",
+     "oscura": "musculoso/arriba_top_chaqueta_piel_oscura"
+    },
+    "erase": "musculoso/arriba_top_chaqueta.erase"
+   },
+   "bot_jeans": {
+    "slot": "abajo",
+    "color": "#202c3e",
+    "src": "musculoso/abajo_bot_jeans",
+    "lum": 0.1689,
+    "erase": "musculoso/abajo_bot_jeans.erase"
+   },
+   "bl_camisa": {
+    "slot": "arriba",
+    "color": "#87151a",
+    "src": "musculoso/arriba_bl_camisa",
+    "lum": 0.1703,
+    "hands": {
+     "clara": "musculoso/arriba_bl_camisa_piel_clara",
+     "media": "musculoso/arriba_bl_camisa_piel_media",
+     "oscura": "musculoso/arriba_bl_camisa_piel_oscura"
+    },
+    "erase": "musculoso/arriba_bl_camisa.erase"
+   },
+   "bl_chores": {
+    "slot": "abajo",
+    "color": "#1f2b55",
+    "src": "musculoso/abajo_bl_chores",
+    "lum": 0.1416,
+    "hands": {
+     "clara": "musculoso/abajo_bl_chores_piel_clara",
+     "media": "musculoso/abajo_bl_chores_piel_media",
+     "oscura": "musculoso/abajo_bl_chores_piel_oscura"
+    },
+    "erase": "musculoso/abajo_bl_chores.erase"
+   },
+   "med_deportivas": {
+    "slot": "medias",
+    "color": "#124522",
+    "src": "musculoso/medias_med_deportivas",
+    "lum": 0.2228
+   },
+   "bl_descalzo": {
+    "slot": "zapatos",
+    "color": null,
+    "hands": {
+     "clara": "musculoso/zapatos_bl_descalzo_piel_clara",
+     "media": "musculoso/zapatos_bl_descalzo_piel_media",
+     "oscura": "musculoso/zapatos_bl_descalzo_piel_oscura"
+    },
+    "erase": "musculoso/zapatos_bl_descalzo.erase"
+   },
+   "bl_cortas": {
+    "slot": "medias",
+    "color": "#30552a",
+    "src": "musculoso/medias_bl_cortas",
+    "lum": 0.2961
+   },
+   "bl_largas": {
+    "slot": "medias",
+    "color": "#1b4427",
+    "src": "musculoso/medias_bl_largas",
+    "lum": 0.2307
+   },
+   "med_disenador": {
+    "slot": "medias",
+    "color": "#2b442a",
+    "src": "musculoso/medias_med_disenador",
+    "lum": 0.2776
+   },
+   "med_seda": {
+    "slot": "medias",
+    "color": "#293d29",
+    "src": "musculoso/medias_med_seda",
+    "lum": 0.2271
+   }
+  },
+  "alto": {
+   "largo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "alto/pelo_largo",
+    "lum": 0.101,
+    "hair": true
+   },
+   "puntas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "alto/pelo_puntas",
+    "lum": 0.09,
+    "hair": true
+   },
+   "coleta": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "alto/pelo_coleta",
+    "lum": 0.115,
+    "hair": true
+   },
+   "mullet": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "alto/pelo_mullet",
+    "lum": 0.097,
+    "hair": true
+   },
+   "flequillo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "alto/pelo_flequillo",
+    "lum": 0.094,
+    "hair": true
+   },
+   "emo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "alto/pelo_emo",
+    "lum": 0.117,
+    "hair": true
+   },
+   "rastas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "alto/pelo_rastas",
+    "lum": 0.076,
+    "hair": true
+   },
+   "ondulado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "alto/pelo_ondulado",
+    "lum": 0.107,
+    "hair": true
+   },
+   "rizos": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "alto/pelo_rizos",
+    "lum": 0.086,
+    "hair": true
+   },
+   "corto": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "alto/pelo_corto",
+    "lum": 0.099,
+    "hair": true
+   },
+   "afro": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "alto/pelo_afro",
+    "lum": 0.056,
+    "hair": true
+   },
+   "cresta": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "alto/pelo_cresta",
+    "lum": 0.116,
+    "hair": true
+   },
+   "rapado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "alto/pelo_rapado",
+    "lum": 0.154,
+    "hair": true
+   },
+   "mohicano": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "alto/pelo_mohicano",
+    "lum": 0.105,
+    "hair": true
+   },
+   "mo\u00f1o": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "alto/pelo_mo\u00f1o",
+    "lum": 0.123,
+    "hair": true
+   },
+   "raya_lado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "alto/pelo_raya_lado",
+    "lum": 0.106,
+    "hair": true
+   },
+   "hacia_atras": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "alto/pelo_hacia_atras",
+    "lum": 0.112,
+    "hair": true
+   },
+   "trenzas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "alto/pelo_trenzas",
+    "lum": 0.137,
+    "hair": true
+   },
+   "militar": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "alto/pelo_militar",
+    "lum": 0.11,
+    "hair": true
+   },
+   "base_camiseta": {
+    "slot": "arriba",
+    "color": "#17181c",
+    "src": "alto/base_camiseta",
+    "lum": 0.0859,
+    "base": true
+   },
+   "base_largo": {
+    "slot": "abajo",
+    "color": "#3a3a3c",
+    "src": "alto/base_largo",
+    "lum": 0.1881,
+    "base": true
+   },
+   "base_tenis": {
+    "slot": "zapatos",
+    "color": "#d9d9d6",
+    "src": "alto/base_tenis",
+    "lum": 0.5656,
+    "base": true
+   },
+   "head_gorra_sport": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "alto/acc_head_gorra_sport",
+    "lum": 0.243,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "alto/acc_head_gorra_sport.erase"
+   },
+   "head_gorro_sport": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "alto/acc_head_gorro_sport",
+    "lum": 0.227,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "alto/acc_head_gorro_sport.erase"
+   },
+   "head_visera": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "alto/acc_head_visera",
+    "lum": 0.264,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "alto/acc_head_visera.erase"
+   },
+   "head_gorra_casual": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "alto/acc_head_gorra_casual",
+    "lum": 0.252,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "alto/acc_head_gorra_casual.erase"
+   },
+   "hat_gorra": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "alto/acc_head_gorra_casual",
+    "lum": 0.252,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "alto/acc_head_gorra_casual.erase"
+   },
+   "head_gorro_casual": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "alto/acc_head_gorro_casual",
+    "lum": 0.248,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "alto/acc_head_gorro_casual.erase"
+   },
+   "hat_gorro": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "alto/acc_head_gorro_casual",
+    "lum": 0.248,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "alto/acc_head_gorro_casual.erase"
+   },
+   "head_bucket": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "alto/acc_head_bucket",
+    "lum": 0.232,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "alto/acc_head_bucket.erase"
+   },
+   "head_gorra_lujo": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "alto/acc_head_gorra_lujo",
+    "lum": 0.271,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "alto/acc_head_gorra_lujo.erase"
+   },
+   "head_gorro_lujo": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "alto/acc_head_gorro_lujo",
+    "lum": 0.2,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "alto/acc_head_gorro_lujo.erase"
+   },
+   "head_fedora": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "alto/acc_head_fedora",
+    "lum": 0.177,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "alto/acc_head_fedora.erase"
+   },
+   "hat_vaquero": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "alto/acc_hat_vaquero",
+    "lum": 0.178,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "alto/acc_hat_vaquero.erase"
+   },
+   "hat_gorra_campeon": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "alto/acc_hat_gorra_campeon",
+    "lum": 0.259,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "alto/acc_hat_gorra_campeon.erase"
+   },
+   "hat_corona": {
+    "slot": "cabeza",
+    "color": null,
+    "src": "alto/acc_hat_corona",
+    "lum": 0.486,
+    "erase": "alto/acc_hat_corona.erase"
+   },
+   "hat_sombrero_dorado": {
+    "slot": "cabeza",
+    "color": null,
+    "src": "alto/acc_hat_sombrero_dorado",
+    "lum": 0.442,
+    "erase": "alto/acc_hat_sombrero_dorado.erase"
+   },
+   "gl_redondas": {
+    "slot": "lentes",
+    "color": null,
+    "src": "alto/acc_g_redondas",
+    "lum": 0.0
+   },
+   "gl_sol": {
+    "slot": "lentes",
+    "color": null,
+    "src": "alto/acc_g_sol",
+    "lum": 0.099
+   },
+   "gl_nerd": {
+    "slot": "lentes",
+    "color": null,
+    "src": "alto/acc_g_nerd",
+    "lum": 0.185
+   },
+   "er_bolita": {
+    "slot": "aretes",
+    "color": "oro",
+    "src": "alto/acc_e_bolita",
+    "lum": 0.0,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "er_aro": {
+    "slot": "aretes",
+    "color": "oro",
+    "src": "alto/acc_e_aro",
+    "lum": 0.4,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "nk_cadena": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "alto/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_oro": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "alto/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_plata": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "alto/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "nk_perlas": {
+    "slot": "cadenas",
+    "color": null,
+    "src": "alto/acc_n_perlas",
+    "lum": 0.571
+   },
+   "nk_medallon": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "alto/acc_n_medallon",
+    "lum": 0.497,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_diamantes": {
+    "slot": "cadenas",
+    "color": null,
+    "src": "alto/acc_n_diamantes",
+    "lum": 0.668
+   },
+   "joy_pulsera": {
+    "slot": "pulseras",
+    "color": "oro",
+    "src": "alto/acc_w_pulsera",
+    "lum": 0.415,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "acc_mochila": {
+    "slot": "mochila",
+    "color": "#c81e1e",
+    "src": "alto/acc_t_mochila",
+    "lum": 0.209,
+    "sel": {
+     "c": 18,
+     "h": 30
+    }
+   },
+   "cara_redonda": {
+    "slot": "cara",
+    "skins": {
+     "clara": "alto/cara_redonda_clara",
+     "media": "alto/cara_redonda_media",
+     "oscura": "alto/cara_redonda_oscura"
+    },
+    "erase": "alto/cara.erase"
+   },
+   "cara_cuadrada": {
+    "slot": "cara",
+    "skins": {
+     "clara": "alto/cara_cuadrada_clara",
+     "media": "alto/cara_cuadrada_media",
+     "oscura": "alto/cara_cuadrada_oscura"
+    },
+    "erase": "alto/cara.erase"
+   },
+   "cara_corazon": {
+    "slot": "cara",
+    "skins": {
+     "clara": "alto/cara_corazon_clara",
+     "media": "alto/cara_corazon_media",
+     "oscura": "alto/cara_corazon_oscura"
+    },
+    "erase": "alto/cara.erase"
+   },
+   "cara_alargada": {
+    "slot": "cara",
+    "skins": {
+     "clara": "alto/cara_alargada_clara",
+     "media": "alto/cara_alargada_media",
+     "oscura": "alto/cara_alargada_oscura"
+    },
+    "erase": "alto/cara.erase"
+   },
+   "cara_ancha": {
+    "slot": "cara",
+    "skins": {
+     "clara": "alto/cara_ancha_clara",
+     "media": "alto/cara_ancha_media",
+     "oscura": "alto/cara_ancha_oscura"
+    },
+    "erase": "alto/cara.erase"
+   },
+   "cara_diamante": {
+    "slot": "cara",
+    "skins": {
+     "clara": "alto/cara_diamante_clara",
+     "media": "alto/cara_diamante_media",
+     "oscura": "alto/cara_diamante_oscura"
+    },
+    "erase": "alto/cara.erase"
+   },
+   "cara_pera": {
+    "slot": "cara",
+    "skins": {
+     "clara": "alto/cara_pera_clara",
+     "media": "alto/cara_pera_media",
+     "oscura": "alto/cara_pera_oscura"
+    },
+    "erase": "alto/cara.erase"
+   },
+   "cara_triangular": {
+    "slot": "cara",
+    "skins": {
+     "clara": "alto/cara_triangular_clara",
+     "media": "alto/cara_triangular_media",
+     "oscura": "alto/cara_triangular_oscura"
+    },
+    "erase": "alto/cara.erase"
+   },
+   "cara_suave": {
+    "slot": "cara",
+    "skins": {
+     "clara": "alto/cara_suave_clara",
+     "media": "alto/cara_suave_media",
+     "oscura": "alto/cara_suave_oscura"
+    },
+    "erase": "alto/cara.erase"
+   },
+   "ojos_felices": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "alto/ojos_felices_clara",
+     "media": "alto/ojos_felices_media",
+     "oscura": "alto/ojos_felices_oscura"
+    }
+   },
+   "ojos_gui\u00f1o": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "alto/ojos_gui\u00f1o_clara",
+     "media": "alto/ojos_gui\u00f1o_media",
+     "oscura": "alto/ojos_gui\u00f1o_oscura"
+    }
+   },
+   "ojos_sorprendidos": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "alto/ojos_sorprendidos_clara",
+     "media": "alto/ojos_sorprendidos_media",
+     "oscura": "alto/ojos_sorprendidos_oscura"
+    }
+   },
+   "ojos_enojados": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "alto/ojos_enojados_clara",
+     "media": "alto/ojos_enojados_media",
+     "oscura": "alto/ojos_enojados_oscura"
+    }
+   },
+   "ojos_estrellas": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "alto/ojos_estrellas_clara",
+     "media": "alto/ojos_estrellas_media",
+     "oscura": "alto/ojos_estrellas_oscura"
+    }
+   },
+   "boca_carcajada": {
+    "slot": "boca",
+    "skins": {
+     "clara": "alto/boca_carcajada_clara",
+     "media": "alto/boca_carcajada_media",
+     "oscura": "alto/boca_carcajada_oscura"
+    }
+   },
+   "boca_seria": {
+    "slot": "boca",
+    "skins": {
+     "clara": "alto/boca_seria_clara",
+     "media": "alto/boca_seria_media",
+     "oscura": "alto/boca_seria_oscura"
+    }
+   },
+   "boca_lengua": {
+    "slot": "boca",
+    "skins": {
+     "clara": "alto/boca_lengua_clara",
+     "media": "alto/boca_lengua_media",
+     "oscura": "alto/boca_lengua_oscura"
+    }
+   },
+   "boca_sorpresa": {
+    "slot": "boca",
+    "skins": {
+     "clara": "alto/boca_sorpresa_clara",
+     "media": "alto/boca_sorpresa_media",
+     "oscura": "alto/boca_sorpresa_oscura"
+    }
+   },
+   "top_abrigo": {
+    "slot": "arriba",
+    "color": "#791518",
+    "src": "alto/arriba_top_abrigo",
+    "lum": 0.1653,
+    "hands": {
+     "clara": "alto/arriba_top_abrigo_piel_clara",
+     "media": "alto/arriba_top_abrigo_piel_media",
+     "oscura": "alto/arriba_top_abrigo_piel_oscura"
+    },
+    "erase": "alto/arriba_top_abrigo.erase"
+   },
+   "zap_vestir": {
+    "slot": "zapatos",
+    "color": "#2c3927",
+    "src": "alto/zapatos_zap_vestir",
+    "lum": 0.2163,
+    "erase": "alto/zapatos_zap_vestir.erase"
+   },
+   "bot_vestir": {
+    "slot": "abajo",
+    "color": "#152546",
+    "src": "alto/abajo_bot_vestir",
+    "lum": 0.1427,
+    "erase": "alto/abajo_bot_vestir.erase"
+   },
+   "bl_botas": {
+    "slot": "zapatos",
+    "color": "#2c3b2a",
+    "src": "alto/zapatos_bl_botas",
+    "lum": 0.2231,
+    "erase": "alto/zapatos_bl_botas.erase"
+   },
+   "top_hoodie": {
+    "slot": "arriba",
+    "color": "#991818",
+    "src": "alto/arriba_top_hoodie",
+    "lum": 0.1886,
+    "hands": {
+     "clara": "alto/arriba_top_hoodie_piel_clara",
+     "media": "alto/arriba_top_hoodie_piel_media",
+     "oscura": "alto/arriba_top_hoodie_piel_oscura"
+    },
+    "erase": "alto/arriba_top_hoodie.erase"
+   },
+   "bot_joggers": {
+    "slot": "abajo",
+    "color": "#1c2e52",
+    "src": "alto/abajo_bot_joggers",
+    "lum": 0.1682,
+    "erase": "alto/abajo_bot_joggers.erase"
+   },
+   "zap_casual": {
+    "slot": "zapatos",
+    "color": "#395741",
+    "src": "alto/zapatos_zap_casual",
+    "lum": 0.3558,
+    "erase": "alto/zapatos_zap_casual.erase"
+   },
+   "top_chaqueta": {
+    "slot": "arriba",
+    "color": "#7c191b",
+    "src": "alto/arriba_top_chaqueta",
+    "lum": 0.1709,
+    "hands": {
+     "clara": "alto/arriba_top_chaqueta_piel_clara",
+     "media": "alto/arriba_top_chaqueta_piel_media",
+     "oscura": "alto/arriba_top_chaqueta_piel_oscura"
+    },
+    "erase": "alto/arriba_top_chaqueta.erase"
+   },
+   "bot_jeans": {
+    "slot": "abajo",
+    "color": "#1c2e48",
+    "src": "alto/abajo_bot_jeans",
+    "lum": 0.1703,
+    "erase": "alto/abajo_bot_jeans.erase"
+   },
+   "bl_camisa": {
+    "slot": "arriba",
+    "color": "#8c1518",
+    "src": "alto/arriba_bl_camisa",
+    "lum": 0.1702,
+    "hands": {
+     "clara": "alto/arriba_bl_camisa_piel_clara",
+     "media": "alto/arriba_bl_camisa_piel_media",
+     "oscura": "alto/arriba_bl_camisa_piel_oscura"
+    },
+    "erase": "alto/arriba_bl_camisa.erase"
+   },
+   "bl_chores": {
+    "slot": "abajo",
+    "color": "#21325c",
+    "src": "alto/abajo_bl_chores",
+    "lum": 0.1609,
+    "hands": {
+     "clara": "alto/abajo_bl_chores_piel_clara",
+     "media": "alto/abajo_bl_chores_piel_media",
+     "oscura": "alto/abajo_bl_chores_piel_oscura"
+    },
+    "erase": "alto/abajo_bl_chores.erase"
+   },
+   "med_deportivas": {
+    "slot": "medias",
+    "color": "#1b451f",
+    "src": "alto/medias_med_deportivas",
+    "lum": 0.2299
+   },
+   "bl_descalzo": {
+    "slot": "zapatos",
+    "color": null,
+    "hands": {
+     "clara": "alto/zapatos_bl_descalzo_piel_clara",
+     "media": "alto/zapatos_bl_descalzo_piel_media",
+     "oscura": "alto/zapatos_bl_descalzo_piel_oscura"
+    },
+    "erase": "alto/zapatos_bl_descalzo.erase"
+   },
+   "bl_sin_mangas": {
+    "slot": "arriba",
+    "color": "#8a1617",
+    "src": "alto/arriba_bl_sin_mangas",
+    "lum": 0.1698,
+    "hands": {
+     "clara": "alto/arriba_bl_sin_mangas_piel_clara",
+     "media": "alto/arriba_bl_sin_mangas_piel_media",
+     "oscura": "alto/arriba_bl_sin_mangas_piel_oscura"
+    },
+    "erase": "alto/arriba_bl_sin_mangas.erase"
+   },
+   "bot_cargo": {
+    "slot": "abajo",
+    "color": "#152e5b",
+    "src": "alto/abajo_bot_cargo",
+    "lum": 0.1708,
+    "erase": "alto/abajo_bot_cargo.erase"
+   },
+   "zap_sport": {
+    "slot": "zapatos",
+    "color": "#3c6c43",
+    "src": "alto/zapatos_zap_sport",
+    "lum": 0.3854,
+    "erase": "alto/zapatos_zap_sport.erase"
+   },
+   "bl_cortas": {
+    "slot": "medias",
+    "color": "#30552a",
+    "src": "alto/medias_bl_cortas",
+    "lum": 0.2961
+   },
+   "bl_largas": {
+    "slot": "medias",
+    "color": "#1b4427",
+    "src": "alto/medias_bl_largas",
+    "lum": 0.2307
+   },
+   "med_disenador": {
+    "slot": "medias",
+    "color": "#2b442a",
+    "src": "alto/medias_med_disenador",
+    "lum": 0.2776
+   },
+   "med_seda": {
+    "slot": "medias",
+    "color": "#293d29",
+    "src": "alto/medias_med_seda",
+    "lum": 0.2271
+   }
+  },
+  "robusto": {
+   "largo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "robusto/pelo_largo",
+    "lum": 0.101,
+    "hair": true
+   },
+   "puntas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "robusto/pelo_puntas",
+    "lum": 0.09,
+    "hair": true
+   },
+   "coleta": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "robusto/pelo_coleta",
+    "lum": 0.115,
+    "hair": true
+   },
+   "mullet": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "robusto/pelo_mullet",
+    "lum": 0.097,
+    "hair": true
+   },
+   "flequillo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "robusto/pelo_flequillo",
+    "lum": 0.094,
+    "hair": true
+   },
+   "emo": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "robusto/pelo_emo",
+    "lum": 0.117,
+    "hair": true
+   },
+   "rastas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "robusto/pelo_rastas",
+    "lum": 0.076,
+    "hair": true
+   },
+   "ondulado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "robusto/pelo_ondulado",
+    "lum": 0.107,
+    "hair": true
+   },
+   "rizos": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "robusto/pelo_rizos",
+    "lum": 0.086,
+    "hair": true
+   },
+   "corto": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "robusto/pelo_corto",
+    "lum": 0.099,
+    "hair": true
+   },
+   "afro": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "robusto/pelo_afro",
+    "lum": 0.056,
+    "hair": true
+   },
+   "cresta": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "robusto/pelo_cresta",
+    "lum": 0.116,
+    "hair": true
+   },
+   "rapado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "robusto/pelo_rapado",
+    "lum": 0.154,
+    "hair": true
+   },
+   "mohicano": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "robusto/pelo_mohicano",
+    "lum": 0.105,
+    "hair": true
+   },
+   "mo\u00f1o": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "robusto/pelo_mo\u00f1o",
+    "lum": 0.123,
+    "hair": true
+   },
+   "raya_lado": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "robusto/pelo_raya_lado",
+    "lum": 0.106,
+    "hair": true
+   },
+   "hacia_atras": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "robusto/pelo_hacia_atras",
+    "lum": 0.112,
+    "hair": true
+   },
+   "trenzas": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "robusto/pelo_trenzas",
+    "lum": 0.137,
+    "hair": true
+   },
+   "militar": {
+    "slot": "pelo",
+    "color": "#1f1300",
+    "src": "robusto/pelo_militar",
+    "lum": 0.11,
+    "hair": true
+   },
+   "base_camiseta": {
+    "slot": "arriba",
+    "color": "#17181c",
+    "src": "robusto/base_camiseta",
+    "lum": 0.0877,
+    "base": true
+   },
+   "base_largo": {
+    "slot": "abajo",
+    "color": "#3a3a3c",
+    "src": "robusto/base_largo",
+    "lum": 0.1746,
+    "base": true
+   },
+   "base_tenis": {
+    "slot": "zapatos",
+    "color": "#d9d9d6",
+    "src": "robusto/base_tenis",
+    "lum": 0.5776,
+    "base": true
+   },
+   "head_gorra_sport": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "robusto/acc_head_gorra_sport",
+    "lum": 0.243,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "robusto/acc_head_gorra_sport.erase"
+   },
+   "head_gorro_sport": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "robusto/acc_head_gorro_sport",
+    "lum": 0.227,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "robusto/acc_head_gorro_sport.erase"
+   },
+   "head_visera": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "robusto/acc_head_visera",
+    "lum": 0.264,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "robusto/acc_head_visera.erase"
+   },
+   "head_gorra_casual": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "robusto/acc_head_gorra_casual",
+    "lum": 0.252,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "robusto/acc_head_gorra_casual.erase"
+   },
+   "hat_gorra": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "robusto/acc_head_gorra_casual",
+    "lum": 0.252,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "robusto/acc_head_gorra_casual.erase"
+   },
+   "head_gorro_casual": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "robusto/acc_head_gorro_casual",
+    "lum": 0.248,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "robusto/acc_head_gorro_casual.erase"
+   },
+   "hat_gorro": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "robusto/acc_head_gorro_casual",
+    "lum": 0.248,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "robusto/acc_head_gorro_casual.erase"
+   },
+   "head_bucket": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "robusto/acc_head_bucket",
+    "lum": 0.232,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "robusto/acc_head_bucket.erase"
+   },
+   "head_gorra_lujo": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "robusto/acc_head_gorra_lujo",
+    "lum": 0.271,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "robusto/acc_head_gorra_lujo.erase"
+   },
+   "head_gorro_lujo": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "robusto/acc_head_gorro_lujo",
+    "lum": 0.2,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "robusto/acc_head_gorro_lujo.erase"
+   },
+   "head_fedora": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "robusto/acc_head_fedora",
+    "lum": 0.177,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "robusto/acc_head_fedora.erase"
+   },
+   "hat_vaquero": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "robusto/acc_hat_vaquero",
+    "lum": 0.178,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "robusto/acc_hat_vaquero.erase"
+   },
+   "hat_gorra_campeon": {
+    "slot": "cabeza",
+    "color": "#c81e1e",
+    "src": "robusto/acc_hat_gorra_campeon",
+    "lum": 0.259,
+    "sel": {
+     "c": 18,
+     "h": 30
+    },
+    "erase": "robusto/acc_hat_gorra_campeon.erase"
+   },
+   "hat_corona": {
+    "slot": "cabeza",
+    "color": null,
+    "src": "robusto/acc_hat_corona",
+    "lum": 0.486,
+    "erase": "robusto/acc_hat_corona.erase"
+   },
+   "hat_sombrero_dorado": {
+    "slot": "cabeza",
+    "color": null,
+    "src": "robusto/acc_hat_sombrero_dorado",
+    "lum": 0.442,
+    "erase": "robusto/acc_hat_sombrero_dorado.erase"
+   },
+   "gl_redondas": {
+    "slot": "lentes",
+    "color": null,
+    "src": "robusto/acc_g_redondas",
+    "lum": 0.0
+   },
+   "gl_sol": {
+    "slot": "lentes",
+    "color": null,
+    "src": "robusto/acc_g_sol",
+    "lum": 0.099
+   },
+   "gl_nerd": {
+    "slot": "lentes",
+    "color": null,
+    "src": "robusto/acc_g_nerd",
+    "lum": 0.185
+   },
+   "er_bolita": {
+    "slot": "aretes",
+    "color": "oro",
+    "src": "robusto/acc_e_bolita",
+    "lum": 0.0,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "er_aro": {
+    "slot": "aretes",
+    "color": "oro",
+    "src": "robusto/acc_e_aro",
+    "lum": 0.4,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "nk_cadena": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "robusto/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_oro": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "robusto/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_plata": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "robusto/acc_n_cadena",
+    "lum": 0.419,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "nk_perlas": {
+    "slot": "cadenas",
+    "color": null,
+    "src": "robusto/acc_n_perlas",
+    "lum": 0.571
+   },
+   "nk_medallon": {
+    "slot": "cadenas",
+    "color": "oro",
+    "src": "robusto/acc_n_medallon",
+    "lum": 0.497,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "cad_diamantes": {
+    "slot": "cadenas",
+    "color": null,
+    "src": "robusto/acc_n_diamantes",
+    "lum": 0.668
+   },
+   "joy_pulsera": {
+    "slot": "pulseras",
+    "color": "oro",
+    "src": "robusto/acc_w_pulsera",
+    "lum": 0.415,
+    "sel": {
+     "c": 10,
+     "h": 40
+    }
+   },
+   "acc_mochila": {
+    "slot": "mochila",
+    "color": "#c81e1e",
+    "src": "robusto/acc_t_mochila",
+    "lum": 0.209,
+    "sel": {
+     "c": 18,
+     "h": 30
+    }
+   },
+   "cara_redonda": {
+    "slot": "cara",
+    "skins": {
+     "clara": "robusto/cara_redonda_clara",
+     "media": "robusto/cara_redonda_media",
+     "oscura": "robusto/cara_redonda_oscura"
+    },
+    "erase": "robusto/cara.erase"
+   },
+   "cara_cuadrada": {
+    "slot": "cara",
+    "skins": {
+     "clara": "robusto/cara_cuadrada_clara",
+     "media": "robusto/cara_cuadrada_media",
+     "oscura": "robusto/cara_cuadrada_oscura"
+    },
+    "erase": "robusto/cara.erase"
+   },
+   "cara_corazon": {
+    "slot": "cara",
+    "skins": {
+     "clara": "robusto/cara_corazon_clara",
+     "media": "robusto/cara_corazon_media",
+     "oscura": "robusto/cara_corazon_oscura"
+    },
+    "erase": "robusto/cara.erase"
+   },
+   "cara_alargada": {
+    "slot": "cara",
+    "skins": {
+     "clara": "robusto/cara_alargada_clara",
+     "media": "robusto/cara_alargada_media",
+     "oscura": "robusto/cara_alargada_oscura"
+    },
+    "erase": "robusto/cara.erase"
+   },
+   "cara_ancha": {
+    "slot": "cara",
+    "skins": {
+     "clara": "robusto/cara_ancha_clara",
+     "media": "robusto/cara_ancha_media",
+     "oscura": "robusto/cara_ancha_oscura"
+    },
+    "erase": "robusto/cara.erase"
+   },
+   "cara_diamante": {
+    "slot": "cara",
+    "skins": {
+     "clara": "robusto/cara_diamante_clara",
+     "media": "robusto/cara_diamante_media",
+     "oscura": "robusto/cara_diamante_oscura"
+    },
+    "erase": "robusto/cara.erase"
+   },
+   "cara_pera": {
+    "slot": "cara",
+    "skins": {
+     "clara": "robusto/cara_pera_clara",
+     "media": "robusto/cara_pera_media",
+     "oscura": "robusto/cara_pera_oscura"
+    },
+    "erase": "robusto/cara.erase"
+   },
+   "cara_triangular": {
+    "slot": "cara",
+    "skins": {
+     "clara": "robusto/cara_triangular_clara",
+     "media": "robusto/cara_triangular_media",
+     "oscura": "robusto/cara_triangular_oscura"
+    },
+    "erase": "robusto/cara.erase"
+   },
+   "cara_suave": {
+    "slot": "cara",
+    "skins": {
+     "clara": "robusto/cara_suave_clara",
+     "media": "robusto/cara_suave_media",
+     "oscura": "robusto/cara_suave_oscura"
+    },
+    "erase": "robusto/cara.erase"
+   },
+   "ojos_felices": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "robusto/ojos_felices_clara",
+     "media": "robusto/ojos_felices_media",
+     "oscura": "robusto/ojos_felices_oscura"
+    }
+   },
+   "ojos_gui\u00f1o": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "robusto/ojos_gui\u00f1o_clara",
+     "media": "robusto/ojos_gui\u00f1o_media",
+     "oscura": "robusto/ojos_gui\u00f1o_oscura"
+    }
+   },
+   "ojos_sorprendidos": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "robusto/ojos_sorprendidos_clara",
+     "media": "robusto/ojos_sorprendidos_media",
+     "oscura": "robusto/ojos_sorprendidos_oscura"
+    }
+   },
+   "ojos_enojados": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "robusto/ojos_enojados_clara",
+     "media": "robusto/ojos_enojados_media",
+     "oscura": "robusto/ojos_enojados_oscura"
+    }
+   },
+   "ojos_estrellas": {
+    "slot": "ojos",
+    "skins": {
+     "clara": "robusto/ojos_estrellas_clara",
+     "media": "robusto/ojos_estrellas_media",
+     "oscura": "robusto/ojos_estrellas_oscura"
+    }
+   },
+   "boca_carcajada": {
+    "slot": "boca",
+    "skins": {
+     "clara": "robusto/boca_carcajada_clara",
+     "media": "robusto/boca_carcajada_media",
+     "oscura": "robusto/boca_carcajada_oscura"
+    }
+   },
+   "boca_seria": {
+    "slot": "boca",
+    "skins": {
+     "clara": "robusto/boca_seria_clara",
+     "media": "robusto/boca_seria_media",
+     "oscura": "robusto/boca_seria_oscura"
+    }
+   },
+   "boca_lengua": {
+    "slot": "boca",
+    "skins": {
+     "clara": "robusto/boca_lengua_clara",
+     "media": "robusto/boca_lengua_media",
+     "oscura": "robusto/boca_lengua_oscura"
+    }
+   },
+   "boca_sorpresa": {
+    "slot": "boca",
+    "skins": {
+     "clara": "robusto/boca_sorpresa_clara",
+     "media": "robusto/boca_sorpresa_media",
+     "oscura": "robusto/boca_sorpresa_oscura"
+    }
+   },
+   "top_abrigo": {
+    "slot": "arriba",
+    "color": "#860d13",
+    "src": "robusto/arriba_top_abrigo",
+    "lum": 0.1512,
+    "hands": {
+     "clara": "robusto/arriba_top_abrigo_piel_clara",
+     "media": "robusto/arriba_top_abrigo_piel_media",
+     "oscura": "robusto/arriba_top_abrigo_piel_oscura"
+    },
+    "erase": "robusto/arriba_top_abrigo.erase"
+   },
+   "zap_vestir": {
+    "slot": "zapatos",
+    "color": "#283323",
+    "src": "robusto/zapatos_zap_vestir",
+    "lum": 0.2003,
+    "erase": "robusto/zapatos_zap_vestir.erase"
+   },
+   "bot_vestir": {
+    "slot": "abajo",
+    "color": "#152240",
+    "src": "robusto/abajo_bot_vestir",
+    "lum": 0.129,
+    "erase": "robusto/abajo_bot_vestir.erase"
+   },
+   "bl_botas": {
+    "slot": "zapatos",
+    "color": "#2d4d35",
+    "src": "robusto/zapatos_bl_botas",
+    "lum": 0.2724,
+    "erase": "robusto/zapatos_bl_botas.erase"
+   },
+   "bl_sin_mangas": {
+    "slot": "arriba",
+    "color": "#931a18",
+    "src": "robusto/arriba_bl_sin_mangas",
+    "lum": 0.1835,
+    "hands": {
+     "clara": "robusto/arriba_bl_sin_mangas_piel_clara",
+     "media": "robusto/arriba_bl_sin_mangas_piel_media",
+     "oscura": "robusto/arriba_bl_sin_mangas_piel_oscura"
+    },
+    "erase": "robusto/arriba_bl_sin_mangas.erase"
+   },
+   "bot_cargo": {
+    "slot": "abajo",
+    "color": "#192b4c",
+    "src": "robusto/abajo_bot_cargo",
+    "lum": 0.1608,
+    "erase": "robusto/abajo_bot_cargo.erase"
+   },
+   "zap_sport": {
+    "slot": "zapatos",
+    "color": "#445d3f",
+    "src": "robusto/zapatos_zap_sport",
+    "lum": 0.3329,
+    "erase": "robusto/zapatos_zap_sport.erase"
+   },
+   "top_hoodie": {
+    "slot": "arriba",
+    "color": "#8a1517",
+    "src": "robusto/arriba_top_hoodie",
+    "lum": 0.1704,
+    "hands": {
+     "clara": "robusto/arriba_top_hoodie_piel_clara",
+     "media": "robusto/arriba_top_hoodie_piel_media",
+     "oscura": "robusto/arriba_top_hoodie_piel_oscura"
+    },
+    "erase": "robusto/arriba_top_hoodie.erase"
+   },
+   "bot_joggers": {
+    "slot": "abajo",
+    "color": "#18294f",
+    "src": "robusto/abajo_bot_joggers",
+    "lum": 0.1547,
+    "erase": "robusto/abajo_bot_joggers.erase"
+   },
+   "zap_casual": {
+    "slot": "zapatos",
+    "color": "#395c41",
+    "src": "robusto/zapatos_zap_casual",
+    "lum": 0.3643,
+    "erase": "robusto/zapatos_zap_casual.erase"
+   },
+   "top_chaqueta": {
+    "slot": "arriba",
+    "color": "#89181a",
+    "src": "robusto/arriba_top_chaqueta",
+    "lum": 0.1738,
+    "hands": {
+     "clara": "robusto/arriba_top_chaqueta_piel_clara",
+     "media": "robusto/arriba_top_chaqueta_piel_media",
+     "oscura": "robusto/arriba_top_chaqueta_piel_oscura"
+    },
+    "erase": "robusto/arriba_top_chaqueta.erase"
+   },
+   "bot_jeans": {
+    "slot": "abajo",
+    "color": "#232c3d",
+    "src": "robusto/abajo_bot_jeans",
+    "lum": 0.1688,
+    "erase": "robusto/abajo_bot_jeans.erase"
+   },
+   "bl_camisa": {
+    "slot": "arriba",
+    "color": "#87151a",
+    "src": "robusto/arriba_bl_camisa",
+    "lum": 0.1719,
+    "hands": {
+     "clara": "robusto/arriba_bl_camisa_piel_clara",
+     "media": "robusto/arriba_bl_camisa_piel_media",
+     "oscura": "robusto/arriba_bl_camisa_piel_oscura"
+    },
+    "erase": "robusto/arriba_bl_camisa.erase"
+   },
+   "bl_chores": {
+    "slot": "abajo",
+    "color": "#1f2c57",
+    "src": "robusto/abajo_bl_chores",
+    "lum": 0.1516,
+    "hands": {
+     "clara": "robusto/abajo_bl_chores_piel_clara",
+     "media": "robusto/abajo_bl_chores_piel_media",
+     "oscura": "robusto/abajo_bl_chores_piel_oscura"
+    },
+    "erase": "robusto/abajo_bl_chores.erase"
+   },
+   "med_deportivas": {
+    "slot": "medias",
+    "color": "#184923",
+    "src": "robusto/medias_med_deportivas",
+    "lum": 0.2397
+   },
+   "bl_descalzo": {
+    "slot": "zapatos",
+    "color": null,
+    "hands": {
+     "clara": "robusto/zapatos_bl_descalzo_piel_clara",
+     "media": "robusto/zapatos_bl_descalzo_piel_media",
+     "oscura": "robusto/zapatos_bl_descalzo_piel_oscura"
+    },
+    "erase": "robusto/zapatos_bl_descalzo.erase"
+   },
+   "bl_cortas": {
+    "slot": "medias",
+    "color": "#30552a",
+    "src": "robusto/medias_bl_cortas",
+    "lum": 0.2961
+   },
+   "bl_largas": {
+    "slot": "medias",
+    "color": "#1b4427",
+    "src": "robusto/medias_bl_largas",
+    "lum": 0.2307
+   },
+   "med_disenador": {
+    "slot": "medias",
+    "color": "#2b442a",
+    "src": "robusto/medias_med_disenador",
+    "lum": 0.2776
+   },
+   "med_seda": {
+    "slot": "medias",
+    "color": "#293d29",
+    "src": "robusto/medias_med_seda",
+    "lum": 0.2271
+   }
+  }
+ }
+}

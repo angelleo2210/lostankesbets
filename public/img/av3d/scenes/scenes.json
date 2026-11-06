@@ -1,0 +1,37 @@
+{
+ "plates": {
+  "muelle": {
+   "src": "scenes/muelle",
+   "person": {
+    "x": 0.03,
+    "y": 0.95,
+    "h": 0.8
+   }
+  }
+ },
+ "props": {
+  "moto_naked": {
+   "src": "scenes/moto_naked",
+   "color": "rojo",
+   "lum": 0.1273,
+   "z": "front",
+   "sel": {
+    "c": 10,
+    "h": 60,
+    "paint": "scenes/moto_naked.paint",
+    "only": true
+   }
+  },
+  "yate_mega": {
+   "src": "scenes/yate_mega",
+   "color": "dorado",
+   "lum": 0.3468,
+   "z": "back",
+   "sel": {
+    "c": 4,
+    "h": 50,
+    "paint": "scenes/yate_mega.paint"
+   }
+  }
+ }
+}
