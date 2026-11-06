@@ -42,8 +42,9 @@ async function start() {
 }
 async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInterval(tcBarT);
   me = await api('/me'); if (!RW.length) RW = await api('/rewards').catch(() => []);
+  const stCover = await api('/store').catch(() => ({ owned: [] }));
   const tabs = [['lineas', 'Líneas'], ['reales', 'Reales'], ['mias', 'Mis apuestas'], ['tabla', 'Tabla'], ['tienda', 'Tienda'], ['juegos', 'Retos' + (me.retosPend ? ` (${me.retosPend})` : '')], ['perfil', 'Mi perfil']].concat(me.is_admin ? [['admin', 'Admin']] : []);
-  A.innerHTML = `<h1>Hola, ${who(me, 56)} · 🪙 ${fmt(me.coins)}</h1><nav>${tabs.map(([k, v]) => `<button class="${k === tab ? '' : 'alt'}" data-t="${k}">${v}</button>`).join('')}</nav>
+  A.innerHTML = `${coverBanner(me, stCover.owned || [])}<nav>${tabs.map(([k, v]) => `<button class="${k === tab ? '' : 'alt'}" data-t="${k}">${v}</button>`).join('')}</nav>
   <div id="bono" class="bono"></div><p id="msg" class="err"></p><div id="body"></div><button class="alt" id="out">Salir</button>`;
   A.querySelectorAll('nav button').forEach(b => b.onclick = () => { tab = b.dataset.t; render(); });
   $('#out').onclick = () => { localStorage.removeItem('token'); token = null; start(); };
@@ -146,6 +147,32 @@ const av3dAttr = o => esc(JSON.stringify(o)).replace(/'/g, '&#39;');
 const av3d = (u, o = {}, cls = '') => `<div class="av3dw ${cls}"><canvas class="av3dc" data-av3d='${av3dAttr({ cfg: u.avatarCfg || {}, ...o })}'></canvas><div class="av3dmiss small"></div></div>`;
 const _avHead = (u, size = 28) => av3d(u, { head: true, w: Math.max(48, size * 2), h: Math.max(48, size * 2) }, 'head');
 const _avBody = (u, size = 64) => av3d(u, { w: Math.round(size * 576 / 768), h: size }, 'body');
+const SHOW_CATS = new Set(['carros', 'motos', 'barcos', 'aviones', 'casas', 'relojes']);
+const SCENE3D = new Set(['moto_scooter','moto_naked','moto_pista','jet_basico','jet_turbo','jet_pro','yate_lancha','yate_velero','yate_catamaran','yate_blanco','yate_mega']);
+const propThumb = (id, color) => SCENE3D.has(id) ? `img/av3d/scenes/${id}.webp` : Store.img(id, color);
+const coverBanner = (u, owned = []) => {
+  const show = owned.map(o => ({ ...o, it: Store.byId(o.item_id) })).filter(o => o.it && SHOW_CATS.has(o.it.cat))
+    .sort((a, b) => (b.it.price - a.it.price) || a.it.name.localeCompare(b.it.name));
+  const nm = esc(u.display_name || u.username);
+  const loot = show.length
+    ? show.map(o => `<div class="cover-item" title="${esc(o.it.name)}"><img src="${propThumb(o.item_id, o.color)}" alt="${esc(o.it.name)}"><span>${esc(o.it.name)}</span></div>`).join('')
+    : `<div class="cover-empty small">Aún no tienes carros, motos, barcos, aviones, casas ni relojes. ¡Pásate por la Tienda!</div>`;
+  // Escena rica de portada + avatar completo + nombre/monedas + todas las pertenencias
+  return `<section class="cover" aria-label="Portada">
+    <img class="cover-bg" src="img/av3d/scenes/cover_bg.webp" alt="">
+    <div class="cover-shade"></div>
+    <div class="cover-row">
+      <div class="cover-av">${av3d(u, { w: 216, h: 288 }, 'cover')}</div>
+      <div class="cover-meta">
+        <div class="cover-hello">Hola,</div>
+        <div class="cover-name">${u.badge ? u.badge + ' ' : ''}${nm}</div>
+        <div class="cover-coins">🪙 ${fmt(u.coins)}</div>
+      </div>
+    </div>
+    <div class="cover-loot" role="list">${loot}</div>
+  </section>`;
+};
+
 const composite = (u, owned) => { const best = p => owned.filter(o => o.item_id.startsWith(p)).map(o => ({ ...o, it: Store.byId(o.item_id) })).filter(o => o.it).sort((a, b) => b.it.price - a.it.price)[0];
   const y = best('yate_'), m = best('moto_'), scene = {}; if (y) scene.yate = { id: y.item_id, color: y.color }; if (m) scene.moto = { id: m.item_id, color: m.color };
   return `<div class="combo3d">${av3d(u, { scene })}<div class="ccap">${y ? '🛥️ ' + esc(y.it.name) : m ? '⚓ Muelle' : '🎬 Estudio'}${m ? ' · 🏍️ ' + esc(m.it.name) : ''}</div></div>`; };

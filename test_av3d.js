@@ -56,4 +56,21 @@ t('retrato cabeza: head:true recorta cuadrado con alfa y sin escena', async () =
   assert.ok(app.includes("_avHead") || app.includes('head: true'));
 });
 
+
+t('portada cover: fondo rico y thumbs de todas las categorías showpiece', () => {
+  assert.ok(fs.existsSync(R + '/scenes/cover_bg.webp'));
+  const app = fs.readFileSync(__dirname + '/public/app.js', 'utf8');
+  assert.ok(app.includes('coverBanner') && app.includes('SHOW_CATS'), 'portada cableada');
+  assert.ok(app.includes('coverBanner(me'), 'portada en todas las pestañas via render');
+  // cada catálogo showpiece tiene al menos una foto de tienda
+  const cats = { carros: 'car_', motos: 'moto_', barcos: 'jet_', aviones: 'avion_', casas: 'casa_', relojes: 'reloj_' };
+  for (const [cat, pre] of Object.entries(cats)) {
+    const hit = St.ITEMS.filter(i => i.cat === cat);
+    assert.ok(hit.length, cat);
+    hit.forEach(i => assert.ok(fs.existsSync(path.join(__dirname, 'public', St.img(i.id, i.color))), i.id + ' foto tienda'));
+  }
+  // jets/motos/yates 3D en escenas para la portada
+  ['jet_basico','jet_turbo','jet_pro','moto_scooter','moto_naked','moto_pista','yate_mega'].forEach(id => assert.ok(fs.existsSync(`${R}/scenes/${id}.webp`), id));
+});
+
 t('ojos y boca del constructor cubiertos en 10 cuerpos x 3 pieles', () => { for (const b of Object.keys(M.layers)) { for (const e of Av.CAT.eyes.opts.slice(1)) assert.ok(M.layers[b]['ojos_' + e] && Object.keys(M.layers[b]['ojos_' + e].skins).length === 3, b + e); for (const m of Av.CAT.mouth.opts.slice(1)) assert.ok(M.layers[b]['boca_' + m] && Object.keys(M.layers[b]['boca_' + m].skins).length === 3, b + m); } });
