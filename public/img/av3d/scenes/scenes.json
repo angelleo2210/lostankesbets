@@ -32,6 +32,108 @@
     "h": 50,
     "paint": "scenes/yate_mega.paint"
    }
+  },
+  "moto_scooter": {
+   "src": "scenes/moto_scooter",
+   "color": "verde",
+   "lum": 0.2201,
+   "z": "front",
+   "sel": {
+    "c": 10,
+    "h": 60,
+    "paint": "scenes/moto_scooter.paint",
+    "only": true
+   }
+  },
+  "moto_pista": {
+   "src": "scenes/moto_pista",
+   "color": "verde",
+   "lum": 0.2258,
+   "z": "front",
+   "sel": {
+    "c": 10,
+    "h": 60,
+    "paint": "scenes/moto_pista.paint",
+    "only": true
+   }
+  },
+  "jet_basico": {
+   "src": "scenes/jet_basico",
+   "color": "azul",
+   "lum": 0.2588,
+   "z": "front",
+   "sel": {
+    "c": 4,
+    "h": 50,
+    "paint": "scenes/jet_basico.paint"
+   }
+  },
+  "jet_turbo": {
+   "src": "scenes/jet_turbo",
+   "color": "rojo",
+   "lum": 0.1861,
+   "z": "front",
+   "sel": {
+    "c": 4,
+    "h": 50,
+    "paint": "scenes/jet_turbo.paint"
+   }
+  },
+  "jet_pro": {
+   "src": "scenes/jet_pro",
+   "color": "negro",
+   "lum": 0.1711,
+   "z": "front",
+   "sel": {
+    "c": 0,
+    "h": 180,
+    "paint": "scenes/jet_pro.paint",
+    "only": true
+   }
+  },
+  "yate_lancha": {
+   "src": "scenes/yate_lancha",
+   "color": "rojo",
+   "lum": 0.331,
+   "z": "back",
+   "sel": {
+    "c": 4,
+    "h": 50,
+    "paint": "scenes/yate_lancha.paint"
+   }
+  },
+  "yate_velero": {
+   "src": "scenes/yate_velero",
+   "color": "azul",
+   "lum": 0.3772,
+   "z": "back",
+   "sel": {
+    "c": 3,
+    "h": 70,
+    "paint": "scenes/yate_velero.paint"
+   }
+  },
+  "yate_catamaran": {
+   "src": "scenes/yate_catamaran",
+   "color": "blanco",
+   "lum": 0.5641,
+   "z": "back",
+   "sel": {
+    "c": 2,
+    "h": 40,
+    "paint": "scenes/yate_catamaran.paint"
+   }
+  },
+  "yate_blanco": {
+   "src": "scenes/yate_blanco",
+   "color": "blanco",
+   "lum": 0.6121,
+   "z": "back",
+   "sel": {
+    "c": 2,
+    "h": 40,
+    "paint": "scenes/yate_blanco.paint"
+   }
   }
  }
 }
