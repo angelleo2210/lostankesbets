@@ -394,7 +394,7 @@ function open(file = 'data.db') {
       }
     },
     myParlays: uid => db.prepare('SELECT * FROM parlays WHERE user_id=? ORDER BY id DESC').all(uid).map(p => {
-      const legs = db.prepare('SELECT g.*, l.title, o.label FROM parlay_legs g JOIN lines l ON l.id=g.line_id JOIN options o ON o.id=g.option_id WHERE g.parlay_id=? ORDER BY g.id').all(p.id);
+      const legs = db.prepare('SELECT g.*, l.title, l.home, l.away, o.label FROM parlay_legs g JOIN lines l ON l.id=g.line_id JOIN options o ON o.id=g.option_id WHERE g.parlay_id=? ORDER BY g.id').all(p.id);
       const d = p.pricing ? modeledFactor(p, legs).d : legs.filter(g => g.status !== 'cancelled').reduce((m, g) => m * dec(g.odds), 1);
       const { pricing, ...pp } = p;
       return { ...pp, legs, ...(p.pricing ? { pricing_note: Sgp.NOTE, model: JSON.parse(p.pricing).version } : p.same_event ? { pricing_note: Markets.SAME_EVENT_NOTE } : {}), odds: d > 1 ? toAmerican(d) : null, potential: Math.floor(p.stake * d) };
@@ -428,7 +428,7 @@ function open(file = 'data.db') {
         api._parlayLegs(l.id, null); api.refreshRanks();
       });
     },
-    myBets: uid => db.prepare('SELECT b.*, l.title, l.kind, o.label FROM bets b JOIN lines l ON l.id=b.line_id JOIN options o ON o.id=b.option_id WHERE b.user_id=? ORDER BY b.id DESC').all(uid),
+    myBets: uid => db.prepare('SELECT b.*, l.title, l.kind, l.home, l.away, o.label FROM bets b JOIN lines l ON l.id=b.line_id JOIN options o ON o.id=b.option_id WHERE b.user_id=? ORDER BY b.id DESC').all(uid),
     setProfile(uid, avatar, displayName, facialHair, cosmetics, avatarCfg) {
       let cos, acfg;
       if (avatarCfg !== undefined && avatarCfg !== null) { const v = AV.validate(avatarCfg); if (v.error) err(v.error); acfg = v.cfg; }

@@ -49,7 +49,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
     B.innerHTML = boletoCard() + (ls.length ? marketCards(ls) : '<div class="card">No hay líneas abiertas.</div>'); bindBets(ls); }
   if (tab === 'reales') { const sp = await api('/real/sports'); window.realSport = window.realSport || sp.default; const d = await api('/real?sport=' + encodeURIComponent(window.realSport)); const ls = (await api('/lines')).filter(l => l.kind === 'real');
     B.innerHTML = boletoCard() + `<div class="card"><label>Liga de fútbol: <select id="realSport">${sp.sports.map(x => `<option value="${esc(x.key)}"${x.key === window.realSport ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label></div>` + '<div class="card small">Nuevas importaciones: Hard Rock Bet (Florida) vía The Odds API. Solo mercados disponibles; sin sustitución de casa. Las líneas ya importadas conservan su fuente y cuotas originales.</div>' + (d.notice ? `<div class="card">${esc(d.notice)}</div>` : '') + (d.error ? `<div class="card">${esc(d.error)}</div>` : '') + (ls.length ? marketCards(ls) : '<div class="card">El administrador aún no ha agregado líneas reales.</div>') +
-      (me.is_admin && d.events ? `<div class="card"><h2>Importar evento real (admin)</h2>${d.events.slice(0, 30).map(e => `<div class="card"><b>${esc(e.sport)}: ${esc(e.title)}</b><div class="small">${new Date(e.starts).toLocaleString('es-US')} · ${esc(e.bookmaker)}</div>${(e.markets || []).map(m => `${Markets.NAMES[m.key]}: ${m.options.map(o => `${esc(Markets.label(m.key,o))} ${od(o.odds)}`).join(' / ')}`).join('<br>')}<button class="alt" data-imp="${esc(e.id)}">Agregar</button></div>`).join('')}</div>` : '');
+      (me.is_admin && d.events ? `<div class="card"><h2>Importar evento real (admin)</h2>${d.events.slice(0, 30).map(e => `<div class="card"><b>${esc(e.sport)}: ${esc(vsTitle(e.title, e.home, e.away))}</b><div class="small">${new Date(e.starts).toLocaleString('es-US')} · ${esc(e.bookmaker)}</div>${(e.markets || []).map(m => `${Markets.NAMES[m.key]}: ${m.options.map(o => `${esc(Markets.label(m.key,o))} ${od(o.odds)}`).join(' / ')}`).join('<br>')}<button class="alt" data-imp="${esc(e.id)}">Agregar</button></div>`).join('')}</div>` : '');
     bindBets(ls); $('#realSport').onchange = e => { window.realSport = e.target.value; render(); }; B.querySelectorAll('[data-imp]').forEach(b => b.onclick = async () => { try { const r = await api('/admin/import', { eventId: b.dataset.imp, sport: window.realSport }); if (r.error) throw new Error(r.error); render(); } catch (e) { flash(e.message); } }); }
   if (tab === 'mias') {
     const meta = s => ({
@@ -83,7 +83,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
       return `<article class="hrb bet-${m.cls}" data-betshare="b-${b.id}" data-share="${esc(share)}">
         <div class="hrb-banner"><span class="hrb-brand">LosTankesBets</span><span class="hrb-win">${m.banner}</span></div>
         <div class="hrb-body">
-          <div class="hrb-row"><div class="hrb-left"><span class="hrb-tag">Simple</span><span class="hrb-name">${esc(b.title)}</span></div><span class="hrb-odds">${od(b.odds)}</span></div>
+          <div class="hrb-row"><div class="hrb-left"><span class="hrb-tag">Simple</span><span class="hrb-name">${esc(vsTitle(b.title, b.home, b.away))}</span></div><span class="hrb-odds">${od(b.odds)}</span></div>
           <div class="hrb-sel">${esc(b.label)}</div>
           <div class="hrb-money"><div><span class="k">Apostado</span><b>${fmt(b.stake)}</b></div><div><span class="k">${m.payK}</span><b>${money(b)}</b></div></div>
           <div class="hrb-foot"><button type="button" class="hrb-id" data-copy="${b.id}">#${b.id}</button><button type="button" class="hrb-share" data-sharebtn="b-${b.id}">Compartir</button></div>
@@ -95,7 +95,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
       const n = (p.legs || []).length;
       const picks = (p.legs || []).map(g => g.label).join(', ');
       const share = `LosTankesBets · ${m.banner} · Parlay ${n} · ${picks} · Apostado ${fmt(p.stake)} · ${m.payK} ${money(p)} · #${p.id}`;
-      const legs = (p.legs || []).map(g => `<div class="hrb-leg"><span>${gst[g.status] || '·'}</span><span>${esc(g.title)}: <b>${esc(g.label)}</b> ${od(g.odds)}</span></div>`).join('');
+      const legs = (p.legs || []).map(g => `<div class="hrb-leg"><span>${gst[g.status] || '·'}</span><span>${esc(vsTitle(g.title, g.home, g.away))}: <b>${esc(g.label)}</b> ${od(g.odds)}</span></div>`).join('');
       return `<article class="hrb bet-${m.cls}" data-betshare="p-${p.id}" data-share="${esc(share)}">
         <div class="hrb-banner"><span class="hrb-brand">LosTankesBets</span><span class="hrb-win">${m.banner}</span></div>
         <div class="hrb-body">
@@ -203,6 +203,9 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
   if (tab === 'admin') await adminView(B);
   } catch (e) { flash(e.message); }
 }
+// Display-only: visitante first, local second. Canonical home/away data is never changed.
+function vsTitle(t, home, away) { t = String(t || ''); return home && away ? t.split(`${home} vs ${away}`).join(`${away} vs ${home}`) : t; }
+function displayTeams(home, away) { return [away, home]; }
 // Group independently settled market lines into one event card; legacy custom lines stay unchanged.
 function marketCards(ls) {
   const groups = new Map();
@@ -215,16 +218,17 @@ function marketCards(ls) {
     const base = group.find(l => l.home) || group[0];
     const by = Object.fromEntries(group.map(l => [l.market || 'h2h', l]));
     const winner = by.h2h;
-    const teams = base.home ? [base.home, base.away] : (winner?.options || []).filter(o => !['Draw','Empate'].includes(o.outcome || o.label)).map(o => o.outcome || o.label);
+    const teams = base.home ? displayTeams(base.home, base.away) : (winner?.options || []).filter(o => !['Draw','Empate'].includes(o.outcome || o.label)).map(o => o.outcome || o.label);
     const cell = (l, o) => {
       if (!l || !o) return '<span class="market-unavailable" aria-label="No disponible" title="Sin cuota disponible">—</span>';
       const on = boleto.some(b => b.id === o.id), key = l.market || 'h2h';
       const content = `${key !== 'h2h' ? `<span class="market-point">${esc(Markets.threshold(key, o))}</span>` : ''}<span class="odds-n">${od(o.odds)}</span>`;
       return l.status === 'open' ? `<button type="button" class="odds ${on ? 'on' : ''}" data-add="${o.id}" aria-pressed="${on}" aria-label="${esc(o.label)} ${od(o.odds)}">${content}</button>` : `<div class="odds off" aria-label="Cerrada">${content}</div>`;
     };
-    const row = (name, i) => `<div class="event-team">${esc(name)}</div>${cell(by.spreads, by.spreads?.options.find(o => o.outcome === name))}${cell(by.totals, by.totals?.options.find(o => o.outcome === (i === 0 ? 'Over' : 'Under')))}${cell(winner, winner?.options.find(o => (o.outcome || o.label) === name))}`;
+    const row = (name, i) => // totals stay Over top / Under bottom, independent of team rows
+       `<div class="event-team">${esc(name)}</div>${cell(by.spreads, by.spreads?.options.find(o => o.outcome === name))}${cell(by.totals, by.totals?.options.find(o => o.outcome === (i === 0 ? 'Over' : 'Under')))}${cell(winner, winner?.options.find(o => (o.outcome || o.label) === name))}`;
     const draw = winner?.options.find(o => ['Draw','Empate'].includes(o.outcome || o.label));
-    return `<div class="card line"><div class="line-hd"><h2>${esc(base.title)}</h2>${base.kind === 'real' ? '<div class="small">Real</div>' : ''}</div>
+    return `<div class="card line"><div class="line-hd"><h2>${esc(vsTitle(base.title, base.home, base.away))}</h2>${base.kind === 'real' ? '<div class="small">Real</div>' : ''}</div>
       <div class="event-market-grid"><span class="market-head">Equipo</span><span class="market-head">Hándicap</span><span class="market-head">Total${base.unit ? '<br>' + esc(base.unit) : ''}</span><span class="market-head">Ganador</span>
       ${teams.map(row).join('')}${draw ? `<span class="event-team">Empate</span><span></span><span></span>${cell(winner, draw)}` : ''}</div>
       <div class="event-date small">${base.starts ? esc(new Date(base.starts).toLocaleString('es-US')) : 'Fecha no indicada'}</div>
@@ -242,14 +246,14 @@ function lineCard(l) {
       : `<div class="odds off"><span class="odds-n">${od(o.odds)}</span></div>`;
     return `<div class="line-row">${lab}${cell}</div>`;
   }).join('');
-  return `<div class="card line"><div class="line-hd"><h2>${esc(l.title)}</h2><div class="small">${l.kind === 'real' ? 'Real · ' : ''}${open ? 'Abierta' : 'Cerrada'}${l.starts ? ' · ' + new Date(l.starts).toLocaleString('es-US') : ''}</div></div><div class="line-grid">${rows}</div>${!l.market ? `<div class="small">Esta línea antigua solo tiene Ganador. Hándicap y Total necesitan sus umbrales y cuotas.</div>${me?.is_admin && open ? `<button type="button" class="alt" data-market-config="${l.id}">Agregar hándicap / total</button>` : ''}` : ''}</div>`;
+  return `<div class="card line"><div class="line-hd"><h2>${esc(vsTitle(l.title, l.home, l.away))}</h2><div class="small">${l.kind === 'real' ? 'Real · ' : ''}${open ? 'Abierta' : 'Cerrada'}${l.starts ? ' · ' + new Date(l.starts).toLocaleString('es-US') : ''}</div></div><div class="line-grid">${rows}</div>${!l.market ? `<div class="small">Esta línea antigua solo tiene Ganador. Hándicap y Total necesitan sus umbrales y cuotas.</div>${me?.is_admin && open ? `<button type="button" class="alt" data-market-config="${l.id}">Agregar hándicap / total</button>` : ''}` : ''}</div>`;
 }
 function slipQuote(b) { const ev = {}; for (const x of b) if (x.event) ev[x.event] = x.lines || []; return Sgp.quote(b, ev); }
 function boletoCard() {
   if (!boleto.length) return '<div class="card slip empty"><div class="small">Toca una cuota para marcarla en azul. Luego escribe el monto aquí abajo.</div></div>';
   const n = boleto.length, q = n > 1 ? slipQuote(boleto) : {}, d = q.dec || boleto.reduce((m, b) => m * dec(b.odds), 1);
   const kind = n === 1 ? 'Simple' : 'Parlay';
-  return `<div class="card slip"><h2>🎟️ Boleto · ${kind} (${n}/15)</h2><div class="slip-list">${boleto.map(b => `<div class="slip-row"><span class="small">${esc(b.title)}: <b>${esc(b.label)} ${od(b.odds)}</b></span><button type="button" class="alt slip-x" data-rm="${b.id}" aria-label="Quitar">✕</button></div>`).join('')}</div>
+  return `<div class="card slip"><h2>🎟️ Boleto · ${kind} (${n}/15)</h2><div class="slip-list">${boleto.map(b => `<div class="slip-row"><span class="small">${esc(vsTitle(b.title, b.home, b.away))}: <b>${esc(b.label)} ${od(b.odds)}</b></span><button type="button" class="alt slip-x" data-rm="${b.id}" aria-label="Quitar">✕</button></div>`).join('')}</div>
   <div class="slip-meta">${n === 1 ? 'Cuota' : 'Cuota combinada'} <b>${od(toAm(d))}</b></div>${q.error ? `<div class="slip-warn" style="border:2px solid #d33;background:#fde8e8;color:#600;padding:8px;border-radius:8px;font-weight:600">⛔ ${esc(q.error)}</div>` : ''}
   <input type="number" min="1" inputmode="numeric" placeholder="Monto a apostar" id="ps" value="${esc(boletoStake)}">
   <div class="small" id="pw">Escribe un monto</div>
@@ -304,20 +308,20 @@ async function adminView(B) {
   B.innerHTML = `<div class="card"><h2>Nueva línea ficticia</h2><input id="t" placeholder="Ej: Hoy Ángel come espaguetis">
   <div id="opts"></div><button class="alt" id="add">+ Opción</button><button id="create">Crear línea</button></div>
   <div class="card"><h2>Nuevo evento con mercados</h2><p class="small">Opciones independientes; no se generan cuotas. Solo umbrales enteros o medios (sin líneas asiáticas divididas). Liquidación manual por mercado.</p>
-    <input id="et" placeholder="Título del evento"><input id="eh" placeholder="Equipo local"><input id="ea" placeholder="Equipo visitante">
+    <input id="et" placeholder="Título del evento"><input id="ea" placeholder="Equipo visitante (arriba)"><input id="eh" placeholder="Equipo local (abajo)">
     <select id="eu"><option value="">Unidad sin especificar</option value="goles">Goles</option><option value="puntos">Puntos</option><option value="carreras">Carreras</option></select>
-    <label><input type="checkbox" id="emh"> Ganador</label><div class="row"><input id="eho" placeholder="Cuota local"><input id="eao" placeholder="Cuota visitante"><input id="edo" placeholder="Cuota empate (opcional)"></div>
-    <label><input type="checkbox" id="ems"> Hándicap</label><div class="row"><input id="esp" placeholder="Umbral local (ej. -0.5)"><input id="eso" placeholder="Cuota local"><input id="esao" placeholder="Cuota visitante"></div><p class="small">Visitante: umbral opuesto al local.</p>
+    <label><input type="checkbox" id="emh"> Ganador</label><div class="row"><input id="eao" placeholder="Cuota visitante"><input id="eho" placeholder="Cuota local"><input id="edo" placeholder="Cuota empate (opcional)"></div>
+    <label><input type="checkbox" id="ems"> Hándicap</label><div class="row"><input id="esao" placeholder="Cuota visitante"><input id="esp" placeholder="Umbral local (ej. -0.5)"><input id="eso" placeholder="Cuota local"></div><p class="small">Visitante: umbral opuesto al local.</p>
     <label><input type="checkbox" id="emt"> Total</label><div class="row"><input id="etp" placeholder="Umbral total"><input id="eto" placeholder="Cuota Over"><input id="etuo" placeholder="Cuota Under"></div><button id="eventCreate">Crear evento</button></div>
   <div class="card"><h2>Agregar mercados a un evento existente</h2><p class="small">Para partidos antiguos solo Ganador: selecciona el partido y escribe las cuotas y el umbral que quieres ofrecer. No se inventan ni se cambian las apuestas existentes.</p>
-  <select id="existingEvent">${ls.filter(l => l.status === 'open').map(l => `<option value="${l.id}">#${l.id} · ${esc(l.title)}</option>`).join('')}</select>
-  <input id="existingHome" placeholder="Nombre exacto del primer equipo"><input id="existingAway" placeholder="Nombre exacto del segundo equipo">
+  <select id="existingEvent">${ls.filter(l => l.status === 'open').map(l => `<option value="${l.id}">#${l.id} · ${esc(vsTitle(l.title, l.home, l.away))}</option>`).join('')}</select>
+  <input id="existingAway" placeholder="Equipo visitante (nombre exacto, arriba)"><input id="existingHome" placeholder="Equipo local (nombre exacto, abajo)">
   <select id="existingUnit"><option value="">Unidad sin especificar</option><option value="goles">Goles</option><option value="puntos">Puntos</option><option value="carreras">Carreras</option></select>
   <select id="existingMarket"><option value="spreads">Hándicap</option><option value="totals">Total (Over / Under)</option></select>
   <input id="existingPoint" placeholder="Umbral local de hándicap / umbral de total" type="number" step="0.5">
   <input id="existingOddsA" placeholder="Cuota americana local / Over" type="number"><input id="existingOddsB" placeholder="Cuota americana visitante / Under" type="number">
   <p class="small">Hándicap: el visitante recibe el umbral opuesto. Total: Over y Under usan el mismo umbral. Una cuota propia para cada opción.</p><button id="existingAdd">Agregar mercado al partido</button></div>
-  <div class="card"><h2>Liquidar / cerrar</h2>${ls.map(l => `<div class="card"><b>${esc(l.title)}${l.market ? " · " + Markets.NAMES[l.market] : ""}</b> <span class="small">(${l.status === 'open' ? 'abierta' : 'cerrada'})</span>
+  <div class="card"><h2>Liquidar / cerrar</h2>${ls.map(l => `<div class="card"><b>${esc(vsTitle(l.title, l.home, l.away))}${l.market ? " · " + Markets.NAMES[l.market] : ""}</b> <span class="small">(${l.status === 'open' ? 'abierta' : 'cerrada'})</span>
    ${l.status === 'open' ? `<button class="alt" data-close="${l.id}">Cerrar apuestas</button>` : ''}
    <select id="w${l.id}">${l.options.map(o => `<option value="${o.id}">${esc(o.label)} ${od(o.odds)}</option>`).join('')}</select>
    <div class="row"><button data-settle="${l.id}">Ganó esta</button>${["spreads","totals"].includes(l.market) && l.options.every(o => Number.isInteger(o.point)) ? `<button class="alt" data-push="${l.id}">Push: empate exacto / devolver</button>` : ""}<button class="red" data-cancel="${l.id}">Cancelar y devolver</button></div></div>`).join('') || 'Nada pendiente.'}</div>
