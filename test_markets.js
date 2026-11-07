@@ -9,12 +9,15 @@ const options = {
   totals: [{label:'Over',point:3,odds:105},{label:'Under',point:3,odds:-120}]
 };
 const event = id => ({id,title:'Local vs Visita',home:'Local',away:'Visita',unit:'goles',markets:Object.entries(options).map(([key,options])=>({key,options}))});
-const fixture = {id:'real-1',sport_key:'soccer_epl',sport_title:'EPL',home_team:'Local',away_team:'Visita',bookmakers:[{title:'Solo ML',markets:[{key:'h2h',outcomes:options.h2h.map(o=>({name:o.label,price:o.odds}))}]},{title:'Otro',markets:['spreads','totals'].map(key=>({key,outcomes:options[key].map(o=>({name:o.label,price:o.odds,point:o.point}))}))}]};
-t('provider: varied books complete markets preserve point+own American odds',()=>{
- const [e]=parseEvents([fixture]);assert.equal(e.markets.length,3);assert.equal(e.unit,'goles');assert.equal(e.markets[1].options[0].point,-1);assert.equal(e.markets[1].options[0].odds,125);assert.equal(e.markets[2].bookmaker,'Otro');
- const missing=parseEvents([{...fixture,bookmakers:[fixture.bookmakers[0]]}])[0];assert.deepEqual(missing.markets.map(m=>m.key),['h2h']);assert.deepEqual(parseEvents([{...fixture,bookmakers:[]}]),[]);
- const bad=structuredClone(fixture);bad.bookmakers[1].markets[0].outcomes[0].point=undefined;assert.deepEqual(parseEvents([bad])[0].markets.map(m=>m.key),['h2h','totals']);
- const quarter=structuredClone(fixture);quarter.bookmakers[1].markets[0].outcomes.forEach(o=>o.point/=4);assert.equal(parseEvents([quarter])[0].markets.some(m=>m.key==='spreads'),false);
+const florida = {key:'hardrockbet_fl',title:'Hard Rock Bet (FL)',markets:Object.keys(options).map(key=>({key,outcomes:options[key].map(o=>({name:o.label,price:o.odds,...(key==='h2h'?{}:{point:o.point})}))}))};
+const fixture = {id:'real-1',sport_key:'soccer_epl',sport_title:'EPL',home_team:'Local',away_team:'Visita',bookmakers:[{...structuredClone(florida),key:'fanduel',title:'Wrong book'},florida]};
+t('provider: strictly Florida, preserving points and own American odds',()=>{
+ const [e]=parseEvents([fixture]);assert.equal(e.markets.length,3);assert.equal(e.unit,'goles');assert.equal(e.markets[1].options[0].point,-1);assert.equal(e.markets[1].options[0].odds,125);assert.equal(e.markets[2].bookmaker,'Hard Rock Bet (Florida)');
+ for(const key of ['hardrockbet','hardrockbet_az','hardrockbet_oh','fanduel',undefined]) assert.deepEqual(parseEvents([{...fixture,bookmakers:[{...florida,key}]}]),[]);
+ const missing=structuredClone(fixture);missing.bookmakers[1].markets=[florida.markets[0]];
+ assert.deepEqual(parseEvents([missing])[0].markets.map(m=>m.key),['h2h']);assert.deepEqual(parseEvents([{...fixture,bookmakers:[]}]),[]);
+ const bad=structuredClone(fixture);bad.bookmakers[1].markets[1].outcomes[0].point=undefined;assert.deepEqual(parseEvents([bad])[0].markets.map(m=>m.key),['h2h','totals']);
+ const quarter=structuredClone(fixture);quarter.bookmakers[1].markets[1].outcomes.forEach(o=>o.point/=4);assert.equal(parseEvents([quarter])[0].markets.some(m=>m.key==='spreads'),false);
 });
 const Q=open(':memory:');Q.setupAdmin('admin','1234');const u=Q.register(Q.newInvite(),'jugador','1234');const coin=()=>Q.db.prepare('SELECT coins FROM users WHERE id=?').get(u).coins;
 let ids;
@@ -101,7 +104,10 @@ t('legacy cards retain three equal market columns with compact nonoverflowing mo
 });
 (async()=>{
  const orig=global.fetch,old=process.env.ODDS_API_KEY;process.env.ODDS_API_KEY='test-only';
- try {global.fetch=async url=>{assert.match(url,/markets=h2h,spreads,totals/);return {ok:true,json:async()=>[fixture]};};assert.equal((await upcoming()).events[0].markets.length,3);
+ try {global.fetch=async url=>{const request=new URL(url);assert.equal(request.searchParams.get('bookmakers'),'hardrockbet_fl');assert.equal(request.searchParams.has('regions'),false);assert.equal(request.searchParams.get('markets'),'h2h,spreads,totals');assert.equal(request.searchParams.get('oddsFormat'),'american');return {ok:true,json:async()=>[fixture]};};assert.equal((await upcoming()).events[0].markets.length,3);
+ global.fetch=async()=>({ok:true,json:async()=>[{...fixture,bookmakers:[fixture.bookmakers[0]]}]});const absent=await upcoming();assert.deepEqual(absent.events,[]);assert.match(absent.notice,/no tiene mercados disponibles/);assert.match(absent.source,/Florida/);
+ delete process.env.ODDS_API_KEY;global.fetch=async()=>{throw new Error('Must not request without key');};assert.match((await upcoming()).error,/ODDS_API_KEY/);process.env.ODDS_API_KEY='test-only';
+ assert.match(require('node:fs').readFileSync('public/app.js','utf8'),/Nuevas importaciones: Hard Rock Bet \(Florida\) vía The Odds API/);
  global.fetch=async()=>({ok:false,status:422});assert.match((await upcoming()).error,/422/);console.log('OK provider request and unavailable response');n++;}
  finally{global.fetch=orig;if(old===undefined)delete process.env.ODDS_API_KEY;else process.env.ODDS_API_KEY=old;}
  console.log(`${n} market tests passed`);
