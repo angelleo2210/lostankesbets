@@ -250,7 +250,7 @@ function boletoCard() {
   const n = boleto.length, q = n > 1 ? slipQuote(boleto) : {}, d = q.dec || boleto.reduce((m, b) => m * dec(b.odds), 1);
   const kind = n === 1 ? 'Simple' : 'Parlay';
   return `<div class="card slip"><h2>🎟️ Boleto · ${kind} (${n}/15)</h2><div class="slip-list">${boleto.map(b => `<div class="slip-row"><span class="small">${esc(b.title)}: <b>${esc(b.label)} ${od(b.odds)}</b></span><button type="button" class="alt slip-x" data-rm="${b.id}" aria-label="Quitar">✕</button></div>`).join('')}</div>
-  <div class="slip-meta">${n === 1 ? 'Cuota' : 'Cuota combinada'} <b>${od(toAm(d))}</b></div>${q.error ? `<div class="slip-warn" style="border:2px solid #d33;background:#fde8e8;color:#600;padding:8px;border-radius:8px;font-weight:600">⛔ ${esc(q.error)}</div>` : q.modeled ? `<div class="slip-warn" style="border:2px solid #f5a623;background:#fff4e0;color:#5a3b00;padding:8px;border-radius:8px;font-weight:600">⚠️ ${esc(Sgp.NOTE)}</div>` : ''}
+  <div class="slip-meta">${n === 1 ? 'Cuota' : 'Cuota combinada'} <b>${od(toAm(d))}</b></div>${q.error ? `<div class="slip-warn" style="border:2px solid #d33;background:#fde8e8;color:#600;padding:8px;border-radius:8px;font-weight:600">⛔ ${esc(q.error)}</div>` : ''}
   <input type="number" min="1" inputmode="numeric" placeholder="Monto a apostar" id="ps" value="${esc(boletoStake)}">
   <div class="small" id="pw">Escribe un monto</div>
   <div class="row"><button type="button" id="pgo">Apostar</button><button type="button" class="alt" id="pclr">Vaciar</button></div></div>`;

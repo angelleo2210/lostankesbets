@@ -79,5 +79,5 @@ t('legacy product tickets (pricing NULL, same_event=1) settle unchanged with pus
   assert.equal(R.myParlays(v)[0].payout, pay); assert.equal(R.db.prepare('SELECT coins FROM users WHERE id=?').get(v).coins, c0 + pay);
 });
 t('client app wires shared model', () => { const src = require('node:fs').readFileSync(__dirname + '/public/app.js', 'utf8'), html = require('node:fs').readFileSync(__dirname + '/public/index.html', 'utf8');
-  assert.ok(src.includes('Sgp.quote') && src.includes('Sgp.NOTE') && html.includes('sgp.js') && !src.includes('Una selección por evento')); });
+  assert.ok(src.includes('Sgp.quote') && !src.includes('Sgp.NOTE') && !src.includes('SAME_EVENT_NOTE') && src.includes('pricing_note') && html.includes('sgp.js') && !src.includes('Una selección por evento')); });
 console.log(n + ' sgp model tests passed');
