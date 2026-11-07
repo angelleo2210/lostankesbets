@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const { open } = require('./core');
-const { parseEvents, upcoming } = require('./odds-api');
+process.env.ODDS_CACHE_MS='0';
+const { parseEvents, upcoming, sportKey, DEFAULT_SPORT } = require('./odds-api');
 const M = require('./public/markets');
 let n = 0; const t = (name, fn) => { fn(); console.log('OK', name); n++; };
 const options = {
@@ -108,7 +109,11 @@ t('legacy cards retain three equal market columns with compact nonoverflowing mo
  global.fetch=async()=>({ok:true,json:async()=>[{...fixture,bookmakers:[fixture.bookmakers[0]]}]});const absent=await upcoming();assert.deepEqual(absent.events,[]);assert.match(absent.notice,/no tiene mercados disponibles/);assert.match(absent.source,/Florida/);
  delete process.env.ODDS_API_KEY;global.fetch=async()=>{throw new Error('Must not request without key');};assert.match((await upcoming()).error,/ODDS_API_KEY/);process.env.ODDS_API_KEY='test-only';
  assert.match(require('node:fs').readFileSync('public/app.js','utf8'),/Nuevas importaciones: Hard Rock Bet \(Florida\) vía The Odds API/);
- global.fetch=async()=>({ok:false,status:422});assert.match((await upcoming()).error,/422/);console.log('OK provider request and unavailable response');n++;}
+ global.fetch=async()=>({ok:false,status:422});assert.match((await upcoming()).error,/422/);
+ assert.equal(DEFAULT_SPORT,'soccer_spain_la_liga');assert.equal(sportKey('upcoming'),DEFAULT_SPORT);assert.equal(sportKey('americanfootball_nfl'),DEFAULT_SPORT);assert.equal(sportKey('soccer_epl'),'soccer_epl');
+ let urls=[];global.fetch=async u=>{urls.push(new URL(u).pathname);return {ok:true,json:async()=>[fixture]};};await upcoming();await upcoming('soccer_epl');assert.deepEqual(urls,['/v4/sports/soccer_spain_la_liga/odds','/v4/sports/soccer_epl/odds']);
+ process.env.ODDS_CACHE_MS='60000';urls=[];await upcoming('soccer_usa_mls');await upcoming('soccer_usa_mls');assert.equal(urls.length,1);
+ global.fetch=async()=>({ok:false,status:500});assert.match((await upcoming('soccer_italy_serie_a')).error,/500/);global.fetch=async u=>{urls.push(u);return {ok:true,json:async()=>[]};};const r2=await upcoming('soccer_italy_serie_a');assert.match(r2.notice,/Serie A: .*no tiene mercados/);process.env.ODDS_CACHE_MS='0';console.log('OK provider request and unavailable response');n++;}
  finally{global.fetch=orig;if(old===undefined)delete process.env.ODDS_API_KEY;else process.env.ODDS_API_KEY=old;}
  console.log(`${n} market tests passed`);
 })().catch(e=>{console.error(e);process.exitCode=1;});
