@@ -117,3 +117,5 @@ t('legacy cards retain three equal market columns with compact nonoverflowing mo
  finally{global.fetch=orig;if(old===undefined)delete process.env.ODDS_API_KEY;else process.env.ODDS_API_KEY=old;}
  console.log(`${n} market tests passed`);
 })().catch(e=>{console.error(e);process.exitCode=1;});
+
+{const src=require('node:fs').readFileSync(__dirname+'/public/app.js','utf8');require('node:assert/strict').doesNotMatch(src,/'Ficticia'/);console.log('OK no Ficticia card label');}

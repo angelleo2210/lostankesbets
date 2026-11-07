@@ -224,7 +224,7 @@ function marketCards(ls) {
     };
     const row = (name, i) => `<div class="event-team">${esc(name)}</div>${cell(by.spreads, by.spreads?.options.find(o => o.outcome === name))}${cell(by.totals, by.totals?.options.find(o => o.outcome === (i === 0 ? 'Over' : 'Under')))}${cell(winner, winner?.options.find(o => (o.outcome || o.label) === name))}`;
     const draw = winner?.options.find(o => ['Draw','Empate'].includes(o.outcome || o.label));
-    return `<div class="card line"><div class="line-hd"><h2>${esc(base.title)}</h2><div class="small">${base.kind === 'real' ? 'Real' : 'Ficticia'}</div></div>
+    return `<div class="card line"><div class="line-hd"><h2>${esc(base.title)}</h2>${base.kind === 'real' ? '<div class="small">Real</div>' : ''}</div>
       <div class="event-market-grid"><span class="market-head">Equipo</span><span class="market-head">Hándicap</span><span class="market-head">Total${base.unit ? '<br>' + esc(base.unit) : ''}</span><span class="market-head">Ganador</span>
       ${teams.map(row).join('')}${draw ? `<span class="event-team">Empate</span><span></span><span></span>${cell(winner, draw)}` : ''}</div>
       <div class="event-date small">${base.starts ? esc(new Date(base.starts).toLocaleString('es-US')) : 'Fecha no indicada'}</div>
@@ -242,7 +242,7 @@ function lineCard(l) {
       : `<div class="odds off"><span class="odds-n">${od(o.odds)}</span></div>`;
     return `<div class="line-row">${lab}${cell}</div>`;
   }).join('');
-  return `<div class="card line"><div class="line-hd"><h2>${esc(l.title)}</h2><div class="small">${l.kind === 'real' ? 'Real' : 'Ficticia'} · ${open ? 'Abierta' : 'Cerrada'}${l.starts ? ' · ' + new Date(l.starts).toLocaleString('es-US') : ''}</div></div><div class="line-grid">${rows}</div>${!l.market ? `<div class="small">Esta línea antigua solo tiene Ganador. Hándicap y Total necesitan sus umbrales y cuotas.</div>${me?.is_admin && open ? `<button type="button" class="alt" data-market-config="${l.id}">Agregar hándicap / total</button>` : ''}` : ''}</div>`;
+  return `<div class="card line"><div class="line-hd"><h2>${esc(l.title)}</h2><div class="small">${l.kind === 'real' ? 'Real · ' : ''}${open ? 'Abierta' : 'Cerrada'}${l.starts ? ' · ' + new Date(l.starts).toLocaleString('es-US') : ''}</div></div><div class="line-grid">${rows}</div>${!l.market ? `<div class="small">Esta línea antigua solo tiene Ganador. Hándicap y Total necesitan sus umbrales y cuotas.</div>${me?.is_admin && open ? `<button type="button" class="alt" data-market-config="${l.id}">Agregar hándicap / total</button>` : ''}` : ''}</div>`;
 }
 function boletoCard() {
   if (!boleto.length) return '<div class="card slip empty"><div class="small">Toca una cuota para marcarla en azul. Luego escribe el monto aquí abajo.</div></div>';
