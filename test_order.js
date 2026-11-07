@@ -60,4 +60,19 @@ t('pre-existing published event + upgraded legacy line + pending bets render awa
   const g2 = p.legs.find(x => x.line_id === other); assert.equal(ctx.vs(g2.title, g2.home, g2.away), 'A vs B');
   assert.equal(dump(), before);
 });
+t('Agregar mercados: Hándicap shows visitante odds first, Total keeps Over/Under; payload mapping canonical; type switch clears odds', () => {
+  const code = src.slice(src.indexOf('  const layoutExisting'), src.indexOf("  act('#eventCreate'"));
+  const el = {}; for (const id of ['existingMarket', 'existingPoint', 'existingOddsA', 'existingOddsB', 'existingHome', 'existingAway', 'existingUnit', 'existingEvent']) el[id] = { id, value: '', style: {}, placeholder: '' };
+  let handler, sent; const c = { $: q => el[q.slice(1)], act: (_, f) => { handler = f; }, api: (url, body) => { sent = { url, body }; } };
+  el.existingMarket.value = 'spreads'; vm.runInNewContext(code, c);
+  const order = () => ['existingPoint', 'existingOddsA', 'existingOddsB'].sort((x, y) => el[x].style.order - el[y].style.order);
+  assert.equal(order().join(), ['existingOddsB', 'existingPoint', 'existingOddsA'].join()); assert.match(el.existingOddsB.placeholder, /visitante/); assert.match(el.existingOddsA.placeholder, /local/);
+  Object.assign(el.existingHome, { value: 'PSG' }); el.existingAway.value = 'Troyes'; el.existingEvent.value = '7'; el.existingPoint.value = '-1.5'; el.existingOddsA.value = '140'; el.existingOddsB.value = '-170';
+  handler(); assert.equal(sent.url, '/admin/lines/7/markets'); assert.equal(sent.body.home, 'PSG'); assert.equal(sent.body.away, 'Troyes');
+  assert.equal(JSON.stringify(sent.body.options), JSON.stringify([{ label: 'PSG', point: -1.5, odds: 140 }, { label: 'Troyes', point: 1.5, odds: -170 }]));
+  el.existingMarket.value = 'totals'; el.existingMarket.onchange(); assert.equal(el.existingOddsA.value, ''); assert.equal(el.existingOddsB.value, '');
+  assert.equal(order().join(), ['existingPoint', 'existingOddsA', 'existingOddsB'].join()); assert.match(el.existingOddsA.placeholder, /Over/); assert.match(el.existingOddsB.placeholder, /Under/);
+  el.existingPoint.value = '2.5'; el.existingOddsA.value = '-120'; el.existingOddsB.value = '100'; handler();
+  assert.equal(JSON.stringify(sent.body.options), JSON.stringify([{ label: 'Over', point: 2.5, odds: -120 }, { label: 'Under', point: 2.5, odds: 100 }]));
+});
 console.log(n + ' order tests passed');

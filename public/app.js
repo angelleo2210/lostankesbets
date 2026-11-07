@@ -318,8 +318,8 @@ async function adminView(B) {
   <input id="existingAway" placeholder="Equipo visitante (nombre exacto, arriba)"><input id="existingHome" placeholder="Equipo local (nombre exacto, abajo)">
   <select id="existingUnit"><option value="">Unidad sin especificar</option><option value="goles">Goles</option><option value="puntos">Puntos</option><option value="carreras">Carreras</option></select>
   <select id="existingMarket"><option value="spreads">Hándicap</option><option value="totals">Total (Over / Under)</option></select>
-  <input id="existingPoint" placeholder="Umbral local de hándicap / umbral de total" type="number" step="0.5">
-  <input id="existingOddsA" placeholder="Cuota americana local / Over" type="number"><input id="existingOddsB" placeholder="Cuota americana visitante / Under" type="number">
+  <div id="existingInputs" style="display:flex;flex-direction:column"><input id="existingPoint" placeholder="Umbral local de hándicap" type="number" step="0.5" style="order:2">
+  <input id="existingOddsA" placeholder="Cuota americana local" type="number" style="order:3"><input id="existingOddsB" placeholder="Cuota americana visitante" type="number" style="order:1"></div>
   <p class="small">Hándicap: el visitante recibe el umbral opuesto. Total: Over y Under usan el mismo umbral. Una cuota propia para cada opción.</p><button id="existingAdd">Agregar mercado al partido</button></div>
   <div class="card"><h2>Liquidar / cerrar</h2>${ls.map(l => `<div class="card"><b>${esc(vsTitle(l.title, l.home, l.away))}${l.market ? " · " + Markets.NAMES[l.market] : ""}</b> <span class="small">(${l.status === 'open' ? 'abierta' : 'cerrada'})</span>
    ${l.status === 'open' ? `<button class="alt" data-close="${l.id}">Cerrar apuestas</button>` : ''}
@@ -341,6 +341,11 @@ async function adminView(B) {
   };
   if (marketTarget && ls.some(l => l.id === marketTarget)) $('#existingEvent').value = String(marketTarget);
   $('#existingEvent').onchange = fillExistingTeams; fillExistingTeams();
+  // Display order only: Hándicap = visitante cuota, umbral local, cuota local; Total = umbral, Over, Under. Payload mapping unchanged (A=local/Over, B=visitante/Under).
+  const layoutExisting = () => { const sp = $('#existingMarket').value === 'spreads', P = $('#existingPoint'), A = $('#existingOddsA'), Bx = $('#existingOddsB');
+    P.style.order = sp ? 2 : 1; A.style.order = sp ? 3 : 2; Bx.style.order = sp ? 1 : 3;
+    P.placeholder = sp ? 'Umbral local de hándicap' : 'Umbral de total'; A.placeholder = sp ? 'Cuota americana local' : 'Cuota americana Over'; Bx.placeholder = sp ? 'Cuota americana visitante' : 'Cuota americana Under'; };
+  $('#existingMarket').onchange = () => { for (const id of ['existingPoint','existingOddsA','existingOddsB']) $('#' + id).value = ''; layoutExisting(); }; layoutExisting();
   act('#existingAdd', () => {
     const num = id => { const v = $('#' + id).value.trim(); if (!v) throw new Error('Escribe el umbral y ambas cuotas'); return Number(v); };
     const home = $('#existingHome').value.trim(), away = $('#existingAway').value.trim(), market = $('#existingMarket').value;
