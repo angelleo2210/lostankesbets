@@ -100,7 +100,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
         <div class="hrb-banner"><span class="hrb-brand">LosTankesBets</span><span class="hrb-win">${m.banner}</span></div>
         <div class="hrb-body">
           <div class="hrb-row"><div class="hrb-left"><span class="hrb-tag">Parlay</span><span class="hrb-name">${n}-Pick Parlay</span></div><span class="hrb-odds">${p.odds ? od(p.odds) : ''}</span></div>
-          <div class="hrb-sel">${esc(picks)}</div>
+          <div class="hrb-sel">${esc(picks)}</div>${p.pricing_note ? `<div class="small" style="color:#b06d00">⚠️ ${esc(p.pricing_note)}</div>` : ''}
           <div class="hrb-money"><div><span class="k">Apostado</span><b>${fmt(p.stake)}</b></div><div><span class="k">${m.payK}</span><b>${money(p)}</b></div></div>
           <div class="hrb-foot"><button type="button" class="hrb-id" data-copy="${p.id}">#${p.id}</button><button type="button" class="hrb-share" data-sharebtn="p-${p.id}">Compartir</button></div>
           <details class="hrb-details"><summary>Ver selecciones</summary><div class="hrb-legs">${legs}</div></details>
@@ -228,7 +228,7 @@ function marketCards(ls) {
       <div class="event-market-grid"><span class="market-head">Equipo</span><span class="market-head">Hándicap</span><span class="market-head">Total${base.unit ? '<br>' + esc(base.unit) : ''}</span><span class="market-head">Ganador</span>
       ${teams.map(row).join('')}${draw ? `<span class="event-team">Empate</span><span></span><span></span>${cell(winner, draw)}` : ''}</div>
       <div class="event-date small">${base.starts ? esc(new Date(base.starts).toLocaleString('es-US')) : 'Fecha no indicada'}</div>
-      <div class="market-note small">— No disponible · Una selección por evento en parlay</div>
+      <div class="market-note small">— No disponible</div>
       ${me?.is_admin ? `<details class="market-admin"><summary>Configurar mercados</summary><button type="button" class="alt" data-market-config="${(winner || base).id}">Agregar hándicap / total</button><div class="small">${group.filter(l => l.bookmaker).map(l => `${Markets.NAMES[l.market]}: ${esc(l.bookmaker)}`).join(' · ')}</div></details>` : ''}</div>`;
   }).join('');
 }
@@ -249,7 +249,7 @@ function boletoCard() {
   const n = boleto.length, d = boleto.reduce((m, b) => m * dec(b.odds), 1);
   const kind = n === 1 ? 'Simple' : 'Parlay';
   return `<div class="card slip"><h2>🎟️ Boleto · ${kind} (${n}/15)</h2><div class="slip-list">${boleto.map(b => `<div class="slip-row"><span class="small">${esc(b.title)}: <b>${esc(b.label)} ${od(b.odds)}</b></span><button type="button" class="alt slip-x" data-rm="${b.id}" aria-label="Quitar">✕</button></div>`).join('')}</div>
-  <div class="slip-meta">${n === 1 ? 'Cuota' : 'Cuota combinada'} <b>${od(toAm(d))}</b></div>
+  <div class="slip-meta">${n === 1 ? 'Cuota' : 'Cuota combinada'} <b>${od(toAm(d))}</b></div>${Markets.hasSameEvent(boleto) ? `<div class="slip-warn" style="border:2px solid #f5a623;background:#fff4e0;color:#5a3b00;padding:8px;border-radius:8px;font-weight:600">⚠️ ${esc(Markets.SAME_EVENT_NOTE)}</div>` : ''}
   <input type="number" min="1" inputmode="numeric" placeholder="Monto a apostar" id="ps" value="${esc(boletoStake)}">
   <div class="small" id="pw">Escribe un monto</div>
   <div class="row"><button type="button" id="pgo">Apostar</button><button type="button" class="alt" id="pclr">Vaciar</button></div></div>`;
@@ -282,7 +282,7 @@ function bindBets(ls = []) {
   const visibleFixture = () => [...A.querySelectorAll('.line')].find(el => { const r = el.getBoundingClientRect(); return r.bottom > 0 && r.top < window.innerHeight; });
   A.querySelectorAll('[data-add]').forEach(b => b.onclick = () => { const id = Number(b.dataset.add), i = boleto.findIndex(x => x.id === id);
     if (i >= 0) boleto.splice(i, 1); else { const l = ls.find(l => l.options.some(o => o.id === id)), o = l && l.options.find(o => o.id === id);
-      if (!l || !o) return; boleto = boleto.filter(x => x.line !== l.id && !(l.event_id && x.event === l.kind + ':' + l.event_id)); if (boleto.length >= 15) return flash('Máximo 15 selecciones'); boleto.push({ id, line: l.id, event: l.event_id ? l.kind + ':' + l.event_id : null, title: l.title, label: o.label, odds: o.odds }); } refreshSlip(b); });
+      if (!l || !o) return; const next = boleto.filter(x => x.line !== l.id); if (next.length >= 15) return flash('Máximo 15 selecciones'); next.push({ id, line: l.id, event: l.event_id ? l.kind + ':' + l.event_id : null, market: l.market, home: l.home, away: l.away, outcome: o.outcome, point: o.point, title: l.title, label: o.label, odds: o.odds }); const e = Markets.sameEventError(next); if (e) return flash(e); boleto = next; } refreshSlip(b); });
   A.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { const anchor = visibleFixture(); boleto = boleto.filter(x => x.id !== Number(b.dataset.rm)); refreshSlip(anchor); });
   if ($('#pclr')) $('#pclr').onclick = () => { const anchor = visibleFixture(); boleto = []; refreshSlip(anchor); };
   if ($('#ps')) $('#ps').oninput = () => { boletoStake = $('#ps').value; payoutHint(); };

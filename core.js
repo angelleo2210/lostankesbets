@@ -87,6 +87,7 @@ function open(file = 'data.db') {
   if (!ucols.includes('display_name')) db.exec('ALTER TABLE users ADD COLUMN display_name TEXT');
   if (!ucols.includes('avatar_cfg')) db.exec('ALTER TABLE users ADD COLUMN avatar_cfg TEXT');
   if (!ucols.includes('cosmetics')) db.exec('ALTER TABLE users ADD COLUMN cosmetics TEXT');
+  if (!db.prepare('PRAGMA table_info(parlays)').all().some(c => c.name === 'same_event')) db.exec('ALTER TABLE parlays ADD COLUMN same_event INTEGER DEFAULT 0');
   for (const t of ['bets', 'parlays']) if (!db.prepare(`PRAGMA table_info(${t})`).all().some(c => c.name === 'ts')) db.exec(`ALTER TABLE ${t} ADD COLUMN ts INTEGER`);
   let tick = 0; const now = () => Date.now() * 1000 + (tick++ % 1000);
   if (!ucols.includes('last_bonus')) db.exec('ALTER TABLE users ADD COLUMN last_bonus INTEGER');
@@ -331,7 +332,7 @@ function open(file = 'data.db') {
       stake = Number(stake);
       if (!Number.isInteger(stake) || stake <= 0) err('La apuesta debe ser un número entero mayor que 0');
       return tx(() => {
-        const o = db.prepare('SELECT o.*, l.status, l.event_id, l.kind FROM options o JOIN lines l ON l.id=o.line_id WHERE o.id=?').get(Number(optionId));
+        const o = db.prepare('SELECT o.*, l.status, l.event_id, l.kind, l.market, l.home, l.away FROM options o JOIN lines l ON l.id=o.line_id WHERE o.id=?').get(Number(optionId));
         if (!o) err('Opción no existe'); if (o.status !== 'open') err('Esta línea ya no acepta apuestas');
         const u = db.prepare('SELECT coins FROM users WHERE id=?').get(userId);
         if (u.coins < stake) err('No tienes suficientes monedas');
@@ -347,15 +348,15 @@ function open(file = 'data.db') {
       if (!Number.isInteger(stake) || stake <= 0) err('La apuesta debe ser un número entero mayor que 0');
       return tx(() => {
         const legs = ids.map(id => {
-          const o = db.prepare('SELECT o.*, l.status, l.event_id, l.kind FROM options o JOIN lines l ON l.id=o.line_id WHERE o.id=?').get(id);
+          const o = db.prepare('SELECT o.*, l.status, l.event_id, l.kind, l.market, l.home, l.away FROM options o JOIN lines l ON l.id=o.line_id WHERE o.id=?').get(id);
           if (!o) err('Opción no existe'); if (o.status !== 'open') err('Una de las líneas ya no acepta apuestas'); return o;
         });
         if (new Set(legs.map(o => o.line_id)).size !== legs.length) err('Solo una selección por línea');
-        if (new Set(legs.map(o => o.event_id ? `${o.kind}:${o.event_id}` : `line:${o.line_id}`)).size !== legs.length) err('Solo una selección por evento en parlay');
+        const legMeta = legs.map(o => ({ event: o.event_id ? `${o.kind}:${o.event_id}` : null, line: o.line_id, market: o.market, home: o.home, away: o.away, outcome: o.outcome, label: o.label, point: o.point })); { const e = Markets.sameEventError(legMeta); if (e) err(e); }
         const u = db.prepare('SELECT coins FROM users WHERE id=?').get(userId);
         if (u.coins < stake) err('No tienes suficientes monedas');
         db.prepare('UPDATE users SET coins=coins-? WHERE id=?').run(stake, userId);
-        const pid = Number(db.prepare('INSERT INTO parlays(user_id,stake,ts) VALUES(?,?,?)').run(userId, stake, now()).lastInsertRowid);
+        const pid = Number(db.prepare('INSERT INTO parlays(user_id,stake,ts,same_event) VALUES(?,?,?,?)').run(userId, stake, now(), Markets.hasSameEvent(legMeta) ? 1 : 0).lastInsertRowid);
         for (const o of legs) db.prepare('INSERT INTO parlay_legs(parlay_id,line_id,option_id,odds) VALUES(?,?,?,?)').run(pid, o.line_id, o.id, o.odds);
         return pid;
       });
@@ -381,7 +382,7 @@ function open(file = 'data.db') {
     myParlays: uid => db.prepare('SELECT * FROM parlays WHERE user_id=? ORDER BY id DESC').all(uid).map(p => {
       const legs = db.prepare('SELECT g.*, l.title, o.label FROM parlay_legs g JOIN lines l ON l.id=g.line_id JOIN options o ON o.id=g.option_id WHERE g.parlay_id=? ORDER BY g.id').all(p.id);
       const d = legs.filter(g => g.status !== 'cancelled').reduce((m, g) => m * dec(g.odds), 1);
-      return { ...p, legs, odds: d > 1 ? toAmerican(d) : null, potential: Math.floor(p.stake * d) };
+      return { ...p, legs, ...(p.same_event ? { pricing_note: Markets.SAME_EVENT_NOTE } : {}), odds: d > 1 ? toAmerican(d) : null, potential: Math.floor(p.stake * d) };
     }),
     closeLine(id) { if (db.prepare("UPDATE lines SET status='closed' WHERE id=? AND status='open'").run(id).changes !== 1) err('La línea no está abierta'); },
     settleLine(id, winnerOptionId) {
