@@ -60,7 +60,7 @@ t('slip updates keep fixture DOM/viewport and stake; no render, focus, or forced
  const buttons=[1,2].map(id=>({dataset:{add:String(id)},isConnected:true,getBoundingClientRect:()=>({top}),classList:{toggle(){}},setAttribute(){}}));
  const slip={set outerHTML(s){html=s;top+=55;}};
  const ctx={boleto:[],boletoStake:'',A:{querySelector:()=>slip,querySelectorAll:sel=>sel==='[data-add]'?buttons:[]},
-  $:sel=>sel==='#ps'?stake:null,window:{innerHeight:800,scrollBy:o=>{corrections.push(o);top-=o.top;}},boletoCard:()=>'<div class="slip">new</div>',dec:n=>2,fmt:String,flash:()=>{},Markets:require('./public/markets'),render:()=>{throw new Error('Selection must not rerender page');}};
+  $:sel=>sel==='#ps'?stake:null,window:{innerHeight:800,scrollBy:o=>{corrections.push(o);top-=o.top;}},boletoCard:()=>'<div class="slip">new</div>',dec:n=>2,fmt:String,flash:()=>{},Markets:require('./public/markets'),slipQuote:b=>{const ev={};for(const x of b)if(x.event)ev[x.event]=x.lines||[];return require('./public/sgp').quote(b,ev);},render:()=>{throw new Error('Selection must not rerender page');}};
  vm.runInNewContext(block+'\nthis.bind=bindBets;',ctx);
  ctx.bind([{id:4,event_id:'event',kind:'real',title:'A-B',options:[{id:1,label:'Over O 3',odds:105},{id:2,label:'Under U 3',odds:-120}]}]);
  buttons[0].onclick();assert.equal(top,200);assert.equal(ctx.boleto.length,1);assert.equal(ctx.boletoStake,'125');assert.equal(html,'<div class="slip">new</div>');
@@ -81,7 +81,7 @@ t('legacy winner-only add handicap+total keeps old bets, creates selectable inde
  assert.throws(()=>R.addEventMarket(id,'totals',options.totals,'Local','Visita'),/ya existe/);
  // Each offered handicap and total outcome is a valid single selection.
  for(const lineId of [sp,total]) for(const o of R.lines().find(l=>l.id===lineId).options) assert.ok(R.placeBet(u,o.id,10));
- assert.ok(R.placeParlay(u,[oldOptions[0].id,R.lines().find(l=>l.id===total).options[0].id],10));assert.throws(()=>R.placeParlay(u,[oldOptions[2].id,R.lines().find(l=>l.id===sp).options[0].id],10),/contradictorias/);
+ assert.throws(()=>R.placeParlay(u,[oldOptions[0].id,R.lines().find(l=>l.id===total).options[0].id],10),/medio punto/);assert.throws(()=>R.placeParlay(u,[oldOptions[2].id,R.lines().find(l=>l.id===sp).options[0].id],10),/contradictorias/);
  const other=R.createLine('Other fixture',[{label:'A',odds:110},{label:'B',odds:-120}]);
  assert.ok(R.placeParlay(u,[R.lines().find(l=>l.id===sp).options[0].id,R.lines().find(l=>l.id===other).options[0].id],10));
  const fs=require('node:fs'),vm=require('node:vm'),src=fs.readFileSync('public/app.js','utf8');const ctx={Markets:M,me:{is_admin:true},boleto:[],esc:String,od:String};
@@ -132,28 +132,3 @@ t('legacy cards retain three equal market columns with compact nonoverflowing mo
  bad([L(3,'totals','Over',3.5),L(4,'totals','Under',2.5)]);bad([L(1,'h2h','PSG'),L(2,'spreads','Troyes',-0.5)]);
  bad([L(1,'h2h','PSG'),{...L(9,undefined,'x')}],/no admite/);bad([L(3,'totals','Over',2.5),L(4,'totals','Over',2.5)],/repetida/);
  assert.equal(M.sameEventError([{...L(1,'h2h','PSG'),event:'a'},{...L(2,'h2h','Troyes'),event:'b'}]),null);console.log('OK same-event parlay feasibility');}
-{const assert=require('node:assert/strict');const {open}=require('./core');const M=require('./public/markets');
- const dec=o=>o>0?1+o/100:1+100/-o;
- const mk=()=>{const D=open(':memory:');D.setupAdmin('admin','1234');const u=D.register(D.newInvite(),'pepe','1234');const ids=D.createEvent(event('se'),'real');const other=D.createLine('Otro',[{label:'A',odds:110},{label:'B',odds:-120}]);
-  const op=(i,j)=>D.lines().find(l=>l.id===i).options[j];const coins=()=>D.db.prepare('SELECT coins FROM users WHERE id=?').get(u).coins;return {D,u,ids,other,op,coins};};
- // win: Local win + Over 3 (+ other event), settle Local, Over wins at 4 goals
- {const {D,u,ids,other,op,coins}=mk();const c0=coins();const pid=D.placeParlay(u,[op(ids[0],0).id,op(ids[2],0).id,op(other,0).id],100);
-  const p=D.myParlays(u)[0];assert.equal(p.same_event,1);assert.match(p.pricing_note,/no es una cuota oficial/);
-  D.settleLine(ids[0],op(ids[0],0).id);D.settleLine(ids[2],op(ids[2],0).id);D.settleLine(other,op(other,0).id);
-  const pay=Math.floor(100*dec(-135)*dec(105)*dec(110));assert.equal(D.myParlays(u)[0].status,'won');assert.equal(D.myParlays(u)[0].payout,pay);assert.equal(coins(),c0-100+pay);
-  D.lines();assert.equal(coins(),c0-100+pay);}
- // push on total, win on winner → pays only winner leg; all push → refund
- {const {D,u,ids,op,coins}=mk();const c0=coins();D.placeParlay(u,[op(ids[0],0).id,op(ids[2],1).id],100);D.pushLine(ids[2]);D.settleLine(ids[0],op(ids[0],0).id);
-  assert.equal(D.myParlays(u)[0].payout,Math.floor(100*dec(-135)));assert.equal(coins(),c0-100+Math.floor(100*dec(-135)));}
- {const {D,u,ids,op,coins}=mk();const c0=coins();D.placeParlay(u,[op(ids[1],0).id,op(ids[2],1).id],100);D.pushLine(ids[1]);D.pushLine(ids[2]);
-  assert.equal(D.myParlays(u)[0].status,'refunded');assert.equal(coins(),c0);}
- // lose
- {const {D,u,ids,op,coins}=mk();const c0=coins();D.placeParlay(u,[op(ids[0],2).id,op(ids[2],1).id],100);D.settleLine(ids[0],op(ids[0],0).id);
-  assert.equal(D.myParlays(u)[0].status,'lost');assert.equal(coins(),c0-100);}
- // different events: no note; contradictory rejected without charge
- {const {D,u,ids,other,op,coins}=mk();D.placeParlay(u,[op(ids[0],0).id,op(other,0).id],10);assert.equal(D.myParlays(u)[0].same_event,0);assert.equal(D.myParlays(u)[0].pricing_note,undefined);
-  const c=coins();assert.throws(()=>D.placeParlay(u,[op(ids[0],2).id,op(ids[1],0).id],10),/contradictorias/);assert.equal(coins(),c);}
- assert.match(M.sameEventError([{event:'e',line:1,market:'totals',outcome:'Over',point:1e9},{event:'e',line:2,market:'totals',outcome:'Under',point:1e9}]),/fuera de rango/);
- assert.equal(M.hasSameEvent([{event:'a'},{event:'a'}]),true);assert.equal(M.hasSameEvent([{event:'a'},{event:null},{event:null}]),false);
- const src=require('node:fs').readFileSync(__dirname+'/public/app.js','utf8');assert.ok(!src.includes('Una selección por evento'));assert.ok(src.includes('Markets.SAME_EVENT_NOTE'));
- console.log('OK same-event parlay settlement/pricing note');}

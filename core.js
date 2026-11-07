@@ -1,6 +1,7 @@
 const { DatabaseSync } = require('node:sqlite');
 const crypto = require('node:crypto');
 const Markets = require('./public/markets');
+const Sgp = require('./public/sgp');
 const AV = require('./public/avatar'); const ST = require('./public/store');
 const START_COINS = 50000; const BONUS = 5000, BONUS_MS = 24 * 3600 * 1000; const MAX_TOPUP = 10000000;
 const PODIUM_MIN_SETTLED = 3; // mín. apuestas liquidadas (won+lost) para el podio top 3
@@ -12,6 +13,12 @@ function profit(stake, odds) {
 }
 
 const dec = o => (o > 0 ? 1 + o / 100 : 1 + 100 / -o);
+// Snapshot pricing: each group (one match) pays its frozen decimal; any voided leg in a group voids that group (1.00).
+function modeledFactor(p, legs) {
+  const st = new Map(legs.map(g => [g.option_id, g.status])); let d = 1, live = 0;
+  for (const g of JSON.parse(p.pricing).groups) { if (g.options.some(o => st.get(o) === 'cancelled')) continue; d *= g.dec; live++; }
+  return { d, live };
+}
 function toAmerican(d) { return d >= 2 ? Math.round((d - 1) * 100) : Math.round(-100 / (d - 1)); }
 
 // Recompensas top 3 (sin admin). minRank: rango máximo requerido (1 = solo el primero).
@@ -87,6 +94,7 @@ function open(file = 'data.db') {
   if (!ucols.includes('display_name')) db.exec('ALTER TABLE users ADD COLUMN display_name TEXT');
   if (!ucols.includes('avatar_cfg')) db.exec('ALTER TABLE users ADD COLUMN avatar_cfg TEXT');
   if (!ucols.includes('cosmetics')) db.exec('ALTER TABLE users ADD COLUMN cosmetics TEXT');
+  for (const [c, t] of [['pricing', 'TEXT'], ['odds_dec', 'REAL']]) if (!db.prepare('PRAGMA table_info(parlays)').all().some(x => x.name === c)) db.exec(`ALTER TABLE parlays ADD COLUMN ${c} ${t}`);
   if (!db.prepare('PRAGMA table_info(parlays)').all().some(c => c.name === 'same_event')) db.exec('ALTER TABLE parlays ADD COLUMN same_event INTEGER DEFAULT 0');
   for (const t of ['bets', 'parlays']) if (!db.prepare(`PRAGMA table_info(${t})`).all().some(c => c.name === 'ts')) db.exec(`ALTER TABLE ${t} ADD COLUMN ts INTEGER`);
   let tick = 0; const now = () => Date.now() * 1000 + (tick++ % 1000);
@@ -352,11 +360,15 @@ function open(file = 'data.db') {
           if (!o) err('Opción no existe'); if (o.status !== 'open') err('Una de las líneas ya no acepta apuestas'); return o;
         });
         if (new Set(legs.map(o => o.line_id)).size !== legs.length) err('Solo una selección por línea');
-        const legMeta = legs.map(o => ({ event: o.event_id ? `${o.kind}:${o.event_id}` : null, line: o.line_id, market: o.market, home: o.home, away: o.away, outcome: o.outcome, label: o.label, point: o.point })); { const e = Markets.sameEventError(legMeta); if (e) err(e); }
+        const legMeta = legs.map(o => ({ event: o.event_id ? `${o.kind}:${o.event_id}` : null, line: o.line_id, market: o.market, home: o.home, away: o.away, outcome: o.outcome, label: o.label, point: o.point, option: o.id, odds: o.odds })); { const e = Markets.sameEventError(legMeta); if (e) err(e); }
+        const eventLines = {};
+        for (const g of legs) if (g.event_id) { const k = `${g.kind}:${g.event_id}`; if (eventLines[k]) continue;
+          eventLines[k] = db.prepare('SELECT * FROM lines WHERE event_id=? AND kind=? ORDER BY id').all(g.event_id, g.kind).map(l => ({ market: l.market, home: l.home, away: l.away, options: db.prepare('SELECT label,odds,point,outcome FROM options WHERE line_id=? ORDER BY id').all(l.id) })); }
+        const q = Sgp.quote(legMeta, eventLines); if (q.error) err(q.error);
         const u = db.prepare('SELECT coins FROM users WHERE id=?').get(userId);
         if (u.coins < stake) err('No tienes suficientes monedas');
         db.prepare('UPDATE users SET coins=coins-? WHERE id=?').run(stake, userId);
-        const pid = Number(db.prepare('INSERT INTO parlays(user_id,stake,ts,same_event) VALUES(?,?,?,?)').run(userId, stake, now(), Markets.hasSameEvent(legMeta) ? 1 : 0).lastInsertRowid);
+        const pid = Number(db.prepare('INSERT INTO parlays(user_id,stake,ts,same_event,pricing,odds_dec) VALUES(?,?,?,?,?,?)').run(userId, stake, now(), Markets.hasSameEvent(legMeta) ? 1 : 0, q.modeled ? JSON.stringify({ version: Sgp.VERSION, groups: q.groups }) : null, q.modeled ? q.dec : null).lastInsertRowid);
         for (const o of legs) db.prepare('INSERT INTO parlay_legs(parlay_id,line_id,option_id,odds) VALUES(?,?,?,?)').run(pid, o.line_id, o.id, o.odds);
         return pid;
       });
@@ -373,16 +385,19 @@ function open(file = 'data.db') {
         const legs = db.prepare('SELECT * FROM parlay_legs WHERE parlay_id=?').all(pid);
         if (legs.some(g => g.status === 'lost')) { db.prepare("UPDATE parlays SET status='lost', ts=? WHERE id=? AND status='open'").run(now(), pid); continue; }
         if (legs.some(g => g.status === 'open')) continue;
-        const live = legs.filter(g => g.status === 'won');
-        const [st, pay] = live.length ? ['won', Math.floor(p.stake * live.reduce((m, g) => m * dec(g.odds), 1))] : ['refunded', p.stake];
+        let st, pay;
+        if (p.pricing) { const f = modeledFactor(p, legs); [st, pay] = f.live ? ['won', Math.floor(p.stake * f.d)] : ['refunded', p.stake]; }
+        else { const live = legs.filter(g => g.status === 'won');
+          [st, pay] = live.length ? ['won', Math.floor(p.stake * live.reduce((m, g) => m * dec(g.odds), 1))] : ['refunded', p.stake]; }
         if (db.prepare("UPDATE parlays SET status=?, payout=?, ts=? WHERE id=? AND status='open'").run(st, pay, now(), pid).changes === 1)
           db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(pay, p.user_id);
       }
     },
     myParlays: uid => db.prepare('SELECT * FROM parlays WHERE user_id=? ORDER BY id DESC').all(uid).map(p => {
       const legs = db.prepare('SELECT g.*, l.title, o.label FROM parlay_legs g JOIN lines l ON l.id=g.line_id JOIN options o ON o.id=g.option_id WHERE g.parlay_id=? ORDER BY g.id').all(p.id);
-      const d = legs.filter(g => g.status !== 'cancelled').reduce((m, g) => m * dec(g.odds), 1);
-      return { ...p, legs, ...(p.same_event ? { pricing_note: Markets.SAME_EVENT_NOTE } : {}), odds: d > 1 ? toAmerican(d) : null, potential: Math.floor(p.stake * d) };
+      const d = p.pricing ? modeledFactor(p, legs).d : legs.filter(g => g.status !== 'cancelled').reduce((m, g) => m * dec(g.odds), 1);
+      const { pricing, ...pp } = p;
+      return { ...pp, legs, ...(p.pricing ? { pricing_note: Sgp.NOTE, model: JSON.parse(p.pricing).version } : p.same_event ? { pricing_note: Markets.SAME_EVENT_NOTE } : {}), odds: d > 1 ? toAmerican(d) : null, potential: Math.floor(p.stake * d) };
     }),
     closeLine(id) { if (db.prepare("UPDATE lines SET status='closed' WHERE id=? AND status='open'").run(id).changes !== 1) err('La línea no está abierta'); },
     settleLine(id, winnerOptionId) {

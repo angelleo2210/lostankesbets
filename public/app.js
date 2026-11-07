@@ -244,12 +244,13 @@ function lineCard(l) {
   }).join('');
   return `<div class="card line"><div class="line-hd"><h2>${esc(l.title)}</h2><div class="small">${l.kind === 'real' ? 'Real · ' : ''}${open ? 'Abierta' : 'Cerrada'}${l.starts ? ' · ' + new Date(l.starts).toLocaleString('es-US') : ''}</div></div><div class="line-grid">${rows}</div>${!l.market ? `<div class="small">Esta línea antigua solo tiene Ganador. Hándicap y Total necesitan sus umbrales y cuotas.</div>${me?.is_admin && open ? `<button type="button" class="alt" data-market-config="${l.id}">Agregar hándicap / total</button>` : ''}` : ''}</div>`;
 }
+function slipQuote(b) { const ev = {}; for (const x of b) if (x.event) ev[x.event] = x.lines || []; return Sgp.quote(b, ev); }
 function boletoCard() {
   if (!boleto.length) return '<div class="card slip empty"><div class="small">Toca una cuota para marcarla en azul. Luego escribe el monto aquí abajo.</div></div>';
-  const n = boleto.length, d = boleto.reduce((m, b) => m * dec(b.odds), 1);
+  const n = boleto.length, q = n > 1 ? slipQuote(boleto) : {}, d = q.dec || boleto.reduce((m, b) => m * dec(b.odds), 1);
   const kind = n === 1 ? 'Simple' : 'Parlay';
   return `<div class="card slip"><h2>🎟️ Boleto · ${kind} (${n}/15)</h2><div class="slip-list">${boleto.map(b => `<div class="slip-row"><span class="small">${esc(b.title)}: <b>${esc(b.label)} ${od(b.odds)}</b></span><button type="button" class="alt slip-x" data-rm="${b.id}" aria-label="Quitar">✕</button></div>`).join('')}</div>
-  <div class="slip-meta">${n === 1 ? 'Cuota' : 'Cuota combinada'} <b>${od(toAm(d))}</b></div>${Markets.hasSameEvent(boleto) ? `<div class="slip-warn" style="border:2px solid #f5a623;background:#fff4e0;color:#5a3b00;padding:8px;border-radius:8px;font-weight:600">⚠️ ${esc(Markets.SAME_EVENT_NOTE)}</div>` : ''}
+  <div class="slip-meta">${n === 1 ? 'Cuota' : 'Cuota combinada'} <b>${od(toAm(d))}</b></div>${q.error ? `<div class="slip-warn" style="border:2px solid #d33;background:#fde8e8;color:#600;padding:8px;border-radius:8px;font-weight:600">⛔ ${esc(q.error)}</div>` : q.modeled ? `<div class="slip-warn" style="border:2px solid #f5a623;background:#fff4e0;color:#5a3b00;padding:8px;border-radius:8px;font-weight:600">⚠️ ${esc(Sgp.NOTE)}</div>` : ''}
   <input type="number" min="1" inputmode="numeric" placeholder="Monto a apostar" id="ps" value="${esc(boletoStake)}">
   <div class="small" id="pw">Escribe un monto</div>
   <div class="row"><button type="button" id="pgo">Apostar</button><button type="button" class="alt" id="pclr">Vaciar</button></div></div>`;
@@ -259,7 +260,7 @@ function bindBets(ls = []) {
   const payoutHint = () => {
     const el = $('#pw'); if (!el || !boleto.length) return;
     const s = Math.floor(Number($('#ps')?.value));
-    const mult = boleto.reduce((m, b) => m * dec(b.odds), 1);
+    const mult = (boleto.length > 1 && slipQuote(boleto).dec) || boleto.reduce((m, b) => m * dec(b.odds), 1);
     el.textContent = s > 0 ? 'Ganarías ' + fmt(Math.floor(s * mult)) : 'Escribe un monto';
   };
   // Keep fixture DOM intact. Only the slip and blue selection classes change.
@@ -282,7 +283,7 @@ function bindBets(ls = []) {
   const visibleFixture = () => [...A.querySelectorAll('.line')].find(el => { const r = el.getBoundingClientRect(); return r.bottom > 0 && r.top < window.innerHeight; });
   A.querySelectorAll('[data-add]').forEach(b => b.onclick = () => { const id = Number(b.dataset.add), i = boleto.findIndex(x => x.id === id);
     if (i >= 0) boleto.splice(i, 1); else { const l = ls.find(l => l.options.some(o => o.id === id)), o = l && l.options.find(o => o.id === id);
-      if (!l || !o) return; const next = boleto.filter(x => x.line !== l.id); if (next.length >= 15) return flash('Máximo 15 selecciones'); next.push({ id, line: l.id, event: l.event_id ? l.kind + ':' + l.event_id : null, market: l.market, home: l.home, away: l.away, outcome: o.outcome, point: o.point, title: l.title, label: o.label, odds: o.odds }); const e = Markets.sameEventError(next); if (e) return flash(e); boleto = next; } refreshSlip(b); });
+      if (!l || !o) return; const next = boleto.filter(x => x.line !== l.id); if (next.length >= 15) return flash('Máximo 15 selecciones'); next.push({ id, option: id, line: l.id, event: l.event_id ? l.kind + ':' + l.event_id : null, market: l.market, home: l.home, away: l.away, outcome: o.outcome, point: o.point, title: l.title, label: o.label, odds: o.odds, lines: l.event_id ? ls.filter(x => x.event_id === l.event_id && x.kind === l.kind).map(x => ({ market: x.market, home: x.home, away: x.away, options: x.options.map(y => ({ label: y.label, odds: y.odds, point: y.point, outcome: y.outcome })) })) : [] }); const q = slipQuote(next); if (q.error) return flash(q.error); boleto = next; } refreshSlip(b); });
   A.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { const anchor = visibleFixture(); boleto = boleto.filter(x => x.id !== Number(b.dataset.rm)); refreshSlip(anchor); });
   if ($('#pclr')) $('#pclr').onclick = () => { const anchor = visibleFixture(); boleto = []; refreshSlip(anchor); };
   if ($('#ps')) $('#ps').oninput = () => { boletoStake = $('#ps').value; payoutHint(); };
