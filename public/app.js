@@ -39,7 +39,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
   if (tab === 'tienda') tab = 'lineas';
   me = await api('/me'); if (!RW.length) RW = await api('/rewards').catch(() => []);
   const tabs = [['lineas', 'Líneas'], ['reales', 'Reales'], ['mias', 'Mis apuestas'], ['tabla', 'Tabla'], ['juegos', 'Retos' + (me.retosPend ? ` (${me.retosPend})` : '')], ['banco', 'Banco'], ['perfil', 'Mi perfil']].concat(me.is_admin ? [['admin', 'Admin']] : []);
-  A.innerHTML = `${coverBanner(me)}<nav>${tabs.map(([k, v]) => `<button class="${k === tab ? '' : 'alt'}" data-t="${k}">${v}</button>`).join('')}</nav>
+  A.innerHTML = `${coverBanner(me)}${bankBanner(me.bank)}<nav>${tabs.map(([k, v]) => `<button class="${k === tab ? '' : 'alt'}" data-t="${k}">${v}</button>`).join('')}</nav>
   <div id="bono" class="bono"></div><p id="msg" class="err"></p><div id="body"></div><button class="alt" id="out">Salir</button>`;
   A.querySelectorAll('nav button').forEach(b => b.onclick = () => { tab = b.dataset.t; render(); });
   $('#out').onclick = () => { localStorage.removeItem('token'); token = null; start(); };
@@ -210,6 +210,8 @@ function betTime(x) { return Number.isFinite(Number(x.ts)) && x.ts != null ? Num
 function newestFirst(parlays, bets) { return [...(parlays || []).map(v => ({ type: 'p', v })), ...(bets || []).map(v => ({ type: 'b', v }))].sort((a, b) => (b.v.status === 'open') - (a.v.status === 'open') || betTime(b.v) - betTime(a.v) || b.v.id - a.v.id || (a.type === 'p' ? -1 : 1)); }
 // Display-only (owner, nov 8): local arriba/primero, visitante abajo. Canonical home/away data is never changed.
 // Titles with both known roles read "local vs visitante"; titles without roles (free-form/legacy) are untouched.
+// datetime-local value in the browser's own zone from a stored UTC ISO.
+function toLocalInput(iso) { const d = new Date(iso); if (isNaN(d)) return ''; const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; }
 function vsTitle(t, home, away) { t = String(t || ''); return home && away ? t.split(`${away} vs ${home}`).join(`${home} vs ${away}`) : t; }
 function displayTeams(home, away) { return [home, away]; }
 // Group independently settled market lines into one event card; legacy custom lines stay unchanged.
@@ -225,26 +227,28 @@ function marketCards(ls) {
     const by = Object.fromEntries(group.map(l => [l.market || 'h2h', l]));
     const winner = by.h2h;
     const teams = base.home ? displayTeams(base.home, base.away) : (winner?.options || []).filter(o => !['Draw','Empate'].includes(o.outcome || o.label)).map(o => o.outcome || o.label);
-    const paused = group.some(l => l.paused);
+    const started = group.some(l => l.started || (l.starts && Date.now() >= Date.parse(l.starts)));
+    const paused = group.some(l => l.paused) || started;
     const cell = (l, o) => {
       if (!l || !o) return '<span class="market-unavailable" aria-label="No disponible" title="Sin cuota disponible">—</span>';
       const on = boleto.some(b => b.id === o.id), key = l.market || 'h2h';
       const content = `${key !== 'h2h' ? `<span class="market-point">${esc(Markets.threshold(key, o))}</span>` : ''}<span class="odds-n">${od(o.odds)}</span>`;
-      return l.status === 'open' && !paused ? `<button type="button" class="odds ${on ? 'on' : ''}" data-add="${o.id}" aria-pressed="${on}" aria-label="${esc(o.label)} ${od(o.odds)}">${content}</button>` : `<div class="odds off" aria-label="${paused ? 'Pausada' : 'Cerrada'}">${content}</div>`;
+      return l.status === 'open' && !paused ? `<button type="button" class="odds ${on ? 'on' : ''}" data-add="${o.id}" aria-pressed="${on}" aria-label="${esc(o.label)} ${od(o.odds)}">${content}</button>` : `<div class="odds off" aria-label="${started ? 'Partido empezado' : paused ? 'Pausada' : 'Cerrada'}">${content}</div>`;
     };
     const row = (name, i) => // totals stay Over top / Under bottom, independent of team rows
        `<div class="event-team">${esc(name)}</div>${cell(by.spreads, by.spreads?.options.find(o => o.outcome === name))}${cell(by.totals, by.totals?.options.find(o => o.outcome === (i === 0 ? 'Over' : 'Under')))}${cell(winner, winner?.options.find(o => (o.outcome || o.label) === name))}`;
     const draw = winner?.options.find(o => ['Draw','Empate'].includes(o.outcome || o.label));
-    return `<div class="card line"><div class="line-hd"><h2>${esc(vsTitle(base.title, base.home, base.away))}</h2>${base.kind === 'real' ? '<div class="small">Real</div>' : ''}${paused ? '<div class="small" style="color:#b06d00;font-weight:600">⏸ Apuestas pausadas</div>' : ''}</div>
+    return `<div class="card line"><div class="line-hd"><h2>${esc(vsTitle(base.title, base.home, base.away))}</h2>${base.kind === 'real' ? '<div class="small">Real</div>' : ''}${started ? '<div class="small started-lock" style="color:#dc2626;font-weight:600">🔒 Partido empezado · apuestas cerradas</div>' : paused ? '<div class="small" style="color:#b06d00;font-weight:600">⏸ Apuestas pausadas</div>' : ''}</div>
       <div class="event-market-grid"><span class="market-head">Equipo</span><span class="market-head">Hándicap</span><span class="market-head">Total${base.unit ? '<br>' + esc(base.unit) : ''}</span><span class="market-head">Ganador</span>
       ${teams.map(row).join('')}${draw ? `<span class="event-team">Empate</span><span></span><span></span>${cell(winner, draw)}` : ''}</div>
-      <div class="event-date small">${base.starts ? esc(new Date(base.starts).toLocaleString('es-US')) : 'Fecha no indicada'}</div>
+      <div class="event-date small">${base.starts ? esc(new Date(base.starts).toLocaleString('es-US')) + ' (hora de tu dispositivo)' + (started ? '' : ' · se cierra al empezar') : 'Fecha no indicada · sin cierre automático'}</div>
       <div class="market-note small">— No disponible</div>
-      ${me?.is_admin ? `<details class="market-admin"><summary>Configurar mercados</summary><button type="button" class="alt" data-market-config="${(winner || base).id}">Agregar hándicap / total</button>${group.some(l => ['open','closed'].includes(l.status)) ? `<button type="button" class="alt" data-pause="${(winner || base).id}" data-paused="${paused ? 1 : 0}">${paused ? '▶ Reactivar apuestas' : '⏸ Pausar apuestas'}</button>` : ''}<label class="small">Deporte: <select data-sport="${(winner || base).id}">${[['','Sin especificar'],['soccer','Fútbol'],['hockey','Hockey'],['baseball','Béisbol'],['other','Otro']].map(([k,n]) => `<option value="${k}"${(base.sport || '') === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label><div class="small">${group.filter(l => l.bookmaker).map(l => `${Markets.NAMES[l.market]}: ${esc(l.bookmaker)}`).join(' · ')}</div></details>` : ''}</div>`;
+      ${me?.is_admin ? `<details class="market-admin"><summary>Configurar mercados</summary><button type="button" class="alt" data-market-config="${(winner || base).id}">Agregar hándicap / total</button>${group.some(l => ['open','closed'].includes(l.status)) ? `<button type="button" class="alt" data-pause="${(winner || base).id}" data-paused="${group.some(l => l.paused) ? 1 : 0}"${started && group.some(l => l.paused) ? ' disabled title="El partido ya empezó: cambia la hora de inicio para reabrir"' : ''}>${group.some(l => l.paused) ? '▶ Reactivar apuestas' : '⏸ Pausar apuestas'}</button>` : ''}<label class="small">Inicio (hora de tu dispositivo): <input type="datetime-local" data-start-in="${(winner || base).id}" value="${base.starts ? toLocalInput(base.starts) : ''}"></label><button type="button" class="alt" data-start="${(winner || base).id}">Guardar inicio</button>${started ? '<div class="small">El partido ya empezó: solo se reabre si guardas una hora de inicio futura. Puedes liquidar normalmente.</div>' : ''}<label class="small">Deporte: <select data-sport="${(winner || base).id}">${[['','Sin especificar'],['soccer','Fútbol'],['hockey','Hockey'],['baseball','Béisbol'],['other','Otro']].map(([k,n]) => `<option value="${k}"${(base.sport || '') === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label><div class="small">${group.filter(l => l.bookmaker).map(l => `${Markets.NAMES[l.market]}: ${esc(l.bookmaker)}`).join(' · ')}</div></details>` : ''}</div>`;
   }).join('');
 }
 function lineCard(l) {
-  const open = l.status === 'open' && !l.paused;
+  const started = l.started || (l.starts && Date.now() >= Date.parse(l.starts));
+  const open = l.status === 'open' && !l.paused && !started;
   const rows = l.options.map(o => {
     const on = boleto.some(b => b.id === o.id);
     const lab = `<div class="line-lab" title="${esc(o.label)}">${esc(o.label)}</div>`;
@@ -253,7 +257,7 @@ function lineCard(l) {
       : `<div class="odds off"><span class="odds-n">${od(o.odds)}</span></div>`;
     return `<div class="line-row">${lab}${cell}</div>`;
   }).join('');
-  return `<div class="card line"><div class="line-hd"><h2>${esc(vsTitle(l.title, l.home, l.away))}</h2><div class="small">${l.kind === 'real' ? 'Real · ' : ''}${open ? 'Abierta' : 'Cerrada'}${l.starts ? ' · ' + new Date(l.starts).toLocaleString('es-US') : ''}</div></div><div class="line-grid">${rows}</div>${!l.market ? `<div class="small">Esta línea antigua solo tiene Ganador. Hándicap y Total necesitan sus umbrales y cuotas.</div>${me?.is_admin && open ? `<button type="button" class="alt" data-market-config="${l.id}">Agregar hándicap / total</button>` : ''}` : ''}</div>`;
+  return `<div class="card line"><div class="line-hd"><h2>${esc(vsTitle(l.title, l.home, l.away))}</h2><div class="small">${l.kind === 'real' ? 'Real · ' : ''}${open ? 'Abierta' : started ? '🔒 Partido empezado' : 'Cerrada'}${l.starts ? ' · ' + new Date(l.starts).toLocaleString('es-US') : ''}</div></div><div class="line-grid">${rows}</div>${!l.market ? `<div class="small">Esta línea antigua solo tiene Ganador. Hándicap y Total necesitan sus umbrales y cuotas.</div>${me?.is_admin && open ? `<button type="button" class="alt" data-market-config="${l.id}">Agregar hándicap / total</button>` : ''}` : ''}</div>`;
 }
 function slipQuote(b) { const ev = {}; for (const x of b) if (x.event) ev[x.event] = x.lines || []; return Sgp.quote(b, ev); }
 function boletoCard() {
@@ -271,6 +275,9 @@ function bindBets(ls = []) {
   A.querySelectorAll('[data-pause]').forEach(b => b.onclick = async () => { const p = b.dataset.paused !== '1';
     if (!confirm(p ? '¿Pausar las apuestas de este partido? Nadie podrá apostar hasta que lo reactives. Las apuestas ya hechas no cambian.' : '¿Reactivar las apuestas de este partido?')) return;
     try { const r = await api(`/admin/lines/${b.dataset.pause}/pause`, { paused: p }); if (r.error) throw new Error(r.error); render(); } catch (e) { flash(e.message); } });
+  A.querySelectorAll('[data-start]').forEach(b => b.onclick = async () => { const v = A.querySelector(`[data-start-in="${b.dataset.start}"]`).value;
+    if (!confirm(v ? `¿Guardar inicio ${new Date(v).toLocaleString('es-US')} (hora de tu dispositivo)? Las apuestas nuevas se cerrarán a esa hora.` : '¿Quitar la hora de inicio? El partido quedará sin cierre automático.')) return;
+    try { const r = await api(`/admin/lines/${b.dataset.start}/start`, { starts: v ? new Date(v).toISOString() : null }); if (r.error) throw new Error(r.error); render(); } catch (e) { flash(e.message); } });
   A.querySelectorAll('[data-market-config]').forEach(b => b.onclick = () => { marketTarget = Number(b.dataset.marketConfig); tab = 'admin'; render(); });
   const payoutHint = () => {
     const el = $('#pw'); if (!el || !boleto.length) return;
@@ -320,6 +327,7 @@ async function adminView(B) {
   <div id="opts"></div><button class="alt" id="add">+ Opción</button><button id="create">Crear línea</button></div>
   <div class="card"><h2>Nuevo evento con mercados</h2><p class="small">Opciones independientes; no se generan cuotas. Solo umbrales enteros o medios (sin líneas asiáticas divididas). Liquidación manual por mercado.</p>
     <input id="et" placeholder="Título del evento"><input id="eh" placeholder="Equipo local (arriba)"><input id="ea" placeholder="Equipo visitante (abajo)">
+    <label class="small">Inicio del partido (hora de tu dispositivo; las apuestas se cierran a esa hora): <input id="estart" type="datetime-local"></label>
     <select id="esport"><option value="">Deporte sin especificar</option><option value="soccer">Fútbol</option><option value="hockey">Hockey</option><option value="baseball">Béisbol</option><option value="other">Otro</option></select><select id="eu"><option value="">Unidad sin especificar</option><option value="goles">Goles</option><option value="puntos">Puntos</option><option value="carreras">Carreras</option></select>
     <label><input type="checkbox" id="emh"> Ganador</label><div class="row"><input id="eho" placeholder="Cuota local"><input id="eao" placeholder="Cuota visitante"><input id="edo" placeholder="Cuota empate (opcional)"></div>
     <label><input type="checkbox" id="ems"> Hándicap</label><div class="row"><input id="eso" placeholder="Cuota local"><input id="esp" placeholder="Umbral local (ej. -0.5)"><input id="esao" placeholder="Cuota visitante"></div><p class="small">Visitante: umbral opuesto al local.</p>
@@ -372,7 +380,7 @@ async function adminView(B) {
     if ($('#emh').checked) { const options = [{ label: home, odds: num('eho') }, { label: away, odds: num('eao') }]; if ($('#edo').value.trim()) options.push({ label: 'Draw', odds: num('edo') }); markets.push({ key: 'h2h', options }); }
     if ($('#ems').checked) markets.push({ key: 'spreads', options: [{ label: home, point: num('esp'), odds: num('eso') }, { label: away, point: -num('esp'), odds: num('esao') }] });
     if ($('#emt').checked) markets.push({ key: 'totals', options: [{ label: 'Over', point: num('etp'), odds: num('eto') }, { label: 'Under', point: num('etp'), odds: num('etuo') }] });
-    return api('/admin/events', { title: $('#et').value, home, away, unit: $('#eu').value, sport: $('#esport').value, markets });
+    return api('/admin/events', { title: $('#et').value, home, away, unit: $('#eu').value, sport: $('#esport').value, starts: $('#estart').value ? new Date($('#estart').value).toISOString() : null, markets });
   });
   act('[data-push]', b => confirm('¿Resultado exactamente igual al umbral? Push solo de este mercado: devolver simples y anular patas de parlay.') && api(`/admin/lines/${b.dataset.push}/push`, {}));
   act('[data-close]', b => api(`/admin/lines/${b.dataset.close}/close`, {}));
@@ -726,15 +734,20 @@ async function gamesView(B) {
   B.querySelectorAll('[data-go]').forEach(b => b.onclick = e => { e.preventDefault(); rpsScreen = Number(b.dataset.go); render(); });
 }
 
+// Header: current balance (cash icon) + bank debt (card icon). One balance today; not separate wallets.
+function bankBanner(k) { if (!k) return '';
+  const warn = k.state === 'closed_permanent' ? '🔒 Banco cerrado por 5 bancarrotas.' : k.state === 'closed_until_bankruptcy' ? '⛔ Usaste tus 5 préstamos: banco cerrado hasta declarar bancarrota.' : k.loansLeft === 1 ? '⚠️ Te queda 1 préstamo: es el último antes de que el banco se cierre.' : '';
+  return `<div class="bank-banner ${k.debt > 0 ? 'debt' : 'ok'}" style="margin:8px 0;padding:8px 12px;border-radius:10px;font-weight:600;${k.debt > 0 ? 'background:#7f1d1d;color:#fee2e2;border:1px solid #dc2626' : 'background:#14532d;color:#dcfce7;border:1px solid #22c55e'}">
+    <span title="Saldo">💵 Saldo ${fmt(me.coins)}</span> · <span title="Deuda con el banco">💳 ${k.debt > 0 ? `Deuda ${fmt(k.debt)}` : 'Al día con el banco'}</span>${warn ? `<div class="small" style="font-weight:600">${warn}</div>` : ''}</div>`; }
 async function bankView(B) {
   const b = await api('/bank'), when = t => new Date(t).toLocaleString('es-US', { timeZone: 'America/New_York' }) + ' (hora de Nueva York)';
   const stateTxt = b.state === 'closed_permanent' ? (b.adminResetsLeft ? '🔒 Banco cerrado por 5 bancarrotas. Solo el administrador puede aprobar tu único nuevo comienzo.' : '🔒 Banco cerrado permanentemente.') : b.state === 'closed_until_bankruptcy' ? '⛔ Usaste tus 5 préstamos: el banco está cerrado hasta que declares bancarrota.' : '🏦 Banco abierto';
   const kinds = { loan: 'Préstamo', repay: 'Pago automático', bankruptcy: 'Bancarrota', fresh_start: 'Nuevo comienzo (admin)' };
   B.innerHTML = `<div class="card"><h2>🏦 Banco</h2><p>${stateTxt}</p>
-    <div>Saldo: <b>${fmt(b.coins)}</b> · Deuda: <b>${fmt(b.debt)}</b></div>
+    <div>💵 Saldo: <b>${fmt(b.coins)}</b> · 💳 Deuda: <b>${fmt(b.debt)}</b></div>
     <div class="small">Préstamos desde la última bancarrota: ${b.loans}/5 · Bancarrotas: ${b.bankruptcies}/5${b.markUntil ? ` · Marca de bancarrota hasta ${esc(when(b.markUntil))}` : ''} · Penalización actual: −${b.penalty} pts</div>
     <p class="small">Puedes pedir hasta 100.000 por préstamo (máximo 5 desde tu última bancarrota), tengas o no saldo. Cada préstamo resta ${b.loanPenalty} puntos. Cuando ganas una apuesta o un reto, el 50% de tu ganancia neta (sin contar lo apostado) paga la deuda automáticamente; el resto es tuyo. Las devoluciones y bonos no se tocan. La bancarrota borra la deuda, los préstamos y sus penalizaciones, pero deja una marca de −${b.markPenalty} puntos durante 1 mes. Tus apuestas pendientes y tu historial no cambian.</p>
-    ${b.canLoan ? `<input id="loanAmt" type="number" min="1" max="100000" step="1" inputmode="numeric" placeholder="Monto (1 a 100.000)"><button id="loanGo">Pedir préstamo</button>` : ''}
+    ${b.canLoan && b.loansLeft === 1 ? '<p class="small" style="color:#f59e0b;font-weight:600">⚠️ Este es tu último préstamo disponible. Después el banco se cierra hasta que declares bancarrota.</p>' : ''}${b.canLoan ? `<input id="loanAmt" type="number" min="1" max="100000" step="1" inputmode="numeric" placeholder="Monto (1 a 100.000)"><button id="loanGo">Pedir préstamo</button>` : ''}
     ${b.canBankrupt ? `<button class="alt" id="bkGo">Declarar bancarrota (${b.bankruptciesLeft} restantes)</button>` : ''}</div>
     <div class="card"><h3>Movimientos</h3>${(b.ledger || []).map(x => `<div class="small">${esc(when(x.ts))} · ${kinds[x.kind] || esc(x.kind)} ${fmt(x.amount)} · deuda ${fmt(x.debt_after)}</div>`).join('') || '<div class="small">Sin movimientos.</div>'}</div>`;
   if ($('#loanGo')) $('#loanGo').onclick = async () => { try { const r = await api('/bank/loan', { amount: Number($('#loanAmt').value) }); if (r.error) throw new Error(r.error); render(); } catch (e) { flash(e.message); } };

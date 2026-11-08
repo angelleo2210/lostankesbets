@@ -19,7 +19,7 @@ app.get('/api/status', h(() => ({ hasAdmin: C.hasAdmin() })));
 app.post('/api/setup', h(r => { C.setupAdmin(r.body.username, r.body.pin); return { token: C.login(r.body.username, r.body.pin) }; }));
 app.post('/api/register', h(r => { C.register(r.body.code, r.body.username, r.body.pin, r.body.avatarCfg); return { token: C.login(r.body.username, r.body.pin) }; }));
 app.post('/api/login', h(r => ({ token: C.login(r.body.username, r.body.pin) })));
-app.get('/api/me', h(r => { const u = auth(r); return { ...u, streak: C.streak(u.id), retosPend: C.rpsList(u.id).filter(g => g.status === 'pending' && g.mine === 'received').length + C.penList(u.id).filter(g => g.status === 'pending' && g.mine === 'received').length + C.tcList(u.id).filter(g => g.status === 'pending' && g.mine === 'received').length + C.bbList(u.id).filter(g => g.status === 'pending' && g.mine === 'received').length, bets: C.myBets(u.id), parlays: C.myParlays(u.id) }; }));
+app.get('/api/me', h(r => { const u = auth(r); return { ...u, streak: C.streak(u.id), retosPend: C.rpsList(u.id).filter(g => g.status === 'pending' && g.mine === 'received').length + C.penList(u.id).filter(g => g.status === 'pending' && g.mine === 'received').length + C.tcList(u.id).filter(g => g.status === 'pending' && g.mine === 'received').length + C.bbList(u.id).filter(g => g.status === 'pending' && g.mine === 'received').length, bets: C.myBets(u.id), parlays: C.myParlays(u.id), bank: C.bankBrief(u.id) }; }));
 app.get('/api/lines', h(r => { auth(r); return C.lines(['open', 'closed']); }));
 app.get('/api/leaderboard', h(r => { auth(r); return C.leaderboard(r.query.period); }));
 app.get('/api/tabla', h(r => { const u = auth(r); const d = C.tabla(r.query.period || 'temporada'); return { ...d, me: u.id }; }));
@@ -64,6 +64,7 @@ app.post('/api/admin/import', h(async r => { admin(r); const d = await odds.upco
   const e = d.events.find(x => x.id === r.body.eventId); if (!e) return { error: 'Evento no encontrado' };
   return { ids: C.createEvent({ ...e, title: `${e.sport}: ${e.title}` }, 'real') }; }));
 app.post('/api/admin/lines/:id/sport', h(r => C.setEventSport(admin(r).id, r.params.id, r.body.sport || null)));
+app.post('/api/admin/lines/:id/start', h(r => C.setEventStart(admin(r).id, r.params.id, r.body.starts ?? null)));
 app.post('/api/admin/lines/:id/pause', h(r => C.setEventPaused(admin(r).id, r.params.id, !!r.body.paused)));
 app.post('/api/admin/events', h(r => { admin(r); return { ids: C.createEvent({ ...r.body, id: 'custom:' + require('node:crypto').randomUUID() }) }; }));
 app.post('/api/admin/lines/:id/markets', h(r => { admin(r); return { id: C.addEventMarket(r.params.id, r.body.market, r.body.options, r.body.home, r.body.away, r.body.unit) }; }));

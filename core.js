@@ -137,6 +137,11 @@ function open(file = 'data.db') {
   const eventKey = l => l.event_id ? `${l.kind}:${l.event_id}` : `line:${l.line_id ?? l.id}`;
   const PAUSED_MSG = 'Las apuestas para este partido están pausadas por el administrador.';
   const isPaused = l => !!db.prepare('SELECT 1 FROM paused_events WHERE key=?').get(eventKey(l));
+  // Auto-close at the stored match start (server clock, checked on every wager request). Only blocks NEW wagers;
+  // accepted bets/parlays are never voided or refunded by this. Lines without a stored start have no timed lock.
+  const STARTED_MSG = 'El partido ya empezó; no se aceptan apuestas nuevas.';
+  const startMs = l => { if (!l || !l.starts) return null; const t = Date.parse(l.starts); return Number.isFinite(t) ? t : null; };
+  const hasStarted = (l, t = Date.now()) => { const s = startMs(l); return s != null && t >= s; };
   const SPORTS = ['soccer', 'hockey', 'baseball', 'other'];
   const sportOf = e => { const k = String(e.sport_key || ''); if (/^soccer_/.test(k)) return 'soccer'; if (/^icehockey_/.test(k)) return 'hockey'; if (/^baseball_/.test(k)) return 'baseball'; return SPORTS.includes(e.sport) ? e.sport : null; };
   const bankRow = uid => { db.prepare('INSERT OR IGNORE INTO bank(user_id) VALUES(?)').run(uid); return db.prepare('SELECT * FROM bank WHERE user_id=?').get(uid); };
@@ -181,6 +186,9 @@ function open(file = 'data.db') {
         db.prepare('UPDATE users SET coins=0 WHERE id=?').run(b.user_id);
         db.prepare('UPDATE bank SET debt=0, loans=0, loan_penalty=0, bankruptcies=0, mark_until=NULL, closed=0, admin_resets=admin_resets+1 WHERE user_id=?').run(b.user_id);
         ledger(b.user_id, 'fresh_start', coins, 0, `debt ${b.debt}; bankruptcies ${b.bankruptcies}`, adminId); return { ok: true }; }); },
+    // Read-only header summary (no row insert).
+    bankBrief(uid) { const b = db.prepare('SELECT debt, loans, closed FROM bank WHERE user_id=?').get(uid) || { debt: 0, loans: 0, closed: 0 };
+      return { debt: b.debt, loans: b.loans, loansLeft: Math.max(0, BANK.MAX_LOANS - b.loans), state: b.closed ? 'closed_permanent' : b.loans >= BANK.MAX_LOANS ? 'closed_until_bankruptcy' : 'open' }; },
     bankPenalty,
     // Admin metadata for future same-match quotes only (saved tickets keep their frozen price).
     setEventSport(adminId, lineId, sport) {
@@ -188,6 +196,14 @@ function open(file = 'data.db') {
         if (sport && !SPORTS.includes(sport)) err('Deporte inválido'); const l = db.prepare('SELECT * FROM lines WHERE id=?').get(Number(lineId)); if (!l) err('Línea no existe');
         if (l.event_id) db.prepare('UPDATE lines SET sport=? WHERE event_id=? AND kind=?').run(sport || null, l.event_id, l.kind); else db.prepare('UPDATE lines SET sport=? WHERE id=?').run(sport || null, l.id);
         return { sport: sport || null }; }); },
+    // Admin: set/change/clear the stored start (ISO, saved as UTC) for the whole match. Explicit reschedule is the only way to reopen after start.
+    setEventStart(adminId, lineId, starts) {
+      return tx(() => { const a = db.prepare('SELECT is_admin FROM users WHERE id=?').get(adminId); if (!a || !a.is_admin) err('Solo el administrador');
+        const l = db.prepare('SELECT * FROM lines WHERE id=?').get(Number(lineId)); if (!l) err('Línea no existe');
+        let v = null; if (starts != null && starts !== '') { const ms = Date.parse(String(starts)); if (!Number.isFinite(ms)) err('Fecha/hora inválida'); v = new Date(ms).toISOString(); }
+        if (l.event_id) db.prepare('UPDATE lines SET starts=? WHERE event_id=? AND kind=?').run(v, l.event_id, l.kind); else db.prepare('UPDATE lines SET starts=? WHERE id=?').run(v, l.id);
+        return { starts: v }; }); },
+    hasStarted,
     // Admin, reversible. Does not change line status, odds or accepted tickets.
     setEventPaused(adminId, lineId, paused) {
       return tx(() => { const a = db.prepare('SELECT is_admin FROM users WHERE id=?').get(adminId); if (!a || !a.is_admin) err('Solo el administrador');
@@ -380,6 +396,7 @@ function open(file = 'data.db') {
     createEvent(event, kind = 'custom') {
       if (!event || !event.id || !Array.isArray(event.markets) || !event.markets.length) err('Evento sin mercados');
       if (new Set(event.markets.map(m => m.key)).size !== event.markets.length) err('Mercados repetidos');
+      if (event.starts != null && event.starts !== '') { const ms = Date.parse(String(event.starts)); if (!Number.isFinite(ms)) err('Fecha/hora inválida'); event = { ...event, starts: new Date(ms).toISOString() }; } else event = { ...event, starts: null };
       return tx(() => event.markets.map(m => {
         try { Markets.validate(m.key, m.options, event.home, event.away); } catch(e) { err(e.message); }
         const prior = db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND COALESCE(market,'h2h')=?").get(String(event.id), kind, m.key);
@@ -418,21 +435,21 @@ function open(file = 'data.db') {
     },
     lines(statusFilter) {
       const ls = db.prepare(`SELECT * FROM lines ${statusFilter ? 'WHERE status IN (' + statusFilter.map(() => '?').join(',') + ')' : ''} ORDER BY id DESC`).all(...(statusFilter || []));
-      return ls.map(l => ({ ...l, paused: isPaused(l), options: db.prepare('SELECT * FROM options WHERE line_id=?').all(l.id) }));
+      const t = Date.now(); return ls.map(l => ({ ...l, paused: isPaused(l), started: hasStarted(l, t), options: db.prepare('SELECT * FROM options WHERE line_id=?').all(l.id) }));
     },
-    placeBet(userId, optionId, stake) {
+    placeBet(userId, optionId, stake, t = Date.now()) {
       stake = Number(stake);
       if (!Number.isInteger(stake) || stake <= 0) err('La apuesta debe ser un número entero mayor que 0');
       return tx(() => {
-        const o = db.prepare('SELECT o.*, l.status, l.event_id, l.kind, l.market, l.home, l.away FROM options o JOIN lines l ON l.id=o.line_id WHERE o.id=?').get(Number(optionId));
-        if (!o) err('Opción no existe'); if (o.status !== 'open') err('Esta línea ya no acepta apuestas'); if (isPaused(o)) err(PAUSED_MSG);
+        const o = db.prepare('SELECT o.*, l.status, l.event_id, l.kind, l.market, l.home, l.away, l.starts FROM options o JOIN lines l ON l.id=o.line_id WHERE o.id=?').get(Number(optionId));
+        if (!o) err('Opción no existe'); if (o.status !== 'open') err('Esta línea ya no acepta apuestas'); if (isPaused(o)) err(PAUSED_MSG); if (hasStarted(o, t)) err(STARTED_MSG);
         const u = db.prepare('SELECT coins FROM users WHERE id=?').get(userId);
         if (u.coins < stake) err('No tienes suficientes monedas');
         db.prepare('UPDATE users SET coins=coins-? WHERE id=?').run(stake, userId);
         return Number(db.prepare('INSERT INTO bets(user_id,line_id,option_id,stake,odds,ts) VALUES(?,?,?,?,?,?)').run(userId, o.line_id, o.id, stake, o.odds, now()).lastInsertRowid);
       });
     },
-    placeParlay(userId, optionIds, stake) {
+    placeParlay(userId, optionIds, stake, t = Date.now()) {
       stake = Number(stake);
       if (!Array.isArray(optionIds) || optionIds.length < 2 || optionIds.length > 15) err('El parlay debe tener de 2 a 15 selecciones');
       const ids = optionIds.map(Number);
@@ -440,8 +457,8 @@ function open(file = 'data.db') {
       if (!Number.isInteger(stake) || stake <= 0) err('La apuesta debe ser un número entero mayor que 0');
       return tx(() => {
         const legs = ids.map(id => {
-          const o = db.prepare('SELECT o.*, l.status, l.event_id, l.kind, l.market, l.home, l.away FROM options o JOIN lines l ON l.id=o.line_id WHERE o.id=?').get(id);
-          if (!o) err('Opción no existe'); if (o.status !== 'open') err('Una de las líneas ya no acepta apuestas'); if (isPaused(o)) err(PAUSED_MSG); return o;
+          const o = db.prepare('SELECT o.*, l.status, l.event_id, l.kind, l.market, l.home, l.away, l.starts FROM options o JOIN lines l ON l.id=o.line_id WHERE o.id=?').get(id);
+          if (!o) err('Opción no existe'); if (o.status !== 'open') err('Una de las líneas ya no acepta apuestas'); if (isPaused(o)) err(PAUSED_MSG); if (hasStarted(o, t)) err(STARTED_MSG); return o;
         });
         if (new Set(legs.map(o => o.line_id)).size !== legs.length) err('Solo una selección por línea');
         const legMeta = legs.map(o => ({ event: o.event_id ? `${o.kind}:${o.event_id}` : null, line: o.line_id, market: o.market, home: o.home, away: o.away, outcome: o.outcome, label: o.label, point: o.point, option: o.id, odds: o.odds })); { const e = Markets.sameEventError(legMeta); if (e) err(e); }
