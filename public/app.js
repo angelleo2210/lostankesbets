@@ -38,7 +38,7 @@ async function start() {
 async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInterval(tcBarT);
   if (tab === 'tienda') tab = 'lineas';
   me = await api('/me'); if (!RW.length) RW = await api('/rewards').catch(() => []);
-  const tabs = [['lineas', 'Líneas'], ['reales', 'Reales'], ['mias', 'Mis apuestas'], ['tabla', 'Tabla'], ['juegos', 'Retos' + (me.retosPend ? ` (${me.retosPend})` : '')], ['perfil', 'Mi perfil']].concat(me.is_admin ? [['admin', 'Admin']] : []);
+  const tabs = [['lineas', 'Líneas'], ['reales', 'Reales'], ['mias', 'Mis apuestas'], ['tabla', 'Tabla'], ['juegos', 'Retos' + (me.retosPend ? ` (${me.retosPend})` : '')], ['banco', 'Banco'], ['perfil', 'Mi perfil']].concat(me.is_admin ? [['admin', 'Admin']] : []);
   A.innerHTML = `${coverBanner(me)}<nav>${tabs.map(([k, v]) => `<button class="${k === tab ? '' : 'alt'}" data-t="${k}">${v}</button>`).join('')}</nav>
   <div id="bono" class="bono"></div><p id="msg" class="err"></p><div id="body"></div><button class="alt" id="out">Salir</button>`;
   A.querySelectorAll('nav button').forEach(b => b.onclick = () => { tab = b.dataset.t; render(); });
@@ -139,7 +139,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
       const nm = (u.display_name || u.username || '').toUpperCase();
       const sz = place === 1 ? { w: 72, h: 96 } : { w: 58, h: 77 };
       return `<div class="tb-pod tb-pod-${place}${u.id === meId ? ' me' : ''}">
-        <div class="tb-pod-name">${esc(nm)}</div>
+        <div class="tb-pod-name">${esc(nm)}</div><div class="tb-pod-pts small">${u.points ?? 3 * u.wins} pts</div>
         ${tablaAvatar(u, { w: sz.w, h: sz.h, boxCls: 'tb-pod-av', sm: false })}
       </div>`;
     };
@@ -155,7 +155,8 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
           <div class="tb-user">@${esc(u.username)}</div>
         </div>
         <div class="tb-metrics">
-          <span title="Ganadas">🏆 ${u.wins}</span>
+          <span title="Puntos (3 por victoria, −7 por préstamo, −20 con bancarrota activa)"><b>${u.points ?? 3 * u.wins} pts</b></span>
+          <span title="Ganadas">🏆 ${u.wins}</span>${u.bankPenalty ? `<span title="Penalización del banco">🏦 −${u.bankPenalty}</span>` : ''}
           <span title="Perdidas">❌ ${u.losses}</span>
           <span title="% acierto">${u.winPct}%</span>
           <span title="Monedas">🪙 ${fmt(u.coins)}</span>
@@ -174,11 +175,12 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
       </div>
       <div class="chips depts tb-filters">${periods.map(([k, lab]) => `<button class="chip ${tablaPeriod === k ? 'on' : 'alt'}" data-tp="${k}">${lab}</button>`).join('')}</div>
       <div class="tb-list card">${rowHtml || '<div class="small">Nadie en el ranking aún.</div>'}</div>
-      <div class="small">Podio: mín. 3 apuestas liquidadas en el periodo. Stats liquidadas (parlay = 1). Racha: 🔥 3 · 🔥🔥 5+ · 🧊 2 · 🧊🧊 3+.</div>
+      <div class="small">Orden por puntos: +3 por victoria, 0 por derrota, −7 por préstamo, −20 con bancarrota activa (1 mes). Podio: mín. 3 apuestas liquidadas en el periodo. Stats liquidadas (parlay = 1). Racha: 🔥 3 · 🔥🔥 5+ · 🧊 2 · 🧊🧊 3+.</div>
     </div>`;
     B.querySelectorAll('[data-tp]').forEach(b => b.onclick = () => { tablaPeriod = b.dataset.tp; render(); });
   }
   const stP = tab === 'perfil' ? await api('/owned') : null;
+  if (tab === 'banco') await bankView(B);
   if (tab === 'perfil') { let av = me.avatar || '', cos = { ...(me.cosmetics || {}) }, acfg = Avatar.norm(me.avatarCfg); const mine = new Set((me.unlocks || []).map(u => u.item_id));
     B.innerHTML = `<div class="card"><h2>Mi perfil</h2><div class="small">Usuario: @${esc(me.username)}</div>${streakTag(me.streak, true)}
     <div style="display:flex;flex-wrap:wrap;gap:4px;margin:8px 0">${EMOJIS.map(e => `<button class="${e === av ? '' : 'alt'}" style="width:44px;padding:6px" data-em="${e}">${e}</button>`).join('')}<button class="alt" style="width:auto;padding:6px" data-em="">Sin emoji</button></div>
@@ -307,8 +309,8 @@ function bindBets(ls = []) {
 }
 async function adminView(B) {
   const ls = await api('/lines');
-  const inv = await api('/admin/invites').catch(() => []); const us = await api('/admin/users').catch(() => []); const tps = await api('/admin/topups').catch(() => []);
-  B.innerHTML = `<div class="card"><h2>Nueva línea ficticia</h2><input id="t" placeholder="Ej: Hoy Ángel come espaguetis">
+  const inv = await api('/admin/invites').catch(() => []); const us = await api('/admin/users').catch(() => []); const tps = await api('/admin/topups').catch(() => []); const bankCard = await adminBankCard().catch(() => '');
+  B.innerHTML = bankCard + `<div class="card"><h2>Nueva línea ficticia</h2><input id="t" placeholder="Ej: Hoy Ángel come espaguetis">
   <div id="opts"></div><button class="alt" id="add">+ Opción</button><button id="create">Crear línea</button></div>
   <div class="card"><h2>Nuevo evento con mercados</h2><p class="small">Opciones independientes; no se generan cuotas. Solo umbrales enteros o medios (sin líneas asiáticas divididas). Liquidación manual por mercado.</p>
     <input id="et" placeholder="Título del evento"><input id="ea" placeholder="Equipo visitante (arriba)"><input id="eh" placeholder="Equipo local (abajo)">
@@ -356,6 +358,8 @@ async function adminView(B) {
     const options = market === 'spreads' ? [{ label: home, point, odds: a }, { label: away, point: -point, odds: b }] : [{ label: 'Over', point, odds: a }, { label: 'Under', point, odds: b }];
     return api(`/admin/lines/${Number($('#existingEvent').value)}/markets`, { home, away, unit: $('#existingUnit').value, market, options });
   });
+  act('[data-fresh]', async b => { const c = prompt('Nuevo comienzo (solo una vez): el saldo de este jugador quedará en 0 y se borrarán deuda, préstamos, bancarrotas y penalizaciones del banco. Su historial de victorias/derrotas y apuestas pendientes se conservan. Escribe NUEVO COMIENZO para confirmar.');
+    if (c === null) return; const r = await api('/admin/bank/reset', { userId: Number(b.dataset.fresh), confirm: c.trim() }); if (r.error) throw new Error(r.error); });
   act('#eventCreate', () => {
     const num = id => { const v = $('#' + id).value.trim(); if (!v) throw new Error('Falta umbral o cuota'); return Number(v); };
     const home = $('#eh').value.trim(), away = $('#ea').value.trim(), markets = [];
@@ -714,4 +718,24 @@ async function gamesView(B) {
   B.querySelectorAll('[data-ac],[data-rj]').forEach(b => b.onclick = async () => { const id = Number(b.dataset.ac || b.dataset.rj);
     try { await api('/rps/respond', { id, accept: !!b.dataset.ac }); if (b.dataset.ac) rpsScreen = id; render(); } catch (e) { flash(e.message); } });
   B.querySelectorAll('[data-go]').forEach(b => b.onclick = e => { e.preventDefault(); rpsScreen = Number(b.dataset.go); render(); });
+}
+
+async function bankView(B) {
+  const b = await api('/bank'), when = t => new Date(t).toLocaleString('es-US', { timeZone: 'America/New_York' }) + ' (hora de Nueva York)';
+  const stateTxt = b.state === 'closed_permanent' ? (b.adminResetsLeft ? '🔒 Banco cerrado por 5 bancarrotas. Solo el administrador puede aprobar tu único nuevo comienzo.' : '🔒 Banco cerrado permanentemente.') : b.state === 'closed_until_bankruptcy' ? '⛔ Usaste tus 5 préstamos: el banco está cerrado hasta que declares bancarrota.' : '🏦 Banco abierto';
+  const kinds = { loan: 'Préstamo', repay: 'Pago automático', bankruptcy: 'Bancarrota', fresh_start: 'Nuevo comienzo (admin)' };
+  B.innerHTML = `<div class="card"><h2>🏦 Banco</h2><p>${stateTxt}</p>
+    <div>Saldo: <b>${fmt(b.coins)}</b> · Deuda: <b>${fmt(b.debt)}</b></div>
+    <div class="small">Préstamos desde la última bancarrota: ${b.loans}/5 · Bancarrotas: ${b.bankruptcies}/5${b.markUntil ? ` · Marca de bancarrota hasta ${esc(when(b.markUntil))}` : ''} · Penalización actual: −${b.penalty} pts</div>
+    <p class="small">Puedes pedir hasta 100.000 por préstamo (máximo 5 desde tu última bancarrota), tengas o no saldo. Cada préstamo resta ${b.loanPenalty} puntos. Cuando ganas una apuesta o un reto, el 50% de tu ganancia neta (sin contar lo apostado) paga la deuda automáticamente; el resto es tuyo. Las devoluciones y bonos no se tocan. La bancarrota borra la deuda, los préstamos y sus penalizaciones, pero deja una marca de −${b.markPenalty} puntos durante 1 mes. Tus apuestas pendientes y tu historial no cambian.</p>
+    ${b.canLoan ? `<input id="loanAmt" type="number" min="1" max="100000" step="1" inputmode="numeric" placeholder="Monto (1 a 100.000)"><button id="loanGo">Pedir préstamo</button>` : ''}
+    ${b.canBankrupt ? `<button class="alt" id="bkGo">Declarar bancarrota (${b.bankruptciesLeft} restantes)</button>` : ''}</div>
+    <div class="card"><h3>Movimientos</h3>${(b.ledger || []).map(x => `<div class="small">${esc(when(x.ts))} · ${kinds[x.kind] || esc(x.kind)} ${fmt(x.amount)} · deuda ${fmt(x.debt_after)}</div>`).join('') || '<div class="small">Sin movimientos.</div>'}</div>`;
+  if ($('#loanGo')) $('#loanGo').onclick = async () => { try { const r = await api('/bank/loan', { amount: Number($('#loanAmt').value) }); if (r.error) throw new Error(r.error); render(); } catch (e) { flash(e.message); } };
+  if ($('#bkGo')) $('#bkGo').onclick = async () => { if (!confirm('¿Declarar bancarrota? Se borra tu deuda y tus préstamos, y tendrás −20 puntos durante 1 mes.')) return; try { const r = await api('/bank/bankruptcy', {}); if (r.error) throw new Error(r.error); render(); } catch (e) { flash(e.message); } };
+}
+async function adminBankCard() {
+  const us = await api('/admin/bank');
+  return `<div class="card"><h2>Banco: jugadores con 5 bancarrotas</h2><p class="small">Decisión manual del administrador. El nuevo comienzo pone el saldo en 0 y borra deuda, préstamos, bancarrotas, marca y penalizaciones del banco. Conserva victorias, derrotas, historial y apuestas pendientes. Solo una vez por jugador.</p>
+    ${us.map(u => `<div class="small">@${esc(u.username)} · saldo ${fmt(u.coins)} · ${u.eligible ? `<button class="alt" data-fresh="${u.id}">Aprobar nuevo comienzo</button>` : 'ya usó su nuevo comienzo: cerrado permanentemente'}</div>`).join('') || '<div class="small">Nadie.</div>'}</div>`;
 }

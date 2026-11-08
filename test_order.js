@@ -63,7 +63,7 @@ t('pre-existing published event + upgraded legacy line + pending bets render awa
 t('Agregar mercados: Hándicap shows visitante odds first, Total keeps Over/Under; payload mapping canonical; type switch clears odds', () => {
   const code = src.slice(src.indexOf('  const layoutExisting'), src.indexOf("  act('#eventCreate'"));
   const el = {}; for (const id of ['existingMarket', 'existingPoint', 'existingOddsA', 'existingOddsB', 'existingHome', 'existingAway', 'existingUnit', 'existingEvent']) el[id] = { id, value: '', style: {}, placeholder: '' };
-  let handler, sent; const c = { $: q => el[q.slice(1)], act: (_, f) => { handler = f; }, api: (url, body) => { sent = { url, body }; } };
+  let handler, sent; const c = { $: q => el[q.slice(1)], act: (sel, f) => { if (sel === '#existingAdd') handler = f; }, api: (url, body) => { sent = { url, body }; } };
   el.existingMarket.value = 'spreads'; vm.runInNewContext(code, c);
   const order = () => ['existingPoint', 'existingOddsA', 'existingOddsB'].sort((x, y) => el[x].style.order - el[y].style.order);
   assert.equal(order().join(), ['existingOddsB', 'existingPoint', 'existingOddsA'].join()); assert.match(el.existingOddsB.placeholder, /visitante/); assert.match(el.existingOddsA.placeholder, /local/);

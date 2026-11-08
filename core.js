@@ -71,6 +71,18 @@ const bbGame = (cp, op) => { const innings = []; let c = 0, o = 0;
 const RPS = ['piedra', 'papel', 'tijera'], BEATS = { piedra: 'tijera', tijera: 'papel', papel: 'piedra' }, RPS_MIN = 10, RPS_MAX = 25000, RPS_MS = 24 * 3600e3;
 // Nuevos retos bloqueados (pen/bb/tc); respond/play/expire siguen por monedas legacy.
 const DISABLED_NEW_MINIGAMES = new Set(['pen', 'bb', 'tc']);
+// Banco (monedas de juego). Owner-confirmed: -7 ranking points per loan, -20 while a bankruptcy mark is active (1 calendar month, New York).
+const BANK = { MAX_LOAN: 100000, MAX_LOANS: 5, MAX_BANKRUPTCIES: 5, LOAN_PENALTY: 7, MARK_PENALTY: 20, MAX_ADMIN_RESETS: 1, TZ: 'America/New_York' };
+// Same wall-clock time one calendar month later in America/New_York (day clamped to month end).
+function addMonthNY(ms) {
+  const f = new Intl.DateTimeFormat('en-US', { timeZone: BANK.TZ, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' });
+  const parts = t => Object.fromEntries(f.formatToParts(new Date(t)).filter(x => x.type !== 'literal').map(x => [x.type, Number(x.value)]));
+  const p = parts(ms); let y = p.year, m = p.month + 1; if (m > 12) { m = 1; y++; }
+  const d = Math.min(p.day, new Date(Date.UTC(y, m, 0)).getUTCDate());
+  const want = Date.UTC(y, m - 1, d, p.hour, p.minute, p.second); let t = want;
+  for (let i = 0; i < 3; i++) { const q = parts(t); t += want - Date.UTC(q.year, q.month - 1, q.day, q.hour, q.minute, q.second); }
+  return t + (ms % 1000);
+}
 function open(file = 'data.db') {
   const db = new DatabaseSync(file);
   db.exec(`PRAGMA foreign_keys=ON;
@@ -115,7 +127,54 @@ function open(file = 'data.db') {
   tx(() => { for (const o of db.prepare("SELECT user_id, price FROM purchases WHERE item_id='acc_gorra'").all()) {
     if (db.prepare("SELECT 1 FROM purchases WHERE user_id=? AND item_id='head_gorra_casual'").get(o.user_id)) { db.prepare("DELETE FROM purchases WHERE user_id=? AND item_id='acc_gorra'").run(o.user_id); db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(o.price || 0, o.user_id); }
     else db.prepare("UPDATE purchases SET item_id='head_gorra_casual' WHERE user_id=? AND item_id='acc_gorra'").run(o.user_id); } });
+  db.exec(`CREATE TABLE IF NOT EXISTS bank(user_id INTEGER PRIMARY KEY, debt INTEGER NOT NULL DEFAULT 0, loans INTEGER NOT NULL DEFAULT 0, loan_penalty INTEGER NOT NULL DEFAULT 0, bankruptcies INTEGER NOT NULL DEFAULT 0, mark_until INTEGER, closed INTEGER NOT NULL DEFAULT 0, admin_resets INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS bank_ledger(id INTEGER PRIMARY KEY, user_id INTEGER, kind TEXT, amount INTEGER, debt_after INTEGER, ref TEXT, admin_id INTEGER, ts INTEGER);`);
+  const bankRow = uid => { db.prepare('INSERT OR IGNORE INTO bank(user_id) VALUES(?)').run(uid); return db.prepare('SELECT * FROM bank WHERE user_id=?').get(uid); };
+  const ledger = (uid, kind, amount, debtAfter, ref, adminId = null) => db.prepare('INSERT INTO bank_ledger(user_id,kind,amount,debt_after,ref,admin_id,ts) VALUES(?,?,?,?,?,?,?)').run(uid, kind, amount, debtAfter, ref, adminId, Date.now());
+  // Winning credit (bets, parlays, challenges): 50% of net profit (payout - stake, floored to whole coins) repays debt, capped at the debt.
+  // Stake and the other half go to the player; refunds/voids/ties/bonus/top-ups never collected.
+  const winCredit = (uid, payout, stake, ref) => {
+    const b = db.prepare('SELECT debt FROM bank WHERE user_id=?').get(uid); const take = b && b.debt > 0 ? Math.min(b.debt, Math.floor(Math.max(0, payout - stake) / 2)) : 0;
+    db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(payout - take, uid);
+    if (take) { db.prepare('UPDATE bank SET debt=debt-? WHERE user_id=?').run(take, uid); ledger(uid, 'repay', take, b.debt - take, ref); }
+  };
+  const bankPenalty = (uid, t = Date.now()) => { const b = db.prepare('SELECT * FROM bank WHERE user_id=?').get(uid); if (!b) return 0; return b.loan_penalty + (b.mark_until && b.mark_until > t ? BANK.MARK_PENALTY : 0); };
+  const bankApi = {
+    bankStatus(uid, t = Date.now()) { const b = bankRow(uid), coins = db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins;
+      const state = b.closed ? 'closed_permanent' : b.loans >= BANK.MAX_LOANS ? 'closed_until_bankruptcy' : 'open';
+      return { coins, debt: b.debt, loans: b.loans, loansLeft: Math.max(0, BANK.MAX_LOANS - b.loans), bankruptcies: b.bankruptcies, bankruptciesLeft: Math.max(0, BANK.MAX_BANKRUPTCIES - b.bankruptcies), markUntil: b.mark_until && b.mark_until > t ? b.mark_until : null, penalty: bankPenalty(uid, t), state, canLoan: state === 'open', canBankrupt: !b.closed && (b.debt > 0 || b.loans > 0), maxLoan: BANK.MAX_LOAN, adminResetsLeft: Math.max(0, BANK.MAX_ADMIN_RESETS - b.admin_resets), loanPenalty: BANK.LOAN_PENALTY, markPenalty: BANK.MARK_PENALTY,
+        ledger: db.prepare('SELECT kind,amount,debt_after,ref,ts FROM bank_ledger WHERE user_id=? ORDER BY id DESC LIMIT 30').all(uid) }; },
+    takeLoan(uid, amount) { amount = Number(amount);
+      if (!Number.isInteger(amount) || amount < 1 || amount > BANK.MAX_LOAN) err('El préstamo debe ser un número entero entre 1 y 100.000');
+      return tx(() => { const b = bankRow(uid);
+        if (b.closed) err(b.admin_resets >= BANK.MAX_ADMIN_RESETS ? 'El banco está cerrado permanentemente para ti (5 bancarrotas y ya usaste tu único nuevo comienzo).' : 'El banco está cerrado por 5 bancarrotas. Solo el administrador puede aprobar tu único nuevo comienzo.');
+        if (b.loans >= BANK.MAX_LOANS) err('Ya usaste tus 5 préstamos. El banco está cerrado hasta que declares bancarrota.');
+        db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(amount, uid);
+        db.prepare('UPDATE bank SET debt=debt+?, loans=loans+1, loan_penalty=loan_penalty+? WHERE user_id=?').run(amount, BANK.LOAN_PENALTY, uid);
+        ledger(uid, 'loan', amount, b.debt + amount, null); return bankApi.bankStatus(uid); }); },
+    declareBankruptcy(uid, t = Date.now()) {
+      return tx(() => { const b = bankRow(uid);
+        if (b.closed) err('El banco está cerrado permanentemente; ya no puedes declarar bancarrota.');
+        if (!(b.debt > 0 || b.loans > 0)) err('No tienes deuda ni préstamos que borrar');
+        const n = b.bankruptcies + 1, mark = Math.max(b.mark_until || 0, addMonthNY(t));
+        db.prepare('UPDATE bank SET debt=0, loans=0, loan_penalty=0, bankruptcies=?, mark_until=?, closed=? WHERE user_id=?').run(n, mark, n >= BANK.MAX_BANKRUPTCIES ? 1 : 0, uid);
+        ledger(uid, 'bankruptcy', b.debt, 0, `#${n}`); return bankApi.bankStatus(uid, t); }); },
+    bankClosedUsers() { return db.prepare('SELECT u.id, u.username, u.display_name, u.coins, b.bankruptcies, b.mark_until, b.admin_resets, (b.admin_resets < 1) eligible FROM bank b JOIN users u ON u.id=b.user_id WHERE b.closed=1 ORDER BY u.username').all(); },
+    // Human admin decision only. Balance -> 0; debt, loans, penalties, mark and bankruptcy count reset. Bets/history untouched.
+    adminFreshStart(adminId, uid, confirm) {
+      if (confirm !== 'NUEVO COMIENZO') err('Escribe NUEVO COMIENZO para confirmar');
+      return tx(() => { const a = db.prepare('SELECT is_admin FROM users WHERE id=?').get(adminId); if (!a || !a.is_admin) err('Solo el administrador');
+        if (Number(uid) === adminId) err('El administrador no puede aprobarse a sí mismo');
+        const b = db.prepare('SELECT * FROM bank WHERE user_id=?').get(Number(uid)); if (!b || !b.closed) err('Este jugador no tiene el banco cerrado por 5 bancarrotas');
+        if (b.admin_resets >= BANK.MAX_ADMIN_RESETS) err('Este jugador ya usó su único nuevo comienzo; el banco queda cerrado permanentemente');
+        const coins = db.prepare('SELECT coins FROM users WHERE id=?').get(b.user_id).coins;
+        db.prepare('UPDATE users SET coins=0 WHERE id=?').run(b.user_id);
+        db.prepare('UPDATE bank SET debt=0, loans=0, loan_penalty=0, bankruptcies=0, mark_until=NULL, closed=0, admin_resets=admin_resets+1 WHERE user_id=?').run(b.user_id);
+        ledger(b.user_id, 'fresh_start', coins, 0, `debt ${b.debt}; bankruptcies ${b.bankruptcies}`, adminId); return { ok: true }; }); },
+    bankPenalty,
+  };
   const api = {
+    ...bankApi,
     // Capas del avatar: solo se equipa lo que el usuario posee; color = el del artículo comprado.
     _unequip: (uid, itemId) => editWear(uid, w => { for (const k in w) if (w[k].id === itemId) delete w[k]; }),
     owned: uid => db.prepare('SELECT item_id, color, price, created FROM purchases WHERE user_id=? ORDER BY created').all(Number(uid)).map(o => ({ ...o, color: ST.norm(o.item_id, o.color) })),
@@ -150,7 +209,7 @@ function open(file = 'data.db') {
       db.prepare("UPDATE bb SET status='expired', resolved=? WHERE status='pending' AND created<=?").run(now, now - PEN_MS);
       for (const g of db.prepare("SELECT * FROM bb WHERE status='accepted' AND accepted_at<=?").all(now - PEN_MS)) {
         if (!g.c_plan && !g.o_plan) { if (db.prepare("UPDATE bb SET status='expired', reason='ninguno jugó', resolved=? WHERE id=? AND status='accepted'").run(now, g.id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id IN (?,?)').run(g.stake, g.challenger, g.opponent); }
-        else { const w = g.c_plan ? g.challenger : g.opponent; if (db.prepare("UPDATE bb SET status='done', winner=?, reason='abandono', resolved=? WHERE id=? AND status='accepted'").run(w, now, g.id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(2 * g.stake, w); } } }),
+        else { const w = g.c_plan ? g.challenger : g.opponent; if (db.prepare("UPDATE bb SET status='done', winner=?, reason='abandono', resolved=? WHERE id=? AND status='accepted'").run(w, now, g.id).changes) winCredit(w, 2 * g.stake, g.stake, 'reto'); } } }),
     bbChallenge: (uid, oppId, stake, now = Date.now()) => { stake = Number(stake); oppId = Number(oppId);
       if (DISABLED_NEW_MINIGAMES.has('bb') && !api._testAllowDisabled) err('Este minijuego ya no está disponible');
       if (!Number.isInteger(stake) || stake < RPS_MIN || stake > RPS_MAX) err(`La apuesta debe ser un entero entre ${RPS_MIN} y ${RPS_MAX.toLocaleString('es')}`);
@@ -171,7 +230,7 @@ function open(file = 'data.db') {
         const n = db.prepare('SELECT * FROM bb WHERE id=?').get(id);
         if (n.c_plan && n.o_plan) { const r = bbGame(JSON.parse(n.c_plan), JSON.parse(n.o_plan));
           if (r.c === r.o) { if (db.prepare("UPDATE bb SET status='done', reason='empate', result=?, resolved=? WHERE id=? AND status='accepted'").run(JSON.stringify(r), now, id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id IN (?,?)').run(g.stake, g.challenger, g.opponent); }
-          else { const w = r.c > r.o ? g.challenger : g.opponent; if (!db.prepare("UPDATE bb SET status='done', winner=?, reason='carreras', result=?, resolved=? WHERE id=? AND status='accepted'").run(w, JSON.stringify(r), now, id).changes) err('Reto ya resuelto'); db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(2 * g.stake, w); } }
+          else { const w = r.c > r.o ? g.challenger : g.opponent; if (!db.prepare("UPDATE bb SET status='done', winner=?, reason='carreras', result=?, resolved=? WHERE id=? AND status='accepted'").run(w, JSON.stringify(r), now, id).changes) err('Reto ya resuelto'); winCredit(w, 2 * g.stake, g.stake, 'reto'); } }
         return api.bbView(uid, id); }); },
     bbView: (uid, id) => { const g = db.prepare('SELECT x.*, a.username cu, a.display_name cd, b.username ou, b.display_name od FROM bb x JOIN users a ON a.id=x.challenger JOIN users b ON b.id=x.opponent WHERE x.id=?').get(id);
       if (!g || (g.challenger !== uid && g.opponent !== uid)) err('Reto no encontrado'); const mine = g.challenger === uid, r = g.status === 'done' && g.result ? JSON.parse(g.result) : null;
@@ -190,7 +249,7 @@ function open(file = 'data.db') {
         if (cp === op) { // ninguno jugó: se devuelve a ambos
           if (db.prepare("UPDATE pen SET status='expired', reason='ninguno jugó', resolved=? WHERE id=? AND status='accepted'").run(now, g.id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id IN (?,?)').run(g.stake, g.challenger, g.opponent);
         } else { const w = cp ? g.challenger : g.opponent;
-          if (db.prepare("UPDATE pen SET status='done', winner=?, reason='abandono', resolved=? WHERE id=? AND status='accepted'").run(w, now, g.id).changes) db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(2 * g.stake, w); } } }),
+          if (db.prepare("UPDATE pen SET status='done', winner=?, reason='abandono', resolved=? WHERE id=? AND status='accepted'").run(w, now, g.id).changes) winCredit(w, 2 * g.stake, g.stake, 'reto'); } } }),
     penChallenge: (uid, oppId, stake, now = Date.now()) => { stake = Number(stake); oppId = Number(oppId);
       if (DISABLED_NEW_MINIGAMES.has('pen') && !api._testAllowDisabled) err('Este minijuego ya no está disponible');
       if (!Number.isInteger(stake) || stake < RPS_MIN || stake > RPS_MAX) err(`La apuesta debe ser un entero entre ${RPS_MIN} y ${RPS_MAX.toLocaleString('es')}`);
@@ -215,7 +274,7 @@ function open(file = 'data.db') {
         const t = db.prepare('SELECT SUM(c_goal) c, SUM(o_goal) o FROM pen_rounds WHERE game_id=? AND c_goal IS NOT NULL').get(id);
         if (n >= PEN_ROUNDS && t.c !== t.o) { const w = t.c > t.o ? g.challenger : g.opponent;
           if (!db.prepare("UPDATE pen SET status='done', winner=?, reason='goles', resolved=? WHERE id=? AND status='accepted'").run(w, now, id).changes) err('Serie ya resuelta');
-          db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(2 * g.stake, w); }
+          winCredit(w, 2 * g.stake, g.stake, 'reto'); }
         else db.prepare('UPDATE pen SET round_start=? WHERE id=?').run(now, id); }
       return api.penView(uid, id); }); },
     penView: (uid, id) => { const g = db.prepare('SELECT p.*, a.username cu, a.display_name cd, b.username ou, b.display_name od FROM pen p JOIN users a ON a.id=p.challenger JOIN users b ON b.id=p.opponent WHERE p.id=?').get(id);
@@ -245,7 +304,7 @@ function open(file = 'data.db') {
       db.prepare(`UPDATE rps SET ${col}=? WHERE id=? AND ${col} IS NULL`).run(pick, id); const n = db.prepare('SELECT * FROM rps WHERE id=?').get(id);
       if (n.c_pick && n.o_pick) { const w = n.c_pick === n.o_pick ? null : BEATS[n.c_pick] === n.o_pick ? n.challenger : n.opponent;
         if (!db.prepare("UPDATE rps SET status='done', winner=?, resolved=? WHERE id=? AND status='accepted'").run(w, now, id).changes) err('Reto ya resuelto');
-        if (w) db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(n.stake * 2, w); else db.prepare('UPDATE users SET coins=coins+? WHERE id IN (?,?)').run(n.stake, n.challenger, n.opponent); }
+        if (w) winCredit(w, n.stake * 2, n.stake, 'reto'); else db.prepare('UPDATE users SET coins=coins+? WHERE id IN (?,?)').run(n.stake, n.challenger, n.opponent); }
       return api.rpsView(uid, id); }); },
     // Vista segura: la elección del rival solo se ve cuando el reto terminó.
     rpsView: (uid, id) => { const g = db.prepare('SELECT r.*, a.username cu, a.display_name cd, b.username ou, b.display_name od FROM rps r JOIN users a ON a.id=r.challenger JOIN users b ON b.id=r.opponent WHERE r.id=?').get(id);
@@ -389,8 +448,8 @@ function open(file = 'data.db') {
         if (p.pricing) { const f = modeledFactor(p, legs); [st, pay] = f.live ? ['won', Math.floor(p.stake * f.d)] : ['refunded', p.stake]; }
         else { const live = legs.filter(g => g.status === 'won');
           [st, pay] = live.length ? ['won', Math.floor(p.stake * live.reduce((m, g) => m * dec(g.odds), 1))] : ['refunded', p.stake]; }
-        if (db.prepare("UPDATE parlays SET status=?, payout=?, ts=? WHERE id=? AND status='open'").run(st, pay, now(), pid).changes === 1)
-          db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(pay, p.user_id);
+        if (db.prepare("UPDATE parlays SET status=?, payout=?, ts=? WHERE id=? AND status='open'").run(st, pay, now(), pid).changes === 1) {
+          if (st === 'won') winCredit(p.user_id, pay, p.stake, `parlay#${pid}`); else db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(pay, p.user_id); }
       }
     },
     myParlays: uid => db.prepare('SELECT * FROM parlays WHERE user_id=? ORDER BY id DESC').all(uid).map(p => {
@@ -410,7 +469,7 @@ function open(file = 'data.db') {
           if (b.option_id === Number(winnerOptionId)) {
             const pay = b.stake + profit(b.stake, b.odds);
             db.prepare("UPDATE bets SET status='won', payout=?, ts=? WHERE id=?").run(pay, now(), b.id);
-            db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(pay, b.user_id);
+            winCredit(b.user_id, pay, b.stake, `bet#${b.id}`);
           } else db.prepare("UPDATE bets SET status='lost', ts=? WHERE id=?").run(now(), b.id);
         }
         api._parlayLegs(l.id, Number(winnerOptionId)); api.refreshRanks();
@@ -494,8 +553,8 @@ function open(file = 'data.db') {
         const { wins, losses } = api._settledCounts(r.id, cutoff);
         const tot = wins + losses;
         const { id, is_admin, ...o } = deco(r, r.id, rk);
-        return { ...o, id, is_admin, wins, losses, winPct: tot ? Math.round(wins * 1000 / tot) / 10 : 0, streak: api.streak(r.id) };
-      }).sort((a, b) => b.wins - a.wins || b.winPct - a.winPct || b.coins - a.coins || a.username.localeCompare(b.username));
+        const bankPenalty = api.bankPenalty(r.id); return { ...o, id, is_admin, wins, losses, bankPenalty, points: 3 * wins - bankPenalty, winPct: tot ? Math.round(wins * 1000 / tot) / 10 : 0, streak: api.streak(r.id) };
+      }).sort((a, b) => b.points - a.points || b.winPct - a.winPct || b.coins - a.coins || a.username.localeCompare(b.username));
     },
     activity(limit = 8) {
       const rows = db.prepare(`SELECT * FROM (
@@ -518,7 +577,8 @@ function open(file = 'data.db') {
       const podium = rows.filter(u => (u.wins + u.losses) >= PODIUM_MIN_SETTLED).slice(0, 3);
       return { period: ['hoy', 'semana', 'temporada'].includes(period) ? period : 'temporada', rows, podium, activity: api.activity(8) };
     },
-    ranks() { const m = new Map(); db.prepare('SELECT id, (SELECT COUNT(*) FROM bets b WHERE b.user_id=users.id AND b.status=\'won\') + (SELECT COUNT(*) FROM parlays p WHERE p.user_id=users.id AND p.status=\'won\') wins FROM users WHERE is_admin=0 AND wins>0 ORDER BY wins DESC, coins DESC, username LIMIT 3').all().forEach((u, i) => m.set(u.id, i + 1)); return m; },
+    ranks() { const m = new Map(); db.prepare("SELECT id, username, coins, (SELECT COUNT(*) FROM bets b WHERE b.user_id=users.id AND b.status='won') + (SELECT COUNT(*) FROM parlays p WHERE p.user_id=users.id AND p.status='won') wins FROM users WHERE is_admin=0 AND wins>0").all()
+      .map(u => ({ ...u, points: 3 * u.wins - bankPenalty(u.id) })).sort((a, b) => b.points - a.points || b.wins - a.wins || b.coins - a.coins || a.username.localeCompare(b.username)).slice(0, 3).forEach((u, i) => m.set(u.id, i + 1)); return m; },
     refreshRanks() { const m = api.ranks(); const ins = db.prepare('INSERT OR IGNORE INTO unlocks(user_id,item_id,rank) VALUES(?,?,?)');
       for (const [uid, rank] of m) for (const it of REWARDS) if (rank <= it.minRank) ins.run(uid, it.id, rank); return m; },
     unlocksOf: uid => db.prepare('SELECT item_id, rank, created FROM unlocks WHERE user_id=? ORDER BY created').all(uid),
@@ -541,7 +601,7 @@ function open(file = 'data.db') {
   const tcProb = (v, c) => tcZone(v, c).p; api.tcBar = tcBar; api.tcProb = tcProb; api.tcZone = tcZone;
   const tcRoll = (aim, green, now) => { const bar = tcBar(now - (aim ?? now)), z = tcZone(bar, green ?? 79); return { bar, green: green ?? 79, zone: z.k, label: z.label, made: api.tcRand() < z.p }; };
   const pay = (g, w, reason, now, extra) => { if (!db.prepare("UPDATE tc SET status='done', winner=?, reason=?, extra=COALESCE(?, extra), resolved=? WHERE id=? AND status='accepted'").run(w, reason, extra ? JSON.stringify(extra) : null, now, g.id).changes) return;
-    if (w) db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(2 * g.stake, w); else db.prepare('UPDATE users SET coins=coins+? WHERE id IN (?,?)').run(g.stake, g.challenger, g.opponent); };
+    if (w) winCredit(w, 2 * g.stake, g.stake, 'reto'); else db.prepare('UPDATE users SET coins=coins+? WHERE id IN (?,?)').run(g.stake, g.challenger, g.opponent); };
   const tcResolve = (g, now) => { if (g.status !== 'accepted') return; const cs = g.c_st && JSON.parse(g.c_st), os = g.o_st && JSON.parse(g.o_st); if (!tcDone(cs, now) || !tcDone(os, now)) return;
     const c = tcPts(cs), o = tcPts(os); if (c !== o) return pay(g, c > o ? g.challenger : g.opponent, 'puntos', now);
     let tb = g.extra && JSON.parse(g.extra); if (!tb) { tb = { r: 1, at: now, c: null, o: null, hist: [] }; db.prepare('UPDATE tc SET extra=? WHERE id=?').run(JSON.stringify(tb), g.id); return; }
@@ -619,4 +679,4 @@ function open(file = 'data.db') {
   api._testAllowDisabled = false;
   return api;
 }
-module.exports = { open, BONUS, FACIAL, REWARDS, profit, dec, toAmerican, START_COINS, PODIUM_MIN_SETTLED };
+module.exports = { open, BANK, addMonthNY, BONUS, FACIAL, REWARDS, profit, dec, toAmerican, START_COINS, PODIUM_MIN_SETTLED };

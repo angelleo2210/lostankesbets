@@ -42,6 +42,11 @@ app.post('/api/rps', h(r => C.rpsChallenge(auth(r).id, r.body.opponentId, r.body
 app.post('/api/rps/respond', h(r => C.rpsRespond(auth(r).id, r.body.id, !!r.body.accept)));
 app.post('/api/rps/pick', h(r => C.rpsPick(auth(r).id, r.body.id, r.body.pick)));
 app.get('/api/bonus', h(r => C.bonusStatus(auth(r).id)));
+app.get('/api/bank', h(r => C.bankStatus(auth(r).id)));
+app.post('/api/bank/loan', h(r => C.takeLoan(auth(r).id, r.body.amount)));
+app.post('/api/bank/bankruptcy', h(r => C.declareBankruptcy(auth(r).id)));
+app.get('/api/admin/bank', h(r => { admin(r); return C.bankClosedUsers(); }));
+app.post('/api/admin/bank/reset', h(r => C.adminFreshStart(admin(r).id, r.body.userId, r.body.confirm)));
 app.post('/api/bonus', h(r => C.claimBonus(auth(r).id)));
 app.get('/api/rewards', h(r => { auth(r); return require('./core').REWARDS; }));
 app.post('/api/parlay', h(r => { const u = auth(r); return { id: C.placeParlay(u.id, r.body.optionIds, r.body.stake) }; }));
