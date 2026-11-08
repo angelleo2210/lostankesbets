@@ -1,10 +1,10 @@
-// LosTankesBets own same-match joint pricing model, version 'poisson-v3' (saved v1/v2 tickets keep their frozen price).
+// LosTankesBets own same-match joint pricing model, version 'poisson-v4' (saved v1/v2/v3 tickets keep their frozen price).
 // ASSUMPTION (not proven): home and away goals are independent Poisson variables. Rates are fitted
 // to the event's own odds: Total plus Ganador (with or without draw) and/or Hándicap. The joint price
 // is the model's FAIR probability of all picks winning (no added margin); it is NOT a Hard Rock price.
 // Same-match combos only allow half-goal handicap/total lines (no push possible) in this version.
 (function (root) {
-  const VERSION = 'poisson-v3', MAXG = 20, MAX_RMSE = 0.02, MAX_ERR = 0.035, MIN_P = 0.001;
+  const VERSION = 'poisson-v4', MAXG = 20, MAX_RMSE = 0.02, MAX_ERR = 0.035, MIN_P = 0.001;
   const dec = o => o > 0 ? 1 + o / 100 : 1 + 100 / -o;
   const outcomeOf = (market, o) => o.outcome || (market === 'h2h' && (o.label === 'Empate' || o.label === 'Draw') ? 'Draw' : o.label);
   // >0 win, 0 push, <0 loss for final score h-a.
@@ -23,10 +23,13 @@
     return m;
   }
   // targets: [{type, legs, p}], all de-vigged proportionally. Ganador with draw = 3-way (level score is a draw).
-  // Ganador WITHOUT draw = 2-way: a winner is always decided (see cells/tb). No draw price is ever created.
+  // Ganador WITHOUT draw: hockey/baseball/unspecified sport = winner always decided (see cells/tb, NHL-style: OT/shootout
+  // winner credited +1 goal in the final score; 50/50 on level scores is a model assumption). Soccer = draws still
+  // possible (overround approach below). No draw price is ever created.
   // Hándicap/Total compared conditional on no push. Needs Total (sum) + Ganador or Hándicap (difference).
   function targets(lines) {
-    const t = []; let hasTot = false, hasDiff = false, tb = false;
+    const t = [], ml = [], two = []; let hasTot = false, hasDiff = false, tb = false;
+    const sport = (lines.find(l => l.sport) || {}).sport || null;
     for (const l of lines) {
       const os = (l.options || []).filter(o => Number.isFinite(o.odds) && Math.abs(o.odds) >= 100);
       if (!os.length || !['h2h', 'spreads', 'totals'].includes(l.market)) continue;
@@ -35,11 +38,17 @@
         const hasDraw = os.some(o => outcomeOf('h2h', o) === 'Draw');
         const leg = o => [{ market: 'h2h', outcome: outcomeOf('h2h', o), home: l.home, away: l.away }];
         if (os.length === 3 && hasDraw) { hasDiff = true; os.forEach((o, i) => t.push({ type: 1, legs: leg(o), p: inv[i] / s })); }
+        else if (!hasDraw && os.length === 2 && sport === 'soccer') { hasDiff = true; os.forEach((o, i) => ml.push({ legs: leg(o), raw: inv[i] })); } // soccer, draw odds not entered: draws still possible
         else if (!hasDraw && os.length === 2) { hasDiff = true; tb = true; os.forEach((o, i) => t.push({ type: 1, legs: leg(o), p: inv[i] / s })); }
-      } else { if (os.length !== 2) continue; if (l.market === 'totals') hasTot = true; else hasDiff = true;
+      } else { if (os.length !== 2) continue; if (l.market === 'totals') hasTot = true; else hasDiff = true; two.push(s);
         const legs = os.map(o => ({ market: l.market, outcome: outcomeOf(l.market, o), point: o.point, home: l.home, away: l.away }));
         t.push({ type: 2, legs, p: inv[0] / s }); }
     }
+    // Soccer 2-way without draw: each side's implied prob divided by the event's average 2-way overround (OWN ASSUMPTION).
+    const ovr = two.length ? two.reduce((x, y) => x + y, 0) / two.length : 1;
+    for (const m of ml) t.push({ type: 1, legs: m.legs, p: Math.min(0.999, m.raw / ovr) });
+    // Hockey/baseball: final score always has a winner (OT/shootout/extra innings) -> tie-break states for every market.
+    if (sport === 'hockey' || sport === 'baseball') tb = true; if (sport === 'soccer') tb = false;
     return { t, ok: hasTot && hasDiff, tb };
   }
   // Final-score states. tb (2-way Ganador without draw = winner decided even if level): a level score is
@@ -60,7 +69,7 @@
   function loss(lh, la, t, tb) { const m = cells(matrix(lh, la), tb); let se = 0, mx = 0; for (const tg of t) { const e = Math.abs(modelP(m, tg) - tg.p); se += e * e; mx = Math.max(mx, e); } return { rmse: Math.sqrt(se / t.length), max: mx }; }
   const fitCache = new Map();
   function fit(lines) {
-    const key = JSON.stringify(lines.map(l => [l.market, l.home, l.away, (l.options || []).map(o => [o.outcome, o.label, o.point, o.odds])]));
+    const key = JSON.stringify(lines.map(l => [l.market, l.sport, l.home, l.away, (l.options || []).map(o => [o.outcome, o.label, o.point, o.odds])]));
     if (!fitCache.has(key)) { if (fitCache.size > 200) fitCache.clear(); fitCache.set(key, fitRaw(lines)); }
     return fitCache.get(key);
   }
@@ -90,7 +99,7 @@
       const L = gs.map(g => ({ ...g, outcome: outcomeOf(g.market, g) }));
       if (L.some(g => g.market !== 'h2h' && !Number.isInteger(g.point - 0.5))) return { error: 'Por ahora, las combinaciones del mismo partido solo admiten Hándicap y Total de medio punto (por ejemplo 2.5), para que no haya devoluciones parciales (push). Las apuestas simples y los parlays con partidos distintos no cambian.' };
       const f = fit(eventLines[k] || []); if (f.error) return { error: f.error };
-      const p = jointP(f, L); if (!(p >= MIN_P)) return { error: 'La probabilidad estimada de esta combinación es demasiado baja para ofrecer cuota.' };
+      const p = jointP(f, L); if (p === 0) return { error: 'Selecciones contradictorias: con el marcador final de este deporte no pueden cumplirse todas a la vez.' }; if (!(p >= MIN_P)) return { error: 'La probabilidad estimada de esta combinación es demasiado baja para ofrecer cuota.' };
       const d = 1 / p; total *= d;
       out.push({ options: gs.map(g => g.option), dec: d, model: { version: VERSION, lh: f.lh, la: f.la, p, rmse: f.rmse } });
     }

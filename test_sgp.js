@@ -40,7 +40,7 @@ t('server quote equals client quote; snapshot frozen; settle win pays model pric
     return { option: id, line: l.id, event: l.event_id ? l.kind + ':' + l.event_id : null, market: l.market, home: l.home, away: l.away, outcome: o.outcome, point: o.point, label: o.label, odds: o.odds,
       lines: l.event_id ? ls.filter(x => x.event_id === l.event_id && x.kind === l.kind).map(x => ({ market: x.market, home: x.home, away: x.away, options: x.options.map(y => ({ label: y.label, odds: y.odds, point: y.point, outcome: y.outcome })) })) : [] }; });
   const evl = {}; legs.forEach(x => { if (x.event) evl[x.event] = x.lines; }); const cq = S.quote(legs, evl);
-  D.placeParlay(u, ids, 100); const p = D.myParlays(u)[0]; assert.equal(p.model, 'poisson-v3'); assert.match(p.pricing_note, /modelo propio/);
+  D.placeParlay(u, ids, 100); const p = D.myParlays(u)[0]; assert.equal(p.model, 'poisson-v4'); assert.match(p.pricing_note, /modelo propio/);
   assert.ok(Math.abs(D.db.prepare('SELECT odds_dec FROM parlays WHERE id=?').get(p.id).odds_dec - cq.dec) < 1e-12);
   D.db.prepare('UPDATE options SET odds=999 WHERE line_id=?').run(w); // later odds change must not alter settlement
   D.settleLine(w, op(w, 'PSG').id); D.settleLine(tot, op(tot, 'Over').id); D.settleLine(other, op(other, 'A').id);
@@ -119,7 +119,7 @@ t('published events without draw / without Ganador accept 2-leg combos at server
   // tie loses Ganador (not draw-no-bet): Troyes win is impossible with 0-0 etc.; settle draw-like result as Troyes leg lost
   const p = R.myParlays(v).find(x => x.legs.some(g => g.option_id === ol(w, 'Troyes').id)); R.settleLine(w, ol(w, 'PSG').id);
   assert.equal(R.myParlays(v).find(x => x.id === p.id).status, 'lost');
-  for (const q of R.myParlays(v)) assert.equal(q.model, 'poisson-v3');
+  for (const q of R.myParlays(v)) assert.equal(q.model, 'poisson-v4');
 });
 t('old v1 snapshot settles at frozen price after model upgrade', () => {
   const R = open(':memory:'); R.setupAdmin('admin', '1234'); const v = R.register(R.newInvite(), 'pepe', '1234');

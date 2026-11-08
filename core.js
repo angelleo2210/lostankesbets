@@ -115,7 +115,7 @@ function open(file = 'data.db') {
   db.exec('CREATE TABLE IF NOT EXISTS purchases(user_id INTEGER, item_id TEXT, price INTEGER, color TEXT, created TEXT DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(user_id, item_id))');
   if (!db.prepare('PRAGMA table_info(purchases)').all().some(c => c.name === 'color')) db.exec('ALTER TABLE purchases ADD COLUMN color TEXT');
   // Additive migration: legacy lines remain market=NULL.
-  for (const [table, cols] of Object.entries({ lines: { market: 'TEXT', home: 'TEXT', away: 'TEXT', unit: 'TEXT', bookmaker: 'TEXT' }, options: { point: 'REAL', outcome: 'TEXT' } })) {
+  for (const [table, cols] of Object.entries({ lines: { market: 'TEXT', home: 'TEXT', away: 'TEXT', unit: 'TEXT', bookmaker: 'TEXT', sport: 'TEXT' }, options: { point: 'REAL', outcome: 'TEXT' } })) {
     const existing = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
     for (const [col, type] of Object.entries(cols)) if (!existing.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
   }
@@ -129,6 +129,13 @@ function open(file = 'data.db') {
     else db.prepare("UPDATE purchases SET item_id='head_gorra_casual' WHERE user_id=? AND item_id='acc_gorra'").run(o.user_id); } });
   db.exec(`CREATE TABLE IF NOT EXISTS bank(user_id INTEGER PRIMARY KEY, debt INTEGER NOT NULL DEFAULT 0, loans INTEGER NOT NULL DEFAULT 0, loan_penalty INTEGER NOT NULL DEFAULT 0, bankruptcies INTEGER NOT NULL DEFAULT 0, mark_until INTEGER, closed INTEGER NOT NULL DEFAULT 0, admin_resets INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS bank_ledger(id INTEGER PRIMARY KEY, user_id INTEGER, kind TEXT, amount INTEGER, debt_after INTEGER, ref TEXT, admin_id INTEGER, ts INTEGER);`);
+  db.exec('CREATE TABLE IF NOT EXISTS paused_events(key TEXT PRIMARY KEY, admin_id INTEGER, ts INTEGER)');
+  // Match key: linked markets share kind:event_id; legacy unlinked lines pause individually.
+  const eventKey = l => l.event_id ? `${l.kind}:${l.event_id}` : `line:${l.line_id ?? l.id}`;
+  const PAUSED_MSG = 'Las apuestas para este partido están pausadas por el administrador.';
+  const isPaused = l => !!db.prepare('SELECT 1 FROM paused_events WHERE key=?').get(eventKey(l));
+  const SPORTS = ['soccer', 'hockey', 'baseball', 'other'];
+  const sportOf = e => { const k = String(e.sport_key || ''); if (/^soccer_/.test(k)) return 'soccer'; if (/^icehockey_/.test(k)) return 'hockey'; if (/^baseball_/.test(k)) return 'baseball'; return SPORTS.includes(e.sport) ? e.sport : null; };
   const bankRow = uid => { db.prepare('INSERT OR IGNORE INTO bank(user_id) VALUES(?)').run(uid); return db.prepare('SELECT * FROM bank WHERE user_id=?').get(uid); };
   const ledger = (uid, kind, amount, debtAfter, ref, adminId = null) => db.prepare('INSERT INTO bank_ledger(user_id,kind,amount,debt_after,ref,admin_id,ts) VALUES(?,?,?,?,?,?,?)').run(uid, kind, amount, debtAfter, ref, adminId, Date.now());
   // Winning credit (bets, parlays, challenges): 50% of net profit (payout - stake, floored to whole coins) repays debt, capped at the debt.
@@ -172,6 +179,21 @@ function open(file = 'data.db') {
         db.prepare('UPDATE bank SET debt=0, loans=0, loan_penalty=0, bankruptcies=0, mark_until=NULL, closed=0, admin_resets=admin_resets+1 WHERE user_id=?').run(b.user_id);
         ledger(b.user_id, 'fresh_start', coins, 0, `debt ${b.debt}; bankruptcies ${b.bankruptcies}`, adminId); return { ok: true }; }); },
     bankPenalty,
+    // Admin metadata for future same-match quotes only (saved tickets keep their frozen price).
+    setEventSport(adminId, lineId, sport) {
+      return tx(() => { const a = db.prepare('SELECT is_admin FROM users WHERE id=?').get(adminId); if (!a || !a.is_admin) err('Solo el administrador');
+        if (sport && !SPORTS.includes(sport)) err('Deporte inválido'); const l = db.prepare('SELECT * FROM lines WHERE id=?').get(Number(lineId)); if (!l) err('Línea no existe');
+        if (l.event_id) db.prepare('UPDATE lines SET sport=? WHERE event_id=? AND kind=?').run(sport || null, l.event_id, l.kind); else db.prepare('UPDATE lines SET sport=? WHERE id=?').run(sport || null, l.id);
+        return { sport: sport || null }; }); },
+    // Admin, reversible. Does not change line status, odds or accepted tickets.
+    setEventPaused(adminId, lineId, paused) {
+      return tx(() => { const a = db.prepare('SELECT is_admin FROM users WHERE id=?').get(adminId); if (!a || !a.is_admin) err('Solo el administrador');
+        const l = db.prepare('SELECT * FROM lines WHERE id=?').get(Number(lineId)); if (!l) err('Línea no existe');
+        const group = l.event_id ? db.prepare('SELECT status FROM lines WHERE event_id=? AND kind=?').all(l.event_id, l.kind) : [l];
+        if (!group.some(x => ['open', 'closed'].includes(x.status))) err('Este partido ya no tiene mercados sin liquidar');
+        if (paused) db.prepare('INSERT OR REPLACE INTO paused_events(key,admin_id,ts) VALUES(?,?,?)').run(eventKey(l), adminId, Date.now());
+        else db.prepare('DELETE FROM paused_events WHERE key=?').run(eventKey(l));
+        return { paused: !!paused }; }); },
   };
   const api = {
     ...bankApi,
@@ -347,7 +369,7 @@ function open(file = 'data.db') {
       if (extra.market) { try { Markets.validate(extra.market, opts, extra.home, extra.away); } catch(e) { err(e.message); } }
       return tx(() => {
         const id = Number(db.prepare('INSERT INTO lines(title,kind,event_id,starts) VALUES(?,?,?,?)').run(title, extra.kind || 'custom', extra.event_id || null, extra.starts || null).lastInsertRowid);
-        db.prepare('UPDATE lines SET market=?,home=?,away=?,unit=?,bookmaker=? WHERE id=?').run(extra.market || null, extra.home || null, extra.away || null, extra.unit || '', extra.bookmaker || null, id);
+        db.prepare('UPDATE lines SET market=?,home=?,away=?,unit=?,bookmaker=?,sport=? WHERE id=?').run(extra.market || null, extra.home || null, extra.away || null, extra.unit || '', extra.bookmaker || null, extra.sport || null, id);
         for (const o of opts) db.prepare('INSERT INTO options(line_id,label,odds,point,outcome) VALUES(?,?,?,?,?)').run(id, extra.market ? Markets.label(extra.market,o) : String(o.label).trim(), Math.trunc(Number(o.odds)), extra.market && extra.market !== 'h2h' ? o.point : null, extra.market ? o.label : null);
         return id;
       });
@@ -359,7 +381,7 @@ function open(file = 'data.db') {
         try { Markets.validate(m.key, m.options, event.home, event.away); } catch(e) { err(e.message); }
         const prior = db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND COALESCE(market,'h2h')=?").get(String(event.id), kind, m.key);
         if (prior) return prior.id;
-        return api.createLine(event.title, m.options, { kind, event_id: String(event.id), starts: event.starts, market: m.key, home: event.home, away: event.away, unit: event.unit, bookmaker: m.bookmaker });
+        return api.createLine(event.title, m.options, { kind, event_id: String(event.id), starts: event.starts, market: m.key, home: event.home, away: event.away, unit: event.unit, bookmaker: m.bookmaker, sport: sportOf(event) });
       }));
     },
     addEventMarket(lineId, market, options, home, away, unit = '') {
@@ -378,7 +400,7 @@ function open(file = 'data.db') {
         if (db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND market=?").get(eventId, source.kind, market)) err('Este mercado ya existe; no se sobrescriben cuotas ni apuestas');
         // Explicit admin action upgrades grouping metadata only. Original options/bets/odds untouched.
         db.prepare("UPDATE lines SET event_id=?,home=?,away=?,unit=?,market=COALESCE(market,'h2h') WHERE id=?").run(eventId, home, away, source.unit || String(unit || ''), source.id);
-        return api.createLine(source.title, options, { kind: source.kind, event_id: eventId, starts: source.starts, market, home, away, unit: source.unit || String(unit || '') });
+        return api.createLine(source.title, options, { kind: source.kind, event_id: eventId, starts: source.starts, market, home, away, unit: source.unit || String(unit || ''), sport: source.sport });
       });
     },
     pushLine(id) {
@@ -393,14 +415,14 @@ function open(file = 'data.db') {
     },
     lines(statusFilter) {
       const ls = db.prepare(`SELECT * FROM lines ${statusFilter ? 'WHERE status IN (' + statusFilter.map(() => '?').join(',') + ')' : ''} ORDER BY id DESC`).all(...(statusFilter || []));
-      return ls.map(l => ({ ...l, options: db.prepare('SELECT * FROM options WHERE line_id=?').all(l.id) }));
+      return ls.map(l => ({ ...l, paused: isPaused(l), options: db.prepare('SELECT * FROM options WHERE line_id=?').all(l.id) }));
     },
     placeBet(userId, optionId, stake) {
       stake = Number(stake);
       if (!Number.isInteger(stake) || stake <= 0) err('La apuesta debe ser un número entero mayor que 0');
       return tx(() => {
         const o = db.prepare('SELECT o.*, l.status, l.event_id, l.kind, l.market, l.home, l.away FROM options o JOIN lines l ON l.id=o.line_id WHERE o.id=?').get(Number(optionId));
-        if (!o) err('Opción no existe'); if (o.status !== 'open') err('Esta línea ya no acepta apuestas');
+        if (!o) err('Opción no existe'); if (o.status !== 'open') err('Esta línea ya no acepta apuestas'); if (isPaused(o)) err(PAUSED_MSG);
         const u = db.prepare('SELECT coins FROM users WHERE id=?').get(userId);
         if (u.coins < stake) err('No tienes suficientes monedas');
         db.prepare('UPDATE users SET coins=coins-? WHERE id=?').run(stake, userId);
@@ -416,13 +438,13 @@ function open(file = 'data.db') {
       return tx(() => {
         const legs = ids.map(id => {
           const o = db.prepare('SELECT o.*, l.status, l.event_id, l.kind, l.market, l.home, l.away FROM options o JOIN lines l ON l.id=o.line_id WHERE o.id=?').get(id);
-          if (!o) err('Opción no existe'); if (o.status !== 'open') err('Una de las líneas ya no acepta apuestas'); return o;
+          if (!o) err('Opción no existe'); if (o.status !== 'open') err('Una de las líneas ya no acepta apuestas'); if (isPaused(o)) err(PAUSED_MSG); return o;
         });
         if (new Set(legs.map(o => o.line_id)).size !== legs.length) err('Solo una selección por línea');
         const legMeta = legs.map(o => ({ event: o.event_id ? `${o.kind}:${o.event_id}` : null, line: o.line_id, market: o.market, home: o.home, away: o.away, outcome: o.outcome, label: o.label, point: o.point, option: o.id, odds: o.odds })); { const e = Markets.sameEventError(legMeta); if (e) err(e); }
         const eventLines = {};
         for (const g of legs) if (g.event_id) { const k = `${g.kind}:${g.event_id}`; if (eventLines[k]) continue;
-          eventLines[k] = db.prepare('SELECT * FROM lines WHERE event_id=? AND kind=? ORDER BY id').all(g.event_id, g.kind).map(l => ({ market: l.market, home: l.home, away: l.away, options: db.prepare('SELECT label,odds,point,outcome FROM options WHERE line_id=? ORDER BY id').all(l.id) })); }
+          eventLines[k] = db.prepare('SELECT * FROM lines WHERE event_id=? AND kind=? ORDER BY id').all(g.event_id, g.kind).map(l => ({ market: l.market, home: l.home, away: l.away, sport: l.sport, options: db.prepare('SELECT label,odds,point,outcome FROM options WHERE line_id=? ORDER BY id').all(l.id) })); }
         const q = Sgp.quote(legMeta, eventLines); if (q.error) err(q.error);
         const u = db.prepare('SELECT coins FROM users WHERE id=?').get(userId);
         if (u.coins < stake) err('No tienes suficientes monedas');

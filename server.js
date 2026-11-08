@@ -60,6 +60,8 @@ app.get('/api/real/sports', h(r => { auth(r); return { default: odds.DEFAULT_SPO
 app.post('/api/admin/import', h(async r => { admin(r); const d = await odds.upcoming(r.body.sport); if (d.error) return d;
   const e = d.events.find(x => x.id === r.body.eventId); if (!e) return { error: 'Evento no encontrado' };
   return { ids: C.createEvent({ ...e, title: `${e.sport}: ${e.title}` }, 'real') }; }));
+app.post('/api/admin/lines/:id/sport', h(r => C.setEventSport(admin(r).id, r.params.id, r.body.sport || null)));
+app.post('/api/admin/lines/:id/pause', h(r => C.setEventPaused(admin(r).id, r.params.id, !!r.body.paused)));
 app.post('/api/admin/events', h(r => { admin(r); return { ids: C.createEvent({ ...r.body, id: 'custom:' + require('node:crypto').randomUUID() }) }; }));
 app.post('/api/admin/lines/:id/markets', h(r => { admin(r); return { id: C.addEventMarket(r.params.id, r.body.market, r.body.options, r.body.home, r.body.away, r.body.unit) }; }));
 app.post('/api/admin/lines/:id/push', h(r => { admin(r); C.pushLine(r.params.id); }));
