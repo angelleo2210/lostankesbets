@@ -132,3 +132,6 @@ t('old v1 snapshot settles at frozen price after model upgrade', () => {
   assert.equal(R.myParlays(v)[0].payout, 277); assert.equal(R.db.prepare('SELECT coins FROM users WHERE id=?').get(v).coins, c0 + 277);
 });
 console.log(n + ' sgp model tests passed');
+{ const src = require('node:fs').readFileSync(__dirname + '/public/app.js', 'utf8');
+  require('node:assert/strict').ok(src.includes('<details class="odds-info small"><summary>Cuota estimada · Sobre la cuota</summary><div>${esc(p.pricing_note)}</div></details>') && !src.includes('⚠️ ${esc(p.pricing_note)}'));
+  console.log('OK pricing note is a neutral collapsed "Cuota estimada" disclosure, no warning styling'); }

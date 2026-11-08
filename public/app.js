@@ -100,7 +100,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
         <div class="hrb-banner"><span class="hrb-brand">LosTankesBets</span><span class="hrb-win">${m.banner}</span></div>
         <div class="hrb-body">
           <div class="hrb-row"><div class="hrb-left"><span class="hrb-tag">Parlay</span><span class="hrb-name">${n}-Pick Parlay</span></div><span class="hrb-odds">${p.odds ? od(p.odds) : ''}</span></div>
-          <div class="hrb-sel">${esc(picks)}</div>${p.pricing_note ? `<div class="small" style="color:#b06d00">⚠️ ${esc(p.pricing_note)}</div>` : ''}
+          <div class="hrb-sel">${esc(picks)}</div>${p.pricing_note ? `<details class="odds-info small"><summary>Cuota estimada · Sobre la cuota</summary><div>${esc(p.pricing_note)}</div></details>` : ''}
           <div class="hrb-money"><div><span class="k">Apostado</span><b>${fmt(p.stake)}</b></div><div><span class="k">${m.payK}</span><b>${money(p)}</b></div></div>
           <div class="hrb-foot"><button type="button" class="hrb-id" data-copy="${p.id}">#${p.id}</button><button type="button" class="hrb-share" data-sharebtn="p-${p.id}">Compartir</button></div>
           <details class="hrb-details"><summary>Ver selecciones</summary><div class="hrb-legs">${legs}</div></details>
