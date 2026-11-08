@@ -136,6 +136,8 @@ function open(file = 'data.db') {
   // Per-loan records: outstanding balance + whether its -7 ranking penalty is still active. Loan COUNT (max 5) stays in bank.loans.
   db.exec(`CREATE TABLE IF NOT EXISTS bank_loans(id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, amount INTEGER NOT NULL, remaining INTEGER NOT NULL, penalty_active INTEGER NOT NULL DEFAULT 1, status TEXT NOT NULL DEFAULT 'open', ledger_id INTEGER UNIQUE, ts INTEGER, closed_ts INTEGER, closed_by TEXT);
     CREATE TABLE IF NOT EXISTS bank_meta(key TEXT PRIMARY KEY, value TEXT, ts INTEGER);`);
+  // Unprovable pre-migration debt/penalty kept as one older "legacy" bucket (paid first, refunded only when fully paid).
+  for (const c of ['legacy_debt', 'legacy_penalty']) { try { db.exec(`ALTER TABLE bank ADD COLUMN ${c} INTEGER NOT NULL DEFAULT 0`); } catch {} }
   // Match key: linked markets share kind:event_id; legacy unlinked lines pause individually.
   const eventKey = l => l.event_id ? `${l.kind}:${l.event_id}` : `line:${l.line_id ?? l.id}`;
   const PAUSED_MSG = 'Las apuestas para este partido están pausadas por el administrador.';
@@ -158,14 +160,24 @@ function open(file = 'data.db') {
   };
   // FIFO: a repayment pays the oldest open loan first. A loan paid in full gives back its 7 points exactly once.
   const applyRepay = (uid, amount, ref) => { let left = amount;
+    const bk = db.prepare('SELECT legacy_debt, legacy_penalty FROM bank WHERE user_id=?').get(uid);
+    if (bk && bk.legacy_debt > 0) { const pay = Math.min(left, bk.legacy_debt); left -= pay; db.prepare('UPDATE bank SET legacy_debt=legacy_debt-? WHERE user_id=?').run(pay, uid);
+      if (pay === bk.legacy_debt && bk.legacy_penalty > 0) { const p = Math.min(bk.legacy_penalty, db.prepare('SELECT loan_penalty FROM bank WHERE user_id=?').get(uid).loan_penalty);
+        db.prepare('UPDATE bank SET loan_penalty=MAX(0, loan_penalty-?), legacy_penalty=0 WHERE user_id=?').run(p, uid);
+        if (p) ledger(uid, 'penalty_refund', p, db.prepare('SELECT debt FROM bank WHERE user_id=?').get(uid).debt, 'préstamos anteriores pagados'); } }
     for (const L of db.prepare("SELECT * FROM bank_loans WHERE user_id=? AND status='open' ORDER BY id").all(uid)) { if (left <= 0) break;
       const pay = Math.min(left, L.remaining); left -= pay;
       if (pay < L.remaining) { db.prepare('UPDATE bank_loans SET remaining=remaining-? WHERE id=?').run(pay, L.id); continue; }
       db.prepare("UPDATE bank_loans SET remaining=0, status='paid', closed_ts=?, closed_by=?, penalty_active=0 WHERE id=? AND status='open'").run(Date.now(), String(ref || 'repay'), L.id);
       if (L.penalty_active) { db.prepare('UPDATE bank SET loan_penalty=MAX(0, loan_penalty-?) WHERE user_id=?').run(BANK.LOAN_PENALTY, uid);
-        const d = db.prepare('SELECT debt FROM bank WHERE user_id=?').get(uid).debt; ledger(uid, 'penalty_refund', BANK.LOAN_PENALTY, d, `loan#${L.id}`); } } };
+        const d = db.prepare('SELECT debt FROM bank WHERE user_id=?').get(uid).debt; ledger(uid, 'penalty_refund', BANK.LOAN_PENALTY, d, `loan#${L.id}`); } }
+    // Safety net: actual total debt 0 => no loan penalty may remain (mark and loan count untouched).
+    const z = db.prepare('SELECT debt, loan_penalty FROM bank WHERE user_id=?').get(uid);
+    if (z.debt === 0) { db.prepare("UPDATE bank_loans SET remaining=0, status='paid', penalty_active=0, closed_ts=?, closed_by='deuda total pagada' WHERE user_id=? AND status='open'").run(Date.now(), uid);
+      db.prepare('UPDATE bank SET legacy_debt=0, legacy_penalty=0, loan_penalty=0 WHERE user_id=?').run(uid);
+      if (z.loan_penalty > 0) ledger(uid, 'penalty_refund', z.loan_penalty, 0, 'deuda total pagada'); } };
   // Bankruptcy / admin fresh start: open loans forgiven, penalty dropped WITHOUT any +7 refund (the reset already clears loan_penalty).
-  const forgiveLoans = (uid, why) => db.prepare("UPDATE bank_loans SET status='forgiven', penalty_active=0, closed_ts=?, closed_by=? WHERE user_id=? AND status='open'").run(Date.now(), why, uid);
+  const forgiveLoans = (uid, why) => db.prepare('UPDATE bank SET legacy_debt=0, legacy_penalty=0 WHERE user_id=?').run(uid) && db.prepare("UPDATE bank_loans SET status='forgiven', penalty_active=0, closed_ts=?, closed_by=? WHERE user_id=? AND status='open'").run(Date.now(), why, uid);
   // One-time, idempotent migration from the existing ledger. Per user, only entries after the last bankruptcy/fresh start count.
   // Per-loan FIFO only when the ledger provably matches the current debt; otherwise: debt 0 => clear loan penalty; debt > 0 => untouched (reported).
   const migrateLoans = () => { if (db.prepare("SELECT 1 FROM bank_meta WHERE key='loans_v1'").get()) return; const report = [];
@@ -186,10 +198,15 @@ function open(file = 'data.db') {
         db.prepare('UPDATE bank SET loan_penalty=0 WHERE user_id=?').run(b.user_id); ledger(b.user_id, 'penalty_refund', b.loan_penalty, 0, 'deuda total pagada (migración)');
         for (const e of loans) db.prepare("INSERT OR IGNORE INTO bank_loans(user_id,amount,remaining,penalty_active,status,ledger_id,ts,closed_ts,closed_by) VALUES(?,?,0,0,'paid',?,?,?,'migration-total')").run(b.user_id, e.amount, e.id, e.ts, Date.now());
         report.push({ user: b.user_id, mode: 'debt_zero_clear', cleared: b.loan_penalty });
-      } else report.push({ user: b.user_id, mode: 'unchanged_unprovable', debt: b.debt, loans: b.loans });
+      } else { db.prepare('UPDATE bank SET legacy_debt=debt, legacy_penalty=loan_penalty WHERE user_id=?').run(b.user_id); report.push({ user: b.user_id, mode: 'legacy_bucket', debt: b.debt, loans: b.loans }); }
     }
     db.prepare("INSERT INTO bank_meta(key,value,ts) VALUES('loans_v1',?,?)").run(JSON.stringify(report), Date.now()); }); };
   migrateLoans();
+  // v2 (idempotent): users left unprovable by v1 (no per-loan rows, still owing) get the legacy bucket.
+  if (!db.prepare("SELECT 1 FROM bank_meta WHERE key='loans_v2'").get()) tx(() => { const done = [];
+    for (const b of db.prepare('SELECT * FROM bank WHERE debt>0 AND legacy_debt=0 AND loan_penalty>0').all())
+      if (!db.prepare('SELECT 1 FROM bank_loans WHERE user_id=?').get(b.user_id)) { db.prepare('UPDATE bank SET legacy_debt=debt, legacy_penalty=loan_penalty WHERE user_id=?').run(b.user_id); done.push(b.user_id); }
+    db.prepare("INSERT INTO bank_meta(key,value,ts) VALUES('loans_v2',?,?)").run(JSON.stringify(done), Date.now()); });
   const bankPenalty = (uid, t = Date.now()) => { const b = db.prepare('SELECT * FROM bank WHERE user_id=?').get(uid); if (!b) return 0; return b.loan_penalty + (b.mark_until && b.mark_until > t ? BANK.MARK_PENALTY : 0); };
   const bankApi = {
     bankStatus(uid, t = Date.now()) { const b = bankRow(uid), coins = db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins;

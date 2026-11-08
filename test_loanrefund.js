@@ -48,7 +48,24 @@ t('migration: provable ledger => FIFO refunds; boundaries respected; unprovable 
   assert.equal(R.db.prepare("SELECT remaining FROM bank_loans WHERE user_id=? AND status='open'").get(ids[0]).remaining, 70);
   assert.equal(R.db.prepare("SELECT remaining FROM bank_loans WHERE user_id=?").get(ids[3]).remaining, 70);
   assert.equal(JSON.stringify(R.db.prepare('SELECT coins FROM users').all()), coins);
-  const rep = JSON.parse(R.db.prepare("SELECT value FROM bank_meta WHERE key='loans_v1'").get().value); assert.equal(rep.find(r => r.user === ids[1]).mode, 'unchanged_unprovable');
+  const rep = JSON.parse(R.db.prepare("SELECT value FROM bank_meta WHERE key='loans_v1'").get().value); assert.equal(rep.find(r => r.user === ids[1]).mode, 'legacy_bucket'); assert.equal(R.db.prepare('SELECT legacy_debt FROM bank WHERE user_id=?').get(ids[1]).legacy_debt, 40);
   const ledgerN = R.db.prepare('SELECT COUNT(*) c FROM bank_ledger').get().c; const R3 = R2(); assert.equal(R3.db.prepare('SELECT COUNT(*) c FROM bank_ledger').get().c, ledgerN); fs.unlinkSync(f);
+});
+t('legacy bucket: paid before new loans, no double 7, refund only at full legacy payment; total debt 0 clears all', () => {
+  const { D, u, bank, win } = mk();
+  D.db.prepare('INSERT OR REPLACE INTO bank(user_id,debt,loans,loan_penalty,legacy_debt,legacy_penalty) VALUES(?,?,?,?,?,?)').run(u, 100, 2, 14, 100, 14);
+  D.takeLoan(u, 50); assert.equal(bank().loan_penalty, 21); assert.equal(bank().loans, 3);
+  win(100, 100); // repay 50 -> legacy partial
+  assert.deepEqual([bank().debt, bank().legacy_debt, bank().loan_penalty], [100, 50, 21]);
+  win(100, 100); // repay 50 -> legacy paid -> -14 refunded, new loan untouched
+  assert.deepEqual([bank().debt, bank().legacy_debt, bank().loan_penalty], [50, 0, 7]);
+  win(100, 100); // repay 50 -> new loan paid; total 0
+  assert.deepEqual([bank().debt, bank().loan_penalty, bank().loans], [0, 0, 3]);
+  assert.equal(D.db.prepare("SELECT SUM(amount) s FROM bank_ledger WHERE kind='penalty_refund'").get().s, 21);
+});
+t('safety net: mismatched data with no records; repaying to debt 0 clears every loan penalty once; mark kept', () => {
+  const { D, u, bank, win } = mk(); D.db.prepare('INSERT OR REPLACE INTO bank(user_id,debt,loans,loan_penalty,mark_until) VALUES(?,?,?,?,?)').run(u, 30, 4, 28, Date.now() + 1e9);
+  win(100, 100); assert.deepEqual([bank().debt, bank().loan_penalty, bank().loans], [0, 0, 4]); assert.equal(D.bankPenalty(u), BANK.MARK_PENALTY);
+  win(100, 100); assert.equal(D.db.prepare("SELECT COUNT(*) c FROM bank_ledger WHERE kind='penalty_refund'").get().c, 1);
 });
 console.log(n, 'loan refund tests passed');
