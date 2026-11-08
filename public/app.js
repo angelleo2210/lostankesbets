@@ -95,8 +95,8 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
       const n = (p.legs || []).length;
       const picks = (p.legs || []).map(g => g.label).join(', ');
       const share = `LosTankesBets · ${m.banner} · Parlay ${n} · ${picks} · Apostado ${fmt(p.stake)} · ${m.payK} ${money(p)} · #${p.id}`;
-      const legs = (p.legs || []).map(g => `<div class="hrb-leg"><span>${gst[g.status] || '·'}</span><span>${esc(vsTitle(g.title, g.home, g.away))}: <b>${esc(g.label)}</b> ${od(g.odds)}</span></div>`).join('');
-      return `<article class="hrb bet-${m.cls}" data-betshare="p-${p.id}" data-share="${esc(share)}">
+      const legs = (p.legs || []).map(g => `<div class="hrb-leg"><span${g.status === 'won' ? ' class="leg-ok"' : ''}>${gst[g.status] || '·'}</span><span>${esc(vsTitle(g.title, g.home, g.away))}: <b>${esc(g.label)}</b> ${od(g.odds)}</span></div>`).join('');
+      return `<article class="hrb hrb-parlay bet-${m.cls}" data-betshare="p-${p.id}" data-share="${esc(share)}">
         <div class="hrb-banner"><span class="hrb-brand">LosTankesBets</span><span class="hrb-win">${m.banner}</span></div>
         <div class="hrb-body">
           <div class="hrb-row"><div class="hrb-left"><span class="hrb-tag">Parlay</span><span class="hrb-name">${n}-Pick Parlay</span></div><span class="hrb-odds">${p.odds ? od(p.odds) : ''}</span></div>
