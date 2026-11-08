@@ -106,7 +106,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
           <details class="hrb-details"><summary>Ver selecciones</summary><div class="hrb-legs">${legs}</div></details>
         </div></article>`;
     };
-    const items = [...(me.parlays || []).map(parlayCard), ...(me.bets || []).map(betCard)];
+    const items = newestFirst(me.parlays, me.bets).map(x => x.type === 'p' ? parlayCard(x.v) : betCard(x.v));
     B.innerHTML = items.length ? items.join('') : '<div class="card"><div class="small">Aún no tienes apuestas.</div></div>';
     B.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => {
       const id = b.dataset.copy;
@@ -203,6 +203,9 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
   if (tab === 'admin') await adminView(B);
   } catch (e) { flash(e.message); }
 }
+// Mis apuestas: singles + parlays merged; pending (open) first, then the rest; each group newest first (ts, else created). Ties: higher id, parlay before single.
+function betTime(x) { return Number.isFinite(Number(x.ts)) && x.ts != null ? Number(x.ts) : (Date.parse(String(x.created || '').replace(' ', 'T') + 'Z') || 0) * 1000; }
+function newestFirst(parlays, bets) { return [...(parlays || []).map(v => ({ type: 'p', v })), ...(bets || []).map(v => ({ type: 'b', v }))].sort((a, b) => (b.v.status === 'open') - (a.v.status === 'open') || betTime(b.v) - betTime(a.v) || b.v.id - a.v.id || (a.type === 'p' ? -1 : 1)); }
 // Display-only: visitante first, local second. Canonical home/away data is never changed.
 function vsTitle(t, home, away) { t = String(t || ''); return home && away ? t.split(`${home} vs ${away}`).join(`${away} vs ${home}`) : t; }
 function displayTeams(home, away) { return [away, home]; }

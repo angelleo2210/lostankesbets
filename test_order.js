@@ -3,7 +3,7 @@ const assert = require('node:assert/strict'), fs = require('node:fs'), vm = requ
 const src = fs.readFileSync(__dirname + '/public/app.js', 'utf8'); let n = 0; const t = (name, fn) => { fn(); console.log('OK', name); n++; };
 const block = src.slice(src.indexOf('// Display-only'), src.indexOf('function lineCard('));
 const ctx = { boleto: [{ id: 12 }], me: null, Markets: require('./public/markets'), esc: s => String(s ?? ''), od: o => (o > 0 ? '+' : '') + o };
-vm.runInNewContext(block + '\nthis.mc=marketCards;this.vs=vsTitle;', ctx);
+vm.runInNewContext(src.slice(src.indexOf('// Mis apuestas:'), src.indexOf('function lineCard(')) + '\nthis.mc=marketCards;this.vs=vsTitle;this.nf=newestFirst;', ctx);
 const { open } = require('./core'); const D = open(':memory:');
 D.createEvent({ id: 'p1', title: 'PSG vs Troyes', home: 'PSG', away: 'Troyes', unit: 'goles', markets: [
   { key: 'h2h', options: [{ label: 'PSG', odds: -150 }, { label: 'Troyes', odds: 380 }, { label: 'Draw', odds: 290 }] },
@@ -74,5 +74,13 @@ t('Agregar mercados: Hándicap shows visitante odds first, Total keeps Over/Unde
   assert.equal(order().join(), ['existingPoint', 'existingOddsA', 'existingOddsB'].join()); assert.match(el.existingOddsA.placeholder, /Over/); assert.match(el.existingOddsB.placeholder, /Under/);
   el.existingPoint.value = '2.5'; el.existingOddsA.value = '-120'; el.existingOddsB.value = '100'; handler();
   assert.equal(JSON.stringify(sent.body.options), JSON.stringify([{ label: 'Over', point: 2.5, odds: -120 }, { label: 'Under', point: 2.5, odds: 100 }]));
+});
+t('Mis apuestas: pending first, then the rest; each newest first across singles and parlays', () => {
+  const P = [{ id: 1, ts: 100, status: 'open' }, { id: 2, ts: 400, status: 'won' }, { id: 3, ts: 250, status: 'open' }];
+  const Bt = [{ id: 1, ts: 300, status: 'open' }, { id: 2, ts: 500, status: 'lost' }, { id: 3, ts: 50, status: 'open' }, { id: 4, created: '1970-01-01 00:00:00', status: 'won' }];
+  const before = JSON.stringify([P, Bt]); const r = ctx.nf(P, Bt).map(x => x.type + x.v.id).join();
+  assert.equal(r, 'b1,p3,p1,b3,b2,p2,b4'); assert.equal(JSON.stringify([P, Bt]), before);
+  assert.equal(ctx.nf([{ id: 5, ts: 9, status: 'open' }], [{ id: 5, ts: 9, status: 'open' }]).map(x => x.type).join(), 'p,b');
+  assert.ok(src.includes('newestFirst(me.parlays, me.bets)'));
 });
 console.log(n + ' order tests passed');

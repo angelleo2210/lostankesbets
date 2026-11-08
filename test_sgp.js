@@ -1,4 +1,4 @@
-// Own same-match pricing model (poisson-v1) + snapshot settlement.
+// Own same-match pricing model (poisson-v2; v1 snapshots kept) + snapshot settlement.
 const assert = require('node:assert/strict'); const { open } = require('./core'); const S = require('./public/sgp');
 let n = 0; const t = (name, fn) => { fn(); console.log('OK', name); n++; };
 const LH = 1.8, LA = 1.0, m0 = S.matrix(LH, LA);
@@ -25,7 +25,7 @@ t('joint <= marginals; redundant combo = marginal (no inflation); contradiction 
   let tot = 0; for (const o of ['PSG', 'Troyes', 'Draw']) tot += S.jointP(f, [L('h2h', o)]); assert.ok(Math.abs(tot - 1) < 1e-12);
 });
 t('missing data and poor fit explained, no multiplication fallback', () => {
-  const e = lines(ev('x')); assert.match(S.fit([e[0]]).error, /Total de goles/); assert.match(S.fit([{ ...e[0], options: e[0].options.slice(0, 2) }, e[2]]).error, /Ganador con empate/);
+  const e = lines(ev('x')); assert.match(S.fit([e[0]]).error, /Total de goles/); assert.match(S.fit([e[2]]).error, /Ganador o la de Hándicap/); assert.match(S.fit([e[0], e[1]]).error, /Total de goles/);
   const bad = structuredClone(e); bad[0].options[0].odds = 400; bad[0].options[2].odds = -300; assert.match(S.fit(bad).error, /no encajan/);
 });
 const D = open(':memory:'); D.setupAdmin('admin', '1234'); const u = D.register(D.newInvite(), 'pepe', '1234');
@@ -40,7 +40,7 @@ t('server quote equals client quote; snapshot frozen; settle win pays model pric
     return { option: id, line: l.id, event: l.event_id ? l.kind + ':' + l.event_id : null, market: l.market, home: l.home, away: l.away, outcome: o.outcome, point: o.point, label: o.label, odds: o.odds,
       lines: l.event_id ? ls.filter(x => x.event_id === l.event_id && x.kind === l.kind).map(x => ({ market: x.market, home: x.home, away: x.away, options: x.options.map(y => ({ label: y.label, odds: y.odds, point: y.point, outcome: y.outcome })) })) : [] }; });
   const evl = {}; legs.forEach(x => { if (x.event) evl[x.event] = x.lines; }); const cq = S.quote(legs, evl);
-  D.placeParlay(u, ids, 100); const p = D.myParlays(u)[0]; assert.equal(p.model, 'poisson-v1'); assert.match(p.pricing_note, /modelo propio/);
+  D.placeParlay(u, ids, 100); const p = D.myParlays(u)[0]; assert.equal(p.model, 'poisson-v2'); assert.match(p.pricing_note, /modelo propio/);
   assert.ok(Math.abs(D.db.prepare('SELECT odds_dec FROM parlays WHERE id=?').get(p.id).odds_dec - cq.dec) < 1e-12);
   D.db.prepare('UPDATE options SET odds=999 WHERE line_id=?').run(w); // later odds change must not alter settlement
   D.settleLine(w, op(w, 'PSG').id); D.settleLine(tot, op(tot, 'Over').id); D.settleLine(other, op(other, 'A').id);
@@ -80,4 +80,43 @@ t('legacy product tickets (pricing NULL, same_event=1) settle unchanged with pus
 });
 t('client app wires shared model', () => { const src = require('node:fs').readFileSync(__dirname + '/public/app.js', 'utf8'), html = require('node:fs').readFileSync(__dirname + '/public/index.html', 'utf8');
   assert.ok(src.includes('Sgp.quote') && !src.includes('Sgp.NOTE') && !src.includes('SAME_EVENT_NOTE') && src.includes('pricing_note') && html.includes('sgp.js') && !src.includes('Una selección por evento')); });
+const noDraw = e => { const c = structuredClone(e); c.markets[0].options = c.markets[0].options.filter(o => o.label !== 'Draw'); return c; };
+const only = (e, keys) => { const c = structuredClone(e); c.markets = c.markets.filter(m => keys.includes(m.key)); return c; };
+t('fit without draw (Ganador 2-way + Total) and without Ganador (Hándicap + Total) recovers rates; no draw odds invented', () => {
+  for (const e of [noDraw(only(ev('x'), ['h2h', 'totals'])), only(ev('x'), ['spreads', 'totals']), noDraw(ev('x'))]) {
+    const g = S.fit(lines(e)); assert.ok(!g.error, g.error); assert.ok(Math.abs(g.lh - LH) < 0.08 && Math.abs(g.la - LA) < 0.08, JSON.stringify(g)); }
+  const g = S.fit(lines(noDraw(only(ev('x'), ['h2h', 'totals'])))); assert.ok(S.jointP(g, [L('h2h', 'PSG')]) + S.jointP(g, [L('h2h', 'Troyes')]) < 0.9); // draws keep probability
+  // single Ganador side + Total is still identifiable
+  const one = lines(noDraw(only(ev('x'), ['h2h', 'totals']))); one[0].options = one[0].options.slice(1); const g1 = S.fit(one); assert.ok(!g1.error, g1.error);
+});
+t('published events without draw / without Ganador accept 2-leg combos at server; snapshots unchanged; no Empate created', () => {
+  const R = open(':memory:'); R.setupAdmin('admin', '1234'); const v = R.register(R.newInvite(), 'pepe', '1234');
+  const coinsR = () => R.db.prepare('SELECT coins FROM users WHERE id=?').get(v).coins;
+  const [w, tot] = R.createEvent(noDraw(only(ev('nd'), ['h2h', 'totals'])), 'real');
+  const ol = (id, out) => R.lines().find(x => x.id === id).options.find(o => o.outcome === out);
+  assert.equal(R.lines().find(x => x.id === w).options.length, 2);
+  const c0 = coinsR(); R.placeParlay(v, [ol(w, 'Troyes').id, ol(tot, 'Under').id], 20); // underdog + Under
+  R.placeParlay(v, [ol(w, 'PSG').id, ol(tot, 'Over').id], 20); // favourite + Over
+  assert.equal(R.lines().find(x => x.id === w).options.length, 2); assert.equal(coinsR(), c0 - 40);
+  const [sp, tot2] = R.createEvent(only(ev('st'), ['spreads', 'totals']), 'real');
+  R.placeParlay(v, [ol(sp, 'Troyes').id, ol(tot2, 'Under').id], 10); // +1.5 + Under: compatible
+  R.placeParlay(v, [ol(sp, 'PSG').id, ol(tot2, 'Over').id], 10);
+  const e3 = only(ev('c'), ['spreads', 'totals']); e3.markets[0].options = [{ label: 'PSG', point: -2.5, odds: 250 }, { label: 'Troyes', point: 2.5, odds: -330 }];
+  const [sp3, t3] = R.createEvent(e3, 'real'); const c1 = coinsR();
+  assert.throws(() => R.placeParlay(v, [ol(sp3, 'PSG').id, ol(t3, 'Under').id], 10), /contradictorias/); assert.equal(coinsR(), c1);
+  // tie loses Ganador (not draw-no-bet): Troyes win is impossible with 0-0 etc.; settle draw-like result as Troyes leg lost
+  const p = R.myParlays(v).find(x => x.legs.some(g => g.option_id === ol(w, 'Troyes').id)); R.settleLine(w, ol(w, 'PSG').id);
+  assert.equal(R.myParlays(v).find(x => x.id === p.id).status, 'lost');
+  for (const q of R.myParlays(v)) assert.equal(q.model, 'poisson-v2');
+});
+t('old v1 snapshot settles at frozen price after model upgrade', () => {
+  const R = open(':memory:'); R.setupAdmin('admin', '1234'); const v = R.register(R.newInvite(), 'pepe', '1234');
+  const [w, , tot] = R.createEvent(ev('v1'), 'real'); const ol = (id, out) => R.lines().find(x => x.id === id).options.find(o => o.outcome === out);
+  R.db.prepare('UPDATE users SET coins=coins-100 WHERE id=?').run(v); const c0 = R.db.prepare('SELECT coins FROM users WHERE id=?').get(v).coins;
+  const a = ol(w, 'PSG'), b = ol(tot, 'Over');
+  const pid = Number(R.db.prepare('INSERT INTO parlays(user_id,stake,ts,same_event,pricing,odds_dec) VALUES(?,?,?,1,?,?)').run(v, 100, 1, JSON.stringify({ version: 'poisson-v1', groups: [{ options: [a.id, b.id], dec: 2.777, model: { version: 'poisson-v1' } }] }), 2.777).lastInsertRowid);
+  for (const o of [a, b]) R.db.prepare('INSERT INTO parlay_legs(parlay_id,line_id,option_id,odds) VALUES(?,?,?,?)').run(pid, o.line_id, o.id, o.odds);
+  assert.equal(R.myParlays(v)[0].model, 'poisson-v1'); R.settleLine(w, a.id); R.settleLine(tot, b.id);
+  assert.equal(R.myParlays(v)[0].payout, 277); assert.equal(R.db.prepare('SELECT coins FROM users WHERE id=?').get(v).coins, c0 + 277);
+});
 console.log(n + ' sgp model tests passed');
