@@ -40,7 +40,7 @@ t('server quote equals client quote; snapshot frozen; settle win pays model pric
     return { option: id, line: l.id, event: l.event_id ? l.kind + ':' + l.event_id : null, market: l.market, home: l.home, away: l.away, outcome: o.outcome, point: o.point, label: o.label, odds: o.odds,
       lines: l.event_id ? ls.filter(x => x.event_id === l.event_id && x.kind === l.kind).map(x => ({ market: x.market, home: x.home, away: x.away, options: x.options.map(y => ({ label: y.label, odds: y.odds, point: y.point, outcome: y.outcome })) })) : [] }; });
   const evl = {}; legs.forEach(x => { if (x.event) evl[x.event] = x.lines; }); const cq = S.quote(legs, evl);
-  D.placeParlay(u, ids, 100); const p = D.myParlays(u)[0]; assert.equal(p.model, 'poisson-v2'); assert.match(p.pricing_note, /modelo propio/);
+  D.placeParlay(u, ids, 100); const p = D.myParlays(u)[0]; assert.equal(p.model, 'poisson-v3'); assert.match(p.pricing_note, /modelo propio/);
   assert.ok(Math.abs(D.db.prepare('SELECT odds_dec FROM parlays WHERE id=?').get(p.id).odds_dec - cq.dec) < 1e-12);
   D.db.prepare('UPDATE options SET odds=999 WHERE line_id=?').run(w); // later odds change must not alter settlement
   D.settleLine(w, op(w, 'PSG').id); D.settleLine(tot, op(tot, 'Over').id); D.settleLine(other, op(other, 'A').id);
@@ -80,14 +80,26 @@ t('legacy product tickets (pricing NULL, same_event=1) settle unchanged with pus
 });
 t('client app wires shared model', () => { const src = require('node:fs').readFileSync(__dirname + '/public/app.js', 'utf8'), html = require('node:fs').readFileSync(__dirname + '/public/index.html', 'utf8');
   assert.ok(src.includes('Sgp.quote') && !src.includes('Sgp.NOTE') && !src.includes('SAME_EVENT_NOTE') && src.includes('pricing_note') && html.includes('sgp.js') && !src.includes('Una selección por evento')); });
-const noDraw = e => { const c = structuredClone(e); c.markets[0].options = c.markets[0].options.filter(o => o.label !== 'Draw'); return c; };
+// 2-way Ganador (no draw option) = winner always decided; a level score goes to either side 50/50 (+1 to winner).
+const tie = P((h, a) => h === a);
+const noDraw = e => { const c = structuredClone(e); c.markets[0].options = [{ label: 'PSG', odds: am(P((h, a) => h > a) + tie / 2) }, { label: 'Troyes', odds: am(P((h, a) => h < a) + tie / 2) }];
+  const tot = c.markets.find(m => m.key === 'totals'); if (tot) { // totals include the decisive extra goal on level scores
+    const over = P((h, a) => h !== a && h + a > 2.5) + P((h, a) => h === a && h + a + 1 > 2.5); tot.options = [{ label: 'Over', point: 2.5, odds: am(over) }, { label: 'Under', point: 2.5, odds: am(1 - over) }]; }
+  return c; };
 const only = (e, keys) => { const c = structuredClone(e); c.markets = c.markets.filter(m => keys.includes(m.key)); return c; };
-t('fit without draw (Ganador 2-way + Total) and without Ganador (Hándicap + Total) recovers rates; no draw odds invented', () => {
-  for (const e of [noDraw(only(ev('x'), ['h2h', 'totals'])), only(ev('x'), ['spreads', 'totals']), noDraw(ev('x'))]) {
-    const g = S.fit(lines(e)); assert.ok(!g.error, g.error); assert.ok(Math.abs(g.lh - LH) < 0.08 && Math.abs(g.la - LA) < 0.08, JSON.stringify(g)); }
-  const g = S.fit(lines(noDraw(only(ev('x'), ['h2h', 'totals'])))); assert.ok(S.jointP(g, [L('h2h', 'PSG')]) + S.jointP(g, [L('h2h', 'Troyes')]) < 0.9); // draws keep probability
-  // single Ganador side + Total is still identifiable
-  const one = lines(noDraw(only(ev('x'), ['h2h', 'totals']))); one[0].options = one[0].options.slice(1); const g1 = S.fit(one); assert.ok(!g1.error, g1.error);
+t('fit with 2-way Ganador (no draw) + Total and with Hándicap + Total (no Ganador) recovers rates; no draw odds invented', () => {
+  for (const e of [noDraw(only(ev('x'), ['h2h', 'totals'])), only(ev('x'), ['spreads', 'totals'])]) {
+    const g = S.fit(lines(e)); assert.ok(!g.error, g.error); assert.ok(Math.abs(g.lh - LH) < 0.05 && Math.abs(g.la - LA) < 0.05, JSON.stringify(g)); }
+  const g = S.fit(lines(noDraw(only(ev('x'), ['h2h', 'totals'])))); assert.equal(g.tb, true);
+  assert.ok(Math.abs(S.jointP(g, [L('h2h', 'PSG')]) + S.jointP(g, [L('h2h', 'Troyes')]) - 1) < 1e-12); // 2-way: one side always wins
+  assert.equal(S.fit(lines(only(ev('x'), ['spreads', 'totals']))).tb, false);
+});
+t('real-shape hockey/baseball-style line: 2-way moneyline + Over/Under 6.5 fits; favourite or underdog + Over/Under priced; old v1 error text gone', () => {
+  const Lh = [{ market: 'h2h', home: 'H', away: 'A', options: [{ outcome: 'H', odds: -150 }, { outcome: 'A', odds: 130 }] }, { market: 'totals', home: 'H', away: 'A', options: [{ outcome: 'Over', point: 6.5, odds: 120 }, { outcome: 'Under', point: 6.5, odds: -140 }] }];
+  const f = S.fit(Lh); assert.ok(!f.error, f.error); assert.ok(f.rmse < 0.001);
+  for (const side of ['H', 'A']) for (const ou of ['Over', 'Under']) { const q = S.quote([{ event: 'e', line: 1, market: 'h2h', home: 'H', away: 'A', outcome: side, odds: side === 'H' ? -150 : 130, option: 1 }, { event: 'e', line: 2, market: 'totals', home: 'H', away: 'A', outcome: ou, point: 6.5, odds: ou === 'Over' ? 120 : -140, option: 2 }], { e: Lh });
+    assert.ok(!q.error && q.dec > 1 && q.modeled, JSON.stringify(q)); }
+  const src = require('node:fs').readFileSync(__dirname + '/public/sgp.js', 'utf8'); assert.ok(!/con empate \(3 opciones\)|empate registrad/i.test(src));
 });
 t('published events without draw / without Ganador accept 2-leg combos at server; snapshots unchanged; no Empate created', () => {
   const R = open(':memory:'); R.setupAdmin('admin', '1234'); const v = R.register(R.newInvite(), 'pepe', '1234');
@@ -107,7 +119,7 @@ t('published events without draw / without Ganador accept 2-leg combos at server
   // tie loses Ganador (not draw-no-bet): Troyes win is impossible with 0-0 etc.; settle draw-like result as Troyes leg lost
   const p = R.myParlays(v).find(x => x.legs.some(g => g.option_id === ol(w, 'Troyes').id)); R.settleLine(w, ol(w, 'PSG').id);
   assert.equal(R.myParlays(v).find(x => x.id === p.id).status, 'lost');
-  for (const q of R.myParlays(v)) assert.equal(q.model, 'poisson-v2');
+  for (const q of R.myParlays(v)) assert.equal(q.model, 'poisson-v3');
 });
 t('old v1 snapshot settles at frozen price after model upgrade', () => {
   const R = open(':memory:'); R.setupAdmin('admin', '1234'); const v = R.register(R.newInvite(), 'pepe', '1234');

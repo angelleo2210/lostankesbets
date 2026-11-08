@@ -1,10 +1,10 @@
-// LosTankesBets own same-match (soccer) joint pricing model, version 'poisson-v2' (saved v1 tickets keep their frozen price).
+// LosTankesBets own same-match joint pricing model, version 'poisson-v3' (saved v1/v2 tickets keep their frozen price).
 // ASSUMPTION (not proven): home and away goals are independent Poisson variables. Rates are fitted
 // to the event's own odds: Total plus Ganador (with or without draw) and/or Hándicap. The joint price
 // is the model's FAIR probability of all picks winning (no added margin); it is NOT a Hard Rock price.
 // Same-match combos only allow half-goal handicap/total lines (no push possible) in this version.
 (function (root) {
-  const VERSION = 'poisson-v2', MAXG = 20, MAX_RMSE = 0.02, MAX_ERR = 0.035, MIN_P = 0.001;
+  const VERSION = 'poisson-v3', MAXG = 20, MAX_RMSE = 0.02, MAX_ERR = 0.035, MIN_P = 0.001;
   const dec = o => o > 0 ? 1 + o / 100 : 1 + 100 / -o;
   const outcomeOf = (market, o) => o.outcome || (market === 'h2h' && (o.label === 'Empate' || o.label === 'Draw') ? 'Draw' : o.label);
   // >0 win, 0 push, <0 loss for final score h-a.
@@ -22,13 +22,11 @@
     for (const r of m) for (let a = 0; a <= MAXG; a++) r[a] /= s; // renormalise truncated tail (<1e-6 for rates <= 6)
     return m;
   }
-  // targets: [{type, legs, p}]. 3-way Ganador: de-vigged proportionally. 2-way Hándicap/Total: compared
-  // conditional on no push. Ganador WITHOUT draw: the sides do not sum to 1 (draws exist), so each side's
-  // implied probability is divided by the average overround of the event's complete 2-way markets
-  // (OWN ASSUMPTION: same margin). No draw price is ever created or stored. Identifiability needs
-  // Total (goal sum) plus Ganador or Hándicap (goal difference).
+  // targets: [{type, legs, p}], all de-vigged proportionally. Ganador with draw = 3-way (level score is a draw).
+  // Ganador WITHOUT draw = 2-way: a winner is always decided (see cells/tb). No draw price is ever created.
+  // Hándicap/Total compared conditional on no push. Needs Total (sum) + Ganador or Hándicap (difference).
   function targets(lines) {
-    const t = [], two = [], ml = []; let hasTot = false, hasDiff = false;
+    const t = []; let hasTot = false, hasDiff = false, tb = false;
     for (const l of lines) {
       const os = (l.options || []).filter(o => Number.isFinite(o.odds) && Math.abs(o.odds) >= 100);
       if (!os.length || !['h2h', 'spreads', 'totals'].includes(l.market)) continue;
@@ -37,24 +35,29 @@
         const hasDraw = os.some(o => outcomeOf('h2h', o) === 'Draw');
         const leg = o => [{ market: 'h2h', outcome: outcomeOf('h2h', o), home: l.home, away: l.away }];
         if (os.length === 3 && hasDraw) { hasDiff = true; os.forEach((o, i) => t.push({ type: 1, legs: leg(o), p: inv[i] / s })); }
-        else if (!hasDraw && os.length <= 2) { hasDiff = true; os.forEach((o, i) => ml.push({ legs: leg(o), raw: inv[i] })); }
-      } else { if (os.length !== 2) continue; if (l.market === 'totals') hasTot = true; else hasDiff = true; two.push(s);
+        else if (!hasDraw && os.length === 2) { hasDiff = true; tb = true; os.forEach((o, i) => t.push({ type: 1, legs: leg(o), p: inv[i] / s })); }
+      } else { if (os.length !== 2) continue; if (l.market === 'totals') hasTot = true; else hasDiff = true;
         const legs = os.map(o => ({ market: l.market, outcome: outcomeOf(l.market, o), point: o.point, home: l.home, away: l.away }));
         t.push({ type: 2, legs, p: inv[0] / s }); }
     }
-    const ovr = two.length ? two.reduce((x, y) => x + y, 0) / two.length : 1;
-    for (const m of ml) t.push({ type: 1, legs: m.legs, p: Math.min(0.999, m.raw / ovr) });
-    return { t, ok: hasTot && hasDiff };
+    return { t, ok: hasTot && hasDiff, tb };
   }
-  function modelP(m, tg) {
+  // Final-score states. tb (2-way Ganador without draw = winner decided even if level): a level score is
+  // settled by one extra goal/run/point to either side with probability 1/2 each (OT/extra-innings style,
+  // counted in the final score for Total/Hándicap too). OWN ASSUMPTION.
+  function cells(m, tb) { const c = [];
+    for (let h = 0; h <= MAXG; h++) for (let a = 0; a <= MAXG; a++) { const p = m[h][a]; if (!p) continue;
+      if (tb && h === a) { c.push([h + 1, a, p / 2]); c.push([h, a + 1, p / 2]); } else c.push([h, a, p]); }
+    return c; }
+  function modelP(c, tg) {
     let w = 0, x = 0;
-    for (let h = 0; h <= MAXG; h++) for (let a = 0; a <= MAXG; a++) {
+    for (const [h, a, p] of c) {
       const g = tg.legs.map(L => margin(L.market, L.outcome, L.point, L.home, L.away, h, a));
-      if (tg.type === 1) { if (g[0] > 0) w += m[h][a]; } else { if (g[0] > 0) w += m[h][a]; if (g[1] > 0) x += m[h][a]; }
+      if (tg.type === 1) { if (g[0] > 0) w += p; } else { if (g[0] > 0) w += p; if (g[1] > 0) x += p; }
     }
     return tg.type === 1 ? w : w / (w + x);
   }
-  function loss(lh, la, t) { const m = matrix(lh, la); let se = 0, mx = 0; for (const tg of t) { const e = Math.abs(modelP(m, tg) - tg.p); se += e * e; mx = Math.max(mx, e); } return { rmse: Math.sqrt(se / t.length), max: mx }; }
+  function loss(lh, la, t, tb) { const m = cells(matrix(lh, la), tb); let se = 0, mx = 0; for (const tg of t) { const e = Math.abs(modelP(m, tg) - tg.p); se += e * e; mx = Math.max(mx, e); } return { rmse: Math.sqrt(se / t.length), max: mx }; }
   const fitCache = new Map();
   function fit(lines) {
     const key = JSON.stringify(lines.map(l => [l.market, l.home, l.away, (l.options || []).map(o => [o.outcome, o.label, o.point, o.odds])]));
@@ -62,18 +65,18 @@
     return fitCache.get(key);
   }
   function fitRaw(lines) {
-    const { t, ok } = targets(lines);
+    const { t, ok, tb } = targets(lines);
     if (!ok) return { error: 'Para combinar selecciones del mismo partido necesitamos la cuota de Total de goles y además la de Ganador o la de Hándicap de ese partido. Este partido no las tiene, así que no se puede calcular una cuota conjunta.' };
     let best = null;
-    const tryAt = (lh, la) => { if (lh < 0.05 || la < 0.05 || lh > 6 || la > 6) return; const r = loss(lh, la, t); if (!best || r.rmse < best.rmse - 1e-12) best = { lh, la, ...r }; };
+    const tryAt = (lh, la) => { if (lh < 0.05 || la < 0.05 || lh > 6 || la > 6) return; const r = loss(lh, la, t, tb); if (!best || r.rmse < best.rmse - 1e-12) best = { lh, la, ...r }; };
     for (let lh = 0.1; lh <= 6.0001; lh += 0.1) for (let la = 0.1; la <= 6.0001; la += 0.1) tryAt(+lh.toFixed(3), +la.toFixed(3));
     for (const step of [0.02, 0.005, 0.001]) { const c = best; for (let i = -5; i <= 5; i++) for (let j = -5; j <= 5; j++) tryAt(+(c.lh + i * step).toFixed(4), +(c.la + j * step).toFixed(4)); }
     if (best.rmse > MAX_RMSE || best.max > MAX_ERR) return { error: `Las cuotas de este partido no encajan bien con nuestro modelo de goles (desvío de hasta ${(best.max * 100).toFixed(1)} puntos de probabilidad), así que no calculamos una cuota conjunta. Puedes apostarlas por separado o combinarlas con otros partidos.`, fit: best };
-    return { lh: best.lh, la: best.la, rmse: best.rmse, max: best.max };
+    return { lh: best.lh, la: best.la, rmse: best.rmse, max: best.max, tb };
   }
   function jointP(f, legs) {
-    const m = matrix(f.lh, f.la); let p = 0;
-    for (let h = 0; h <= MAXG; h++) for (let a = 0; a <= MAXG; a++) if (legs.every(L => margin(L.market, L.outcome, L.point, L.home, L.away, h, a) > 0)) p += m[h][a];
+    let p = 0;
+    for (const [h, a, q] of cells(matrix(f.lh, f.la), f.tb)) if (legs.every(L => margin(L.market, L.outcome, L.point, L.home, L.away, h, a) > 0)) p += q;
     return p;
   }
   // legs: [{option, line, event, market, home, away, outcome, label, point, odds}], eventLines: {event: [lines with options]}

@@ -3,7 +3,12 @@ const { open } = require('./core');
 const odds = require('./odds-api');
 const app = express(); const C = open(process.env.DB_FILE || 'data.db');
 if (process.env.ADMIN_PIN && !C.hasAdmin()) C.setupAdmin(process.env.ADMIN_USER || 'angel', process.env.ADMIN_PIN);
-app.use(express.json()); app.use(express.static(__dirname + '/public'));
+app.use(express.json());
+// Cache-bust: index.html references each script with ?v=<content hash>; html itself always revalidated.
+const fs = require('node:fs'), crypto = require('node:crypto');
+const INDEX = fs.readFileSync(__dirname + '/public/index.html', 'utf8').replace(/src="([\w.-]+\.js)"/g, (m, f) => { try { return `src="${f}?v=${crypto.createHash('sha256').update(fs.readFileSync(__dirname + '/public/' + f)).digest('hex').slice(0, 12)}"`; } catch { return m; } });
+app.get(['/', '/index.html'], (req, res) => { res.set('Cache-Control', 'no-cache'); res.type('html').send(INDEX); });
+app.use(express.static(__dirname + '/public'));
 const h = fn => async (req, res) => { try { res.json((await fn(req, res)) ?? { ok: true }); } catch (e) { res.status(e.user ? 400 : 500).json({ error: e.user ? e.message : 'Error del servidor' }); if (!e.user) console.error(e); } };
 const auth = (req) => { const u = C.userByToken(req.get('x-token')); if (!u) { const e = new Error('Inicia sesión'); e.user = true; throw e; } return u; };
 const admin = (req) => { const u = auth(req); if (!u.is_admin) { const e = new Error('Solo el administrador'); e.user = true; throw e; } return u; };

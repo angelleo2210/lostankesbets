@@ -34,4 +34,6 @@ t('error, autoplay rejection, stall and hard timeout never trap the user', () =>
   e = env(false); e.timers.find(x => x.ms === 2500).f(); assert.equal(e.overlay.style.opacity, '0');
   e = env(false); e.video.currentTime = 1; e.timers.find(x => x.ms === 2500).f(); assert.notEqual(e.overlay.style.opacity, '0'); e.timers.find(x => x.ms === 6000).f(); assert.equal(e.overlay.style.opacity, '0');
 });
+t('index served with content-hash script URLs and no-cache html', () => { const src = fs.readFileSync('server.js', 'utf8');
+  assert.ok(src.includes("res.set('Cache-Control', 'no-cache')") && src.indexOf("app.get(['/', '/index.html']") < src.indexOf('express.static')); });
 console.log(n + ' intro tests passed');
