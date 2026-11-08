@@ -98,7 +98,7 @@ t('recompensas top 3', () => {
   const [L2, S2, N2] = mk(); Q.placeBet(ids[0], N2.id, 10000); Q.placeBet(ids[3], S2.id, 5000); Q.settleLine(L2, S2.id); // aa 43000 cae; dd 54900 sube a 1
   lb = Q.leaderboard(); const aa = lb.find(r => r.username === 'aa');
   assert.equal(aa.badge, null); assert.deepEqual(aa.avatarCfg, { pick: 3 }); assert.ok(has(ids[0], 'corona')); // trofeo conservado
-  assert.equal(lb.find(r => r.username === 'dd').badge, '🥇'); assert.ok(has(ids[3], 'corona'));
+  assert.equal(lb.find(r => r.username === 'bb').badge, '🥇'); assert.equal(lb.find(r => r.username === 'dd').badge, '🥉'); assert.ok(has(ids[3], 'medalla')); // owner t627: % victoria antes que dinero
   assert.ok(Q.setProfile(ids[0], '', '', null, { color: 'oro' })); // color sigue desbloqueado
 });
 t('recarga admin', () => {

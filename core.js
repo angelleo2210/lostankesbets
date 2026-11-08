@@ -43,6 +43,9 @@ const REWARDS = [
   { id: 'zapatos_bronce', kind: 'outfit', name: 'Zapaticos de bronce', icon: '👟', minRank: 3 },
 ];
 const BADGES = { 1: '🥇', 2: '🥈', 3: '🥉' };
+// Orden de ranking (owner): más puntos (pueden ser negativos), luego mejor % de victoria, luego más dinero; nombre solo si todo empata.
+const winPct = (w, l) => (w + l) ? Math.round(w * 1000 / (w + l)) / 10 : 0;
+const rankCmp = (a, b) => b.points - a.points || b.winPct - a.winPct || b.coins - a.coins || a.username.localeCompare(b.username);
 const FACIAL = ['ninguno', 'bigote', 'barba_corta', 'barba_larga', 'candado', 'perilla', 'patillas'];
 const deco = (r, id, rk) => { if (!r) return r; const { cosmetics, avatar_cfg, ...o } = fhOut(r); let c = {}, ac = null; try { c = cosmetics ? JSON.parse(cosmetics) : {}; } catch {} try { ac = avatar_cfg ? JSON.parse(avatar_cfg) : null; } catch {}
   const rank = rk && rk.get(id) || null; return { ...o, avatarCfg: AV.norm(ac), cosmetics: c, rank, badge: rank ? BADGES[rank] : null }; };
@@ -575,8 +578,8 @@ function open(file = 'data.db') {
         const { wins, losses } = api._settledCounts(r.id, cutoff);
         const tot = wins + losses;
         const { id, is_admin, ...o } = deco(r, r.id, rk);
-        const bankPenalty = api.bankPenalty(r.id); return { ...o, id, is_admin, wins, losses, bankPenalty, points: 3 * wins - bankPenalty, winPct: tot ? Math.round(wins * 1000 / tot) / 10 : 0, streak: api.streak(r.id) };
-      }).sort((a, b) => b.points - a.points || b.winPct - a.winPct || b.coins - a.coins || a.username.localeCompare(b.username));
+        const bankPenalty = api.bankPenalty(r.id); return { ...o, id, is_admin, wins, losses, bankPenalty, points: 3 * wins - bankPenalty, winPct: winPct(wins, losses), streak: api.streak(r.id) };
+      }).sort(rankCmp);
     },
     activity(limit = 8) {
       const rows = db.prepare(`SELECT * FROM (
@@ -599,8 +602,8 @@ function open(file = 'data.db') {
       const podium = rows.filter(u => (u.wins + u.losses) >= PODIUM_MIN_SETTLED).slice(0, 3);
       return { period: ['hoy', 'semana', 'temporada'].includes(period) ? period : 'temporada', rows, podium, activity: api.activity(8) };
     },
-    ranks() { const m = new Map(); db.prepare("SELECT id, username, coins, (SELECT COUNT(*) FROM bets b WHERE b.user_id=users.id AND b.status='won') + (SELECT COUNT(*) FROM parlays p WHERE p.user_id=users.id AND p.status='won') wins FROM users WHERE is_admin=0 AND wins>0").all()
-      .map(u => ({ ...u, points: 3 * u.wins - bankPenalty(u.id) })).sort((a, b) => b.points - a.points || b.wins - a.wins || b.coins - a.coins || a.username.localeCompare(b.username)).slice(0, 3).forEach((u, i) => m.set(u.id, i + 1)); return m; },
+    ranks() { const m = new Map(); db.prepare("SELECT id, username, coins, (SELECT COUNT(*) FROM bets b WHERE b.user_id=users.id AND b.status='won') + (SELECT COUNT(*) FROM parlays p WHERE p.user_id=users.id AND p.status='won') wins, (SELECT COUNT(*) FROM bets b WHERE b.user_id=users.id AND b.status='lost') + (SELECT COUNT(*) FROM parlays p WHERE p.user_id=users.id AND p.status='lost') losses FROM users WHERE is_admin=0 AND wins>0").all()
+      .map(u => ({ ...u, points: 3 * u.wins - bankPenalty(u.id), winPct: winPct(u.wins, u.losses) })).sort(rankCmp).slice(0, 3).forEach((u, i) => m.set(u.id, i + 1)); return m; },
     refreshRanks() { const m = api.ranks(); const ins = db.prepare('INSERT OR IGNORE INTO unlocks(user_id,item_id,rank) VALUES(?,?,?)');
       for (const [uid, rank] of m) for (const it of REWARDS) if (rank <= it.minRank) ins.run(uid, it.id, rank); return m; },
     unlocksOf: uid => db.prepare('SELECT item_id, rank, created FROM unlocks WHERE user_id=? ORDER BY created').all(uid),
@@ -701,4 +704,4 @@ function open(file = 'data.db') {
   api._testAllowDisabled = false;
   return api;
 }
-module.exports = { open, BANK, addMonthNY, BONUS, FACIAL, REWARDS, profit, dec, toAmerican, START_COINS, PODIUM_MIN_SETTLED };
+module.exports = { rankCmp, winPct, open, BANK, addMonthNY, BONUS, FACIAL, REWARDS, profit, dec, toAmerican, START_COINS, PODIUM_MIN_SETTLED };
