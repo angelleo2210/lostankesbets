@@ -133,6 +133,9 @@ function open(file = 'data.db') {
   db.exec(`CREATE TABLE IF NOT EXISTS bank(user_id INTEGER PRIMARY KEY, debt INTEGER NOT NULL DEFAULT 0, loans INTEGER NOT NULL DEFAULT 0, loan_penalty INTEGER NOT NULL DEFAULT 0, bankruptcies INTEGER NOT NULL DEFAULT 0, mark_until INTEGER, closed INTEGER NOT NULL DEFAULT 0, admin_resets INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS bank_ledger(id INTEGER PRIMARY KEY, user_id INTEGER, kind TEXT, amount INTEGER, debt_after INTEGER, ref TEXT, admin_id INTEGER, ts INTEGER);`);
   db.exec('CREATE TABLE IF NOT EXISTS paused_events(key TEXT PRIMARY KEY, admin_id INTEGER, ts INTEGER)');
+  // Per-loan records: outstanding balance + whether its -7 ranking penalty is still active. Loan COUNT (max 5) stays in bank.loans.
+  db.exec(`CREATE TABLE IF NOT EXISTS bank_loans(id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, amount INTEGER NOT NULL, remaining INTEGER NOT NULL, penalty_active INTEGER NOT NULL DEFAULT 1, status TEXT NOT NULL DEFAULT 'open', ledger_id INTEGER UNIQUE, ts INTEGER, closed_ts INTEGER, closed_by TEXT);
+    CREATE TABLE IF NOT EXISTS bank_meta(key TEXT PRIMARY KEY, value TEXT, ts INTEGER);`);
   // Match key: linked markets share kind:event_id; legacy unlinked lines pause individually.
   const eventKey = l => l.event_id ? `${l.kind}:${l.event_id}` : `line:${l.line_id ?? l.id}`;
   const PAUSED_MSG = 'Las apuestas para este partido están pausadas por el administrador.';
@@ -145,14 +148,48 @@ function open(file = 'data.db') {
   const SPORTS = ['soccer', 'hockey', 'baseball', 'other'];
   const sportOf = e => { const k = String(e.sport_key || ''); if (/^soccer_/.test(k)) return 'soccer'; if (/^icehockey_/.test(k)) return 'hockey'; if (/^baseball_/.test(k)) return 'baseball'; return SPORTS.includes(e.sport) ? e.sport : null; };
   const bankRow = uid => { db.prepare('INSERT OR IGNORE INTO bank(user_id) VALUES(?)').run(uid); return db.prepare('SELECT * FROM bank WHERE user_id=?').get(uid); };
-  const ledger = (uid, kind, amount, debtAfter, ref, adminId = null) => db.prepare('INSERT INTO bank_ledger(user_id,kind,amount,debt_after,ref,admin_id,ts) VALUES(?,?,?,?,?,?,?)').run(uid, kind, amount, debtAfter, ref, adminId, Date.now());
+  const ledger = (uid, kind, amount, debtAfter, ref, adminId = null) => Number(db.prepare('INSERT INTO bank_ledger(user_id,kind,amount,debt_after,ref,admin_id,ts) VALUES(?,?,?,?,?,?,?)').run(uid, kind, amount, debtAfter, ref, adminId, Date.now()).lastInsertRowid);
   // Winning credit (bets, parlays, challenges): 50% of net profit (payout - stake, floored to whole coins) repays debt, capped at the debt.
   // Stake and the other half go to the player; refunds/voids/ties/bonus/top-ups never collected.
   const winCredit = (uid, payout, stake, ref) => {
     const b = db.prepare('SELECT debt FROM bank WHERE user_id=?').get(uid); const take = b && b.debt > 0 ? Math.min(b.debt, Math.floor(Math.max(0, payout - stake) / 2)) : 0;
     db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(payout - take, uid);
-    if (take) { db.prepare('UPDATE bank SET debt=debt-? WHERE user_id=?').run(take, uid); ledger(uid, 'repay', take, b.debt - take, ref); }
+    if (take) { db.prepare('UPDATE bank SET debt=debt-? WHERE user_id=?').run(take, uid); ledger(uid, 'repay', take, b.debt - take, ref); applyRepay(uid, take, ref); }
   };
+  // FIFO: a repayment pays the oldest open loan first. A loan paid in full gives back its 7 points exactly once.
+  const applyRepay = (uid, amount, ref) => { let left = amount;
+    for (const L of db.prepare("SELECT * FROM bank_loans WHERE user_id=? AND status='open' ORDER BY id").all(uid)) { if (left <= 0) break;
+      const pay = Math.min(left, L.remaining); left -= pay;
+      if (pay < L.remaining) { db.prepare('UPDATE bank_loans SET remaining=remaining-? WHERE id=?').run(pay, L.id); continue; }
+      db.prepare("UPDATE bank_loans SET remaining=0, status='paid', closed_ts=?, closed_by=?, penalty_active=0 WHERE id=? AND status='open'").run(Date.now(), String(ref || 'repay'), L.id);
+      if (L.penalty_active) { db.prepare('UPDATE bank SET loan_penalty=MAX(0, loan_penalty-?) WHERE user_id=?').run(BANK.LOAN_PENALTY, uid);
+        const d = db.prepare('SELECT debt FROM bank WHERE user_id=?').get(uid).debt; ledger(uid, 'penalty_refund', BANK.LOAN_PENALTY, d, `loan#${L.id}`); } } };
+  // Bankruptcy / admin fresh start: open loans forgiven, penalty dropped WITHOUT any +7 refund (the reset already clears loan_penalty).
+  const forgiveLoans = (uid, why) => db.prepare("UPDATE bank_loans SET status='forgiven', penalty_active=0, closed_ts=?, closed_by=? WHERE user_id=? AND status='open'").run(Date.now(), why, uid);
+  // One-time, idempotent migration from the existing ledger. Per user, only entries after the last bankruptcy/fresh start count.
+  // Per-loan FIFO only when the ledger provably matches the current debt; otherwise: debt 0 => clear loan penalty; debt > 0 => untouched (reported).
+  const migrateLoans = () => { if (db.prepare("SELECT 1 FROM bank_meta WHERE key='loans_v1'").get()) return; const report = [];
+    tx(() => { for (const b of db.prepare('SELECT * FROM bank').all()) {
+      if (db.prepare('SELECT 1 FROM bank_loans WHERE user_id=?').get(b.user_id)) continue;
+      const all = db.prepare('SELECT * FROM bank_ledger WHERE user_id=? ORDER BY id').all(b.user_id); let start = 0;
+      all.forEach((e, i) => { if (e.kind === 'bankruptcy' || e.kind === 'fresh_start') start = i + 1; });
+      const cyc = all.slice(start), loans = cyc.filter(e => e.kind === 'loan'), repaid = cyc.filter(e => e.kind === 'repay').reduce((s, e) => s + e.amount, 0);
+      if (!loans.length) continue; const owed = loans.reduce((s, e) => s + e.amount, 0);
+      if (loans.length === b.loans && owed - repaid === b.debt && b.loan_penalty === loans.length * BANK.LOAN_PENALTY) {
+        let left = repaid, refunds = 0;
+        for (const e of loans) { const pay = Math.min(left, e.amount); left -= pay; const done = pay === e.amount;
+          const id = Number(db.prepare('INSERT INTO bank_loans(user_id,amount,remaining,penalty_active,status,ledger_id,ts,closed_ts,closed_by) VALUES(?,?,?,?,?,?,?,?,?)').run(b.user_id, e.amount, e.amount - pay, done ? 0 : 1, done ? 'paid' : 'open', e.id, e.ts, done ? Date.now() : null, done ? 'migration' : null).lastInsertRowid);
+          if (done) { refunds++; ledger(b.user_id, 'penalty_refund', BANK.LOAN_PENALTY, b.debt, `loan#${id} (migración)`); } }
+        if (refunds) db.prepare('UPDATE bank SET loan_penalty=loan_penalty-? WHERE user_id=?').run(refunds * BANK.LOAN_PENALTY, b.user_id);
+        report.push({ user: b.user_id, mode: 'per_loan', refunds });
+      } else if (b.debt === 0 && b.loan_penalty > 0) {
+        db.prepare('UPDATE bank SET loan_penalty=0 WHERE user_id=?').run(b.user_id); ledger(b.user_id, 'penalty_refund', b.loan_penalty, 0, 'deuda total pagada (migración)');
+        for (const e of loans) db.prepare("INSERT OR IGNORE INTO bank_loans(user_id,amount,remaining,penalty_active,status,ledger_id,ts,closed_ts,closed_by) VALUES(?,?,0,0,'paid',?,?,?,'migration-total')").run(b.user_id, e.amount, e.id, e.ts, Date.now());
+        report.push({ user: b.user_id, mode: 'debt_zero_clear', cleared: b.loan_penalty });
+      } else report.push({ user: b.user_id, mode: 'unchanged_unprovable', debt: b.debt, loans: b.loans });
+    }
+    db.prepare("INSERT INTO bank_meta(key,value,ts) VALUES('loans_v1',?,?)").run(JSON.stringify(report), Date.now()); }); };
+  migrateLoans();
   const bankPenalty = (uid, t = Date.now()) => { const b = db.prepare('SELECT * FROM bank WHERE user_id=?').get(uid); if (!b) return 0; return b.loan_penalty + (b.mark_until && b.mark_until > t ? BANK.MARK_PENALTY : 0); };
   const bankApi = {
     bankStatus(uid, t = Date.now()) { const b = bankRow(uid), coins = db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins;
@@ -166,14 +203,14 @@ function open(file = 'data.db') {
         if (b.loans >= BANK.MAX_LOANS) err('Ya usaste tus 5 préstamos. El banco está cerrado hasta que declares bancarrota.');
         db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(amount, uid);
         db.prepare('UPDATE bank SET debt=debt+?, loans=loans+1, loan_penalty=loan_penalty+? WHERE user_id=?').run(amount, BANK.LOAN_PENALTY, uid);
-        ledger(uid, 'loan', amount, b.debt + amount, null); return bankApi.bankStatus(uid); }); },
+        const lid = ledger(uid, 'loan', amount, b.debt + amount, null); db.prepare('INSERT INTO bank_loans(user_id,amount,remaining,ledger_id,ts) VALUES(?,?,?,?,?)').run(uid, amount, amount, lid, Date.now()); return bankApi.bankStatus(uid); }); },
     declareBankruptcy(uid, t = Date.now()) {
       return tx(() => { const b = bankRow(uid);
         if (b.closed) err('El banco está cerrado permanentemente; ya no puedes declarar bancarrota.');
         if (!(b.debt > 0 || b.loans > 0)) err('No tienes deuda ni préstamos que borrar');
         const n = b.bankruptcies + 1, mark = Math.max(b.mark_until || 0, addMonthNY(t));
         db.prepare('UPDATE bank SET debt=0, loans=0, loan_penalty=0, bankruptcies=?, mark_until=?, closed=? WHERE user_id=?').run(n, mark, n >= BANK.MAX_BANKRUPTCIES ? 1 : 0, uid);
-        ledger(uid, 'bankruptcy', b.debt, 0, `#${n}`); return bankApi.bankStatus(uid, t); }); },
+        ledger(uid, 'bankruptcy', b.debt, 0, `#${n}`); forgiveLoans(uid, `bankruptcy#${n}`); return bankApi.bankStatus(uid, t); }); },
     bankClosedUsers() { return db.prepare('SELECT u.id, u.username, u.display_name, u.coins, b.bankruptcies, b.mark_until, b.admin_resets, (b.admin_resets < 1) eligible FROM bank b JOIN users u ON u.id=b.user_id WHERE b.closed=1 ORDER BY u.username').all(); },
     // Human admin decision only. Balance -> 0; debt, loans, penalties, mark and bankruptcy count reset. Bets/history untouched.
     adminFreshStart(adminId, uid, confirm) {
@@ -185,7 +222,7 @@ function open(file = 'data.db') {
         const coins = db.prepare('SELECT coins FROM users WHERE id=?').get(b.user_id).coins;
         db.prepare('UPDATE users SET coins=0 WHERE id=?').run(b.user_id);
         db.prepare('UPDATE bank SET debt=0, loans=0, loan_penalty=0, bankruptcies=0, mark_until=NULL, closed=0, admin_resets=admin_resets+1 WHERE user_id=?').run(b.user_id);
-        ledger(b.user_id, 'fresh_start', coins, 0, `debt ${b.debt}; bankruptcies ${b.bankruptcies}`, adminId); return { ok: true }; }); },
+        forgiveLoans(b.user_id, 'fresh_start'); ledger(b.user_id, 'fresh_start', coins, 0, `debt ${b.debt}; bankruptcies ${b.bankruptcies}`, adminId); return { ok: true }; }); },
     // Read-only header summary (no row insert).
     bankBrief(uid) { const b = db.prepare('SELECT debt, loans, closed FROM bank WHERE user_id=?').get(uid) || { debt: 0, loans: 0, closed: 0 };
       return { debt: b.debt, loans: b.loans, loansLeft: Math.max(0, BANK.MAX_LOANS - b.loans), state: b.closed ? 'closed_permanent' : b.loans >= BANK.MAX_LOANS ? 'closed_until_bankruptcy' : 'open' }; },
