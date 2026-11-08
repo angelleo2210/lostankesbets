@@ -354,44 +354,21 @@ t('tabla: podium stats, period filter, activity, losses+pct', () => {
   assert.ok('winPct' in lb[0]);
 });
 
-t('podio: mín. 3 liquidadas; 0 elegibles = vacío; pendientes/anuladas no cuentan', () => {
+t('podio (owner t628): sin mínimo de apuestas; jugadores con 0 apuestas pueden estar en el top 3', () => {
   const Q = open(':memory:'); Q.setupAdmin('angel', '1234');
-  assert.equal(Q.PODIUM_MIN_SETTLED, 3);
-  const a = Q.register(Q.newInvite(), 'p0', '1111');
-  const b = Q.register(Q.newInvite(), 'p1', '1111');
-  const mk = (uid, win) => { const id = Q.createLine('x', [{ label: 'A', odds: -110 }, { label: 'B', odds: -110 }]); const opts = Q.db.prepare('SELECT id FROM options WHERE line_id=? ORDER BY id').all(id); Q.placeBet(uid, opts[0].id, 10); Q.settleLine(id, win ? opts[0].id : opts[1].id); };
-  // 0 settled → empty podium; table still lists players
-  let t0 = Q.tabla('temporada');
-  assert.deepEqual(t0.podium, []);
-  assert.ok(t0.rows.some(r => r.username === 'p0'));
-  // 2 settled each: still ineligible
-  mk(a, true); mk(a, true); mk(b, false); mk(b, true);
-  t0 = Q.tabla('temporada');
-  assert.deepEqual(t0.podium.map(r => r.username), []);
-  assert.equal(t0.rows.find(r => r.username === 'p0').wins + t0.rows.find(r => r.username === 'p0').losses, 2);
-  // pending + cancelled do not count toward the 3
-  const idP = Q.createLine('pend', [{ label: 'A', odds: -110 }, { label: 'B', odds: -110 }]);
-  const opP = Q.db.prepare('SELECT id FROM options WHERE line_id=? ORDER BY id').all(idP);
-  Q.placeBet(a, opP[0].id, 10); // pending
-  const idC = Q.createLine('canc', [{ label: 'A', odds: -110 }, { label: 'B', odds: -110 }]);
-  const opC = Q.db.prepare('SELECT id FROM options WHERE line_id=? ORDER BY id').all(idC);
-  Q.placeBet(a, opC[0].id, 10); Q.cancelLine(idC); // refunded
-  t0 = Q.tabla('temporada');
-  assert.deepEqual(t0.podium, []);
-  assert.equal(t0.rows.find(r => r.username === 'p0').wins + t0.rows.find(r => r.username === 'p0').losses, 2);
-  // 3rd settled → a alone on podium (1st), 2nd/3rd empty
-  mk(a, true);
-  t0 = Q.tabla('temporada');
-  assert.deepEqual(t0.podium.map(r => r.username), ['p0']);
-  assert.equal(t0.podium.length, 1);
-  assert.equal(t0.rows.length >= 2, true);
+  assert.equal(Q.PODIUM_MIN_SETTLED, 0);
+  const a = Q.register(Q.newInvite(), 'p0', '1111'); Q.register(Q.newInvite(), 'p1', '1111');
+  const t0 = Q.tabla('temporada');
+  assert.equal(t0.podium.length, 3); assert.deepEqual(t0.podium.map(r => r.id), t0.rows.slice(0, 3).map(r => r.id));
+  assert.ok(t0.rows.every(r => Number.isFinite(r.winPct) && r.points === 3 * r.wins - r.bankPenalty));
+  assert.equal(t0.rows.find(r => r.id === a).winPct, 0);
 });
-t('podio: 2 elegibles ocupan 1º/2º; 3 elegibles respetan orden ranking', () => {
+t('podio (owner t628): top 3 = orden de tabla sin mínimo; empate de puntos → % victoria', () => {
   const Q = open(':memory:'); Q.setupAdmin('angel', '1234');
   const a = Q.register(Q.newInvite(), 'alpha', '1111');
   const b = Q.register(Q.newInvite(), 'beta', '1111');
   const c = Q.register(Q.newInvite(), 'gamma', '1111');
-  const d = Q.register(Q.newInvite(), 'delta', '1111'); // ineligible (<3)
+  const d = Q.register(Q.newInvite(), 'delta', '1111'); // 1 apuesta: ya puede entrar
   const mk = (uid, win) => { const id = Q.createLine('x', [{ label: 'A', odds: -110 }, { label: 'B', odds: -110 }]); const opts = Q.db.prepare('SELECT id FROM options WHERE line_id=? ORDER BY id').all(id); Q.placeBet(uid, opts[0].id, 10); Q.settleLine(id, win ? opts[0].id : opts[1].id); };
   // alpha: 3W, beta: 2W1L, gamma: 1W2L, delta: 1W only
   mk(a, true); mk(a, true); mk(a, true);
@@ -405,9 +382,8 @@ t('podio: 2 elegibles ocupan 1º/2º; 3 elegibles respetan orden ranking', () =>
   const o2 = Q.db.prepare('SELECT id FROM options WHERE line_id=? ORDER BY id').all(L2)[0].id;
   Q.placeParlay(a, [o1, o2], 10); Q.settleLine(L1, o1); Q.settleLine(L2, o2);
   let t = Q.tabla('temporada');
-  assert.deepEqual(t.podium.map(r => r.username), ['alpha', 'beta', 'gamma']);
-  assert.ok(t.rows.some(r => r.username === 'delta')); // still in table
-  assert.ok(!t.podium.some(r => r.username === 'delta'));
+  assert.deepEqual(t.podium.map(r => r.username), ['alpha', 'beta', 'delta']); // delta 3 pts 100% > gamma 3 pts 33%
+  assert.ok(t.rows.some(r => r.username === 'gamma'));
   // only 2 eligible if gamma drops below 3 via period hoy with no bets? instead remove gamma eligibility by checking with 2 players only after wiping? Simpler: new db with 2 eligible
   const Q2 = open(':memory:'); Q2.setupAdmin('angel', '1234');
   const x = Q2.register(Q2.newInvite(), 'uno', '1111');
@@ -416,10 +392,10 @@ t('podio: 2 elegibles ocupan 1º/2º; 3 elegibles respetan orden ranking', () =>
   const mk2 = (uid, win) => { const id = Q2.createLine('x', [{ label: 'A', odds: -110 }, { label: 'B', odds: -110 }]); const opts = Q2.db.prepare('SELECT id FROM options WHERE line_id=? ORDER BY id').all(id); Q2.placeBet(uid, opts[0].id, 10); Q2.settleLine(id, win ? opts[0].id : opts[1].id); };
   mk2(x, true); mk2(x, true); mk2(x, false); // 3
   mk2(y, true); mk2(y, false); mk2(y, false); // 3
-  mk2(z, true); mk2(z, true); // 2 ineligible
+  mk2(z, true); mk2(z, true); // 2 apuestas, 6 pts 100%
   t = Q2.tabla('temporada');
-  assert.deepEqual(t.podium.map(r => r.username), ['uno', 'dos']);
-  assert.equal(t.podium.length, 2);
+  assert.deepEqual(t.podium.map(r => r.username), ['tres', 'uno', 'dos']);
+  assert.equal(t.podium.length, 3);
   assert.ok(t.rows.some(r => r.username === 'tres'));
 });
 t('podio: filtro por periodo (hoy vs temporada)', () => {
@@ -427,12 +403,12 @@ t('podio: filtro por periodo (hoy vs temporada)', () => {
   const a = Q.register(Q.newInvite(), 'per', '1111');
   const mk = (uid, win) => { const id = Q.createLine('x', [{ label: 'A', odds: -110 }, { label: 'B', odds: -110 }]); const opts = Q.db.prepare('SELECT id FROM options WHERE line_id=? ORDER BY id').all(id); Q.placeBet(uid, opts[0].id, 10); Q.settleLine(id, win ? opts[0].id : opts[1].id); return id; };
   mk(a, true); mk(a, true); mk(a, true);
-  assert.deepEqual(Q.tabla('temporada').podium.map(r => r.username), ['per']);
-  assert.deepEqual(Q.tabla('hoy').podium.map(r => r.username), ['per']);
-  // backdate all settles so hoy has 0
+  const pr = (p) => Q.tabla(p).podium.find(r => r.username === 'per');
+  assert.equal(Q.tabla('temporada').podium[0].username, 'per'); assert.equal(pr('hoy').wins, 3);
+  // backdate all settles so hoy has 0 (sin mínimo: sigue en el podio con 0 victorias del periodo)
   Q.db.prepare('UPDATE bets SET ts=?').run(1); // ancient
-  assert.deepEqual(Q.tabla('hoy').podium, []);
-  assert.deepEqual(Q.tabla('temporada').podium.map(r => r.username), ['per']);
+  assert.equal(pr('hoy').wins, 0); assert.equal(pr('hoy').points, 0);
+  assert.equal(Q.tabla('temporada').podium[0].username, 'per'); assert.equal(pr('temporada').wins, 3);
 });
 
 
@@ -443,20 +419,20 @@ t('tabla: admin incluido en lista; 0 bets ok; admin elegible al podio', () => {
   let t = Q.tabla('temporada');
   assert.ok(t.rows.some(r => r.username === 'angel'), 'admin must appear in rows');
   assert.ok(t.rows.some(r => r.username === 'amigo'));
-  assert.deepEqual(t.podium, []);
+  assert.deepEqual(t.podium.map(r => r.username), ['amigo', 'angel']); // sin mínimo (owner t628); empate total → nombre
   const adminRow = t.rows.find(r => r.username === 'angel');
   assert.equal(adminRow.wins + adminRow.losses, 0);
-  // friend with 2 settled: in table, not podium; admin still in table
+  // friend with 2 settled: also on podium (sin mínimo); admin still in table
   const mk = (uid, win) => { const id = Q.createLine('x', [{ label: 'A', odds: -110 }, { label: 'B', odds: -110 }]); const opts = Q.db.prepare('SELECT id FROM options WHERE line_id=? ORDER BY id').all(id); Q.placeBet(uid, opts[0].id, 10); Q.settleLine(id, win ? opts[0].id : opts[1].id); };
   mk(f, true); mk(f, true);
   t = Q.tabla('temporada');
   assert.ok(t.rows.some(r => r.username === 'angel'));
   assert.ok(t.rows.some(r => r.username === 'amigo'));
-  assert.deepEqual(t.podium, []);
-  // admin reaches 3 settled → alone on podium; both still in rows
+  assert.deepEqual(t.podium.map(r => r.username), ['amigo', 'angel']); // sin mínimo (owner t628); empate total → nombre
+  // admin settles 3 → admin stays eligible (policy unchanged); both still in rows
   mk(ad, true); mk(ad, true); mk(ad, false);
   t = Q.tabla('temporada');
-  assert.deepEqual(t.podium.map(r => r.username), ['angel']);
+  assert.deepEqual(t.podium.map(r => r.username), ['amigo', 'angel']); // 6 pts c/u: amigo 100% > angel 66.7%
   assert.ok(t.rows.some(r => r.username === 'angel'));
   assert.ok(t.rows.some(r => r.username === 'amigo'));
   assert.equal(t.rows.length, 2);

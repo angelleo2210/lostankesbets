@@ -22,7 +22,7 @@ t('adjusted points order the table and podium; penalised player drops below fewe
   const { D, reg, win, lose, row } = mk(); const a = reg('alto'), b = reg('bajo');
   for (let i = 0; i < 4; i++) win(a); for (let i = 0; i < 3; i++) win(b); D.takeLoan(a, 1);
   const rows = D.leaderboard('temporada'); assert.ok(rows.findIndex(r => r.id === b) < rows.findIndex(r => r.id === a)); assert.equal(row(a).points, 5); assert.equal(row(b).points, 9);
-  const tb = D.tabla('temporada'); assert.deepEqual(tb.podium.map(r => r.id), tb.rows.filter(r => r.wins + r.losses >= 3).slice(0, 3).map(r => r.id)); assert.equal(tb.podium[0].id, b);
+  const tb = D.tabla('temporada'); assert.deepEqual(tb.podium.map(r => r.id), tb.rows.slice(0, 3).map(r => r.id)); assert.equal(tb.podium[0].id, b);
   assert.equal(D.ranks().get(b), 1);
 });
 t('loans at any balance, 1..100000 whole coins, 5 max then closed until bankruptcy; never netted against debt', () => {

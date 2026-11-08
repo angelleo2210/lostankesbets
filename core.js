@@ -4,7 +4,7 @@ const Markets = require('./public/markets');
 const Sgp = require('./public/sgp');
 const AV = require('./public/avatar'); const ST = require('./public/store');
 const START_COINS = 50000; const BONUS = 5000, BONUS_MS = 24 * 3600 * 1000; const MAX_TOPUP = 10000000;
-const PODIUM_MIN_SETTLED = 3; // mín. apuestas liquidadas (won+lost) para el podio top 3
+const PODIUM_MIN_SETTLED = 0; // owner t628: sin mínimo de apuestas para el top 3
 
 function profit(stake, odds) {
   odds = Number(odds);
@@ -595,14 +595,14 @@ function open(file = 'data.db') {
       ) ORDER BY o DESC, title LIMIT ?`).all(Math.min(20, Math.max(1, Number(limit) || 8)));
       return rows.map(r => ({ username: r.username, display_name: r.display_name, avatarCfg: AV.norm(r.avatar_cfg), status: r.status, stake: r.stake, payout: r.payout, title: r.title, kind: r.kind, ts: r.o }));
     },
-    // Podio top 3: solo jugadores con ≥ PODIUM_MIN_SETTLED apuestas liquidadas (won+lost; parlay=1) en el periodo.
+    // Podio top 3 (owner t628): los 3 primeros de la tabla, sin mínimo de apuestas (puntos → % victoria → dinero).
     // La tabla lista a TODOS (incl. admin); el podio solo a elegibles (0–3 huecos), admin incluido si califica.
     tabla(period = 'temporada') {
       const rows = api.leaderboard(period).map(({ is_admin, ...u }) => u);
-      const podium = rows.filter(u => (u.wins + u.losses) >= PODIUM_MIN_SETTLED).slice(0, 3);
+      const podium = rows.slice(0, 3);
       return { period: ['hoy', 'semana', 'temporada'].includes(period) ? period : 'temporada', rows, podium, activity: api.activity(8) };
     },
-    ranks() { const m = new Map(); db.prepare("SELECT id, username, coins, (SELECT COUNT(*) FROM bets b WHERE b.user_id=users.id AND b.status='won') + (SELECT COUNT(*) FROM parlays p WHERE p.user_id=users.id AND p.status='won') wins, (SELECT COUNT(*) FROM bets b WHERE b.user_id=users.id AND b.status='lost') + (SELECT COUNT(*) FROM parlays p WHERE p.user_id=users.id AND p.status='lost') losses FROM users WHERE is_admin=0 AND wins>0").all()
+    ranks() { const m = new Map(); db.prepare("SELECT id, username, coins, (SELECT COUNT(*) FROM bets b WHERE b.user_id=users.id AND b.status='won') + (SELECT COUNT(*) FROM parlays p WHERE p.user_id=users.id AND p.status='won') wins, (SELECT COUNT(*) FROM bets b WHERE b.user_id=users.id AND b.status='lost') + (SELECT COUNT(*) FROM parlays p WHERE p.user_id=users.id AND p.status='lost') losses FROM users WHERE is_admin=0").all()
       .map(u => ({ ...u, points: 3 * u.wins - bankPenalty(u.id), winPct: winPct(u.wins, u.losses) })).sort(rankCmp).slice(0, 3).forEach((u, i) => m.set(u.id, i + 1)); return m; },
     refreshRanks() { const m = api.ranks(); const ins = db.prepare('INSERT OR IGNORE INTO unlocks(user_id,item_id,rank) VALUES(?,?,?)');
       for (const [uid, rank] of m) for (const it of REWARDS) if (rank <= it.minRank) ins.run(uid, it.id, rank); return m; },

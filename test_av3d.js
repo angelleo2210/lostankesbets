@@ -63,7 +63,7 @@ t('tabla: podium + feed + filtros + fila propia + glow 1º', () => {
   assert.ok(block.includes('tb-row') && block.includes('winPct') && block.includes('streakEmoji') && block.includes('tb-you'));
   assert.ok(block.includes("/tabla?period="));
   assert.ok(block.includes('d.podium') || block.includes('podium'));
-  assert.ok(block.includes('mín. 3') || block.includes('min. 3') || block.includes('3 apuestas liquidadas'));
+  assert.ok(!block.includes('mín. 3') && !block.includes('3 apuestas liquidadas') && block.includes('Podio: los 3 con más puntos'));
   assert.ok(src.includes('auraClass') && src.includes('auraWrap') && block.includes('tablaAvatar('));
   assert.ok(src.includes('FRAME_SRC') && src.includes('frame-fire.webp') && src.includes('frame-fire-hi.webp') && src.includes('frame-ice.webp') && src.includes('frame-ice-hi.webp'));
   assert.ok(src.includes('tb-frame') && !src.includes('ap-flake') && !src.includes('rectPts'));

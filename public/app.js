@@ -127,7 +127,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
     const d = await api('/tabla?period=' + encodeURIComponent(tablaPeriod));
     const rows = d.rows || [];
     const meId = d.me;
-    const top = Array.isArray(d.podium) ? d.podium : rows.filter(u => (u.wins + u.losses) >= 3).slice(0, 3);
+    const top = Array.isArray(d.podium) ? d.podium : rows.slice(0, 3);
     const feed = (d.activity || []).slice(0, 6).map(a => {
       const nm = a.display_name || a.username;
       const verb = a.status === 'won' ? (a.kind === 'parlay' ? 'ganó un parlay' : 'ganó') : (a.kind === 'parlay' ? 'perdió un parlay' : 'perdió');
@@ -175,7 +175,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
       </div>
       <div class="chips depts tb-filters">${periods.map(([k, lab]) => `<button class="chip ${tablaPeriod === k ? 'on' : 'alt'}" data-tp="${k}">${lab}</button>`).join('')}</div>
       <div class="tb-list card">${rowHtml || '<div class="small">Nadie en el ranking aún.</div>'}</div>
-      <div class="small">Orden por puntos: +3 por victoria, 0 por derrota, −7 por préstamo, −20 con bancarrota activa (1 mes). Podio: mín. 3 apuestas liquidadas en el periodo. Stats liquidadas (parlay = 1). Racha: 🔥 3 · 🔥🔥 5+ · 🧊 2 · 🧊🧊 3+.</div>
+      <div class="small">Orden por puntos: +3 por victoria, 0 por derrota, −7 por préstamo, −20 con bancarrota activa (1 mes). Podio: los 3 con más puntos (empate: mejor % de victoria, luego más dinero). Stats liquidadas (parlay = 1). Racha: 🔥 3 · 🔥🔥 5+ · 🧊 2 · 🧊🧊 3+.</div>
     </div>`;
     B.querySelectorAll('[data-tp]').forEach(b => b.onclick = () => { tablaPeriod = b.dataset.tp; render(); });
   }
