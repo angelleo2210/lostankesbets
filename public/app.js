@@ -208,9 +208,10 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
 // Mis apuestas: singles + parlays merged; pending (open) first, then the rest; each group newest first (ts, else created). Ties: higher id, parlay before single.
 function betTime(x) { return Number.isFinite(Number(x.ts)) && x.ts != null ? Number(x.ts) : (Date.parse(String(x.created || '').replace(' ', 'T') + 'Z') || 0) * 1000; }
 function newestFirst(parlays, bets) { return [...(parlays || []).map(v => ({ type: 'p', v })), ...(bets || []).map(v => ({ type: 'b', v }))].sort((a, b) => (b.v.status === 'open') - (a.v.status === 'open') || betTime(b.v) - betTime(a.v) || b.v.id - a.v.id || (a.type === 'p' ? -1 : 1)); }
-// Display-only: visitante first, local second. Canonical home/away data is never changed.
-function vsTitle(t, home, away) { t = String(t || ''); return home && away ? t.split(`${home} vs ${away}`).join(`${away} vs ${home}`) : t; }
-function displayTeams(home, away) { return [away, home]; }
+// Display-only (owner, nov 8): local arriba/primero, visitante abajo. Canonical home/away data is never changed.
+// Titles with both known roles read "local vs visitante"; titles without roles (free-form/legacy) are untouched.
+function vsTitle(t, home, away) { t = String(t || ''); return home && away ? t.split(`${away} vs ${home}`).join(`${home} vs ${away}`) : t; }
+function displayTeams(home, away) { return [home, away]; }
 // Group independently settled market lines into one event card; legacy custom lines stay unchanged.
 function marketCards(ls) {
   const groups = new Map();
@@ -318,18 +319,18 @@ async function adminView(B) {
   B.innerHTML = bankCard + `<div class="card"><h2>Nueva línea ficticia</h2><input id="t" placeholder="Ej: Hoy Ángel come espaguetis">
   <div id="opts"></div><button class="alt" id="add">+ Opción</button><button id="create">Crear línea</button></div>
   <div class="card"><h2>Nuevo evento con mercados</h2><p class="small">Opciones independientes; no se generan cuotas. Solo umbrales enteros o medios (sin líneas asiáticas divididas). Liquidación manual por mercado.</p>
-    <input id="et" placeholder="Título del evento"><input id="ea" placeholder="Equipo visitante (arriba)"><input id="eh" placeholder="Equipo local (abajo)">
-    <select id="esport"><option value="">Deporte sin especificar</option><option value="soccer">Fútbol</option><option value="hockey">Hockey</option><option value="baseball">Béisbol</option><option value="other">Otro</option></select><select id="eu"><option value="">Unidad sin especificar</option value="goles">Goles</option><option value="puntos">Puntos</option><option value="carreras">Carreras</option></select>
-    <label><input type="checkbox" id="emh"> Ganador</label><div class="row"><input id="eao" placeholder="Cuota visitante"><input id="eho" placeholder="Cuota local"><input id="edo" placeholder="Cuota empate (opcional)"></div>
-    <label><input type="checkbox" id="ems"> Hándicap</label><div class="row"><input id="esao" placeholder="Cuota visitante"><input id="esp" placeholder="Umbral local (ej. -0.5)"><input id="eso" placeholder="Cuota local"></div><p class="small">Visitante: umbral opuesto al local.</p>
+    <input id="et" placeholder="Título del evento"><input id="eh" placeholder="Equipo local (arriba)"><input id="ea" placeholder="Equipo visitante (abajo)">
+    <select id="esport"><option value="">Deporte sin especificar</option><option value="soccer">Fútbol</option><option value="hockey">Hockey</option><option value="baseball">Béisbol</option><option value="other">Otro</option></select><select id="eu"><option value="">Unidad sin especificar</option><option value="goles">Goles</option><option value="puntos">Puntos</option><option value="carreras">Carreras</option></select>
+    <label><input type="checkbox" id="emh"> Ganador</label><div class="row"><input id="eho" placeholder="Cuota local"><input id="eao" placeholder="Cuota visitante"><input id="edo" placeholder="Cuota empate (opcional)"></div>
+    <label><input type="checkbox" id="ems"> Hándicap</label><div class="row"><input id="eso" placeholder="Cuota local"><input id="esp" placeholder="Umbral local (ej. -0.5)"><input id="esao" placeholder="Cuota visitante"></div><p class="small">Visitante: umbral opuesto al local.</p>
     <label><input type="checkbox" id="emt"> Total</label><div class="row"><input id="etp" placeholder="Umbral total"><input id="eto" placeholder="Cuota Over"><input id="etuo" placeholder="Cuota Under"></div><button id="eventCreate">Crear evento</button></div>
   <div class="card"><h2>Agregar mercados a un evento existente</h2><p class="small">Para partidos antiguos solo Ganador: selecciona el partido y escribe las cuotas y el umbral que quieres ofrecer. No se inventan ni se cambian las apuestas existentes.</p>
   <select id="existingEvent">${ls.filter(l => l.status === 'open').map(l => `<option value="${l.id}">#${l.id} · ${esc(vsTitle(l.title, l.home, l.away))}</option>`).join('')}</select>
-  <input id="existingAway" placeholder="Equipo visitante (nombre exacto, arriba)"><input id="existingHome" placeholder="Equipo local (nombre exacto, abajo)">
+  <input id="existingHome" placeholder="Equipo local (nombre exacto, arriba)"><input id="existingAway" placeholder="Equipo visitante (nombre exacto, abajo)">
   <select id="existingUnit"><option value="">Unidad sin especificar</option><option value="goles">Goles</option><option value="puntos">Puntos</option><option value="carreras">Carreras</option></select>
   <select id="existingMarket"><option value="spreads">Hándicap</option><option value="totals">Total (Over / Under)</option></select>
   <div id="existingInputs" style="display:flex;flex-direction:column"><input id="existingPoint" placeholder="Umbral local de hándicap" type="number" step="0.5" style="order:2">
-  <input id="existingOddsA" placeholder="Cuota americana local" type="number" style="order:3"><input id="existingOddsB" placeholder="Cuota americana visitante" type="number" style="order:1"></div>
+  <input id="existingOddsA" placeholder="Cuota americana local" type="number" style="order:1"><input id="existingOddsB" placeholder="Cuota americana visitante" type="number" style="order:3"></div>
   <p class="small">Hándicap: el visitante recibe el umbral opuesto. Total: Over y Under usan el mismo umbral. Una cuota propia para cada opción.</p><button id="existingAdd">Agregar mercado al partido</button></div>
   <div class="card"><h2>Liquidar / cerrar</h2>${ls.map(l => `<div class="card"><b>${esc(vsTitle(l.title, l.home, l.away))}${l.market ? " · " + Markets.NAMES[l.market] : ""}</b> <span class="small">(${l.status === 'open' ? 'abierta' : 'cerrada'})</span>
    ${l.status === 'open' ? `<button class="alt" data-close="${l.id}">Cerrar apuestas</button>` : ''}
@@ -351,9 +352,9 @@ async function adminView(B) {
   };
   if (marketTarget && ls.some(l => l.id === marketTarget)) $('#existingEvent').value = String(marketTarget);
   $('#existingEvent').onchange = fillExistingTeams; fillExistingTeams();
-  // Display order only: Hándicap = visitante cuota, umbral local, cuota local; Total = umbral, Over, Under. Payload mapping unchanged (A=local/Over, B=visitante/Under).
+  // Display order only: Hándicap = cuota local, umbral local, cuota visitante; Total = umbral, Over, Under. Payload mapping unchanged (A=local/Over, B=visitante/Under).
   const layoutExisting = () => { const sp = $('#existingMarket').value === 'spreads', P = $('#existingPoint'), A = $('#existingOddsA'), Bx = $('#existingOddsB');
-    P.style.order = sp ? 2 : 1; A.style.order = sp ? 3 : 2; Bx.style.order = sp ? 1 : 3;
+    P.style.order = sp ? 2 : 1; A.style.order = sp ? 1 : 2; Bx.style.order = 3;
     P.placeholder = sp ? 'Umbral local de hándicap' : 'Umbral de total'; A.placeholder = sp ? 'Cuota americana local' : 'Cuota americana Over'; Bx.placeholder = sp ? 'Cuota americana visitante' : 'Cuota americana Under'; };
   $('#existingMarket').onchange = () => { for (const id of ['existingPoint','existingOddsA','existingOddsB']) $('#' + id).value = ''; layoutExisting(); }; layoutExisting();
   act('#existingAdd', () => {

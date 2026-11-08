@@ -8,6 +8,9 @@ app.use(express.json());
 const fs = require('node:fs'), crypto = require('node:crypto');
 const INDEX = fs.readFileSync(__dirname + '/public/index.html', 'utf8').replace(/src="([\w.-]+\.js)"/g, (m, f) => { try { return `src="${f}?v=${crypto.createHash('sha256').update(fs.readFileSync(__dirname + '/public/' + f)).digest('hex').slice(0, 12)}"`; } catch { return m; } });
 app.get(['/', '/index.html'], (req, res) => { res.set('Cache-Control', 'no-cache'); res.type('html').send(INDEX); });
+// PWA: sw.js (offline page only) always revalidated, root scope.
+app.get('/sw.js', (req, res) => { res.set({ 'Cache-Control': 'no-cache', 'Service-Worker-Allowed': '/' }); res.type('application/javascript').sendFile(__dirname + '/public/sw.js'); });
+app.get('/manifest.webmanifest', (req, res) => { res.set('Cache-Control', 'no-cache'); res.type('application/manifest+json').sendFile(__dirname + '/public/manifest.webmanifest'); });
 app.use(express.static(__dirname + '/public'));
 const h = fn => async (req, res) => { try { res.json((await fn(req, res)) ?? { ok: true }); } catch (e) { res.status(e.user ? 400 : 500).json({ error: e.user ? e.message : 'Error del servidor' }); if (!e.user) console.error(e); } };
 const auth = (req) => { const u = C.userByToken(req.get('x-token')); if (!u) { const e = new Error('Inicia sesión'); e.user = true; throw e; } return u; };
