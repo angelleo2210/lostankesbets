@@ -117,12 +117,13 @@ t('avatar estático 1..12', () => {
   // configs viejas se normalizan a pick 1
   const q2 = Q.register(Q.newInvite(), 'old', '1111', { body: 'atletico', wear: { arriba: { id: 'top_hoodie', color: 'rojo' } } });
   assert.deepEqual(Q.leaderboard().find(r => r.username === 'old').avatarCfg, { pick: 1 });
-  for (const bad of [{ pick: 0 }, { pick: 13 }, { pick: 'x' }, [1]]) assert.throws(() => Q.setProfile(q, '', '', null, undefined, bad), /Avatar|Elige/);
+  for (const bad of [{ pick: 0 }, { pick: 14 }, { pick: 'x' }, [1]]) assert.throws(() => Q.setProfile(q, '', '', null, undefined, bad), /Avatar|Elige/);
+  Q.setProfile(q, '', '', null, undefined, { pick: 13 }); assert.equal(Q.leaderboard().find(r => r.username === 'cfg').avatarCfg.pick, 13);
   Q.setProfile(q, '🦁', 'Leo', { style: 'bigote' }, undefined, { pick: 4 }); const me = Q.leaderboard().find(r => r.username === 'cfg');
   assert.deepEqual(me.avatarCfg, { pick: 4 }); assert.equal(me.avatar, '🦁'); assert.equal(me.facialHair.style, 'bigote');
   const html = AV.render(me.avatarCfg); assert.ok(html.includes('img/avatars/4.webp') && !/<script|undefined/.test(html));
   assert.ok(AV.render(AV.DEFAULT, { head: true }).includes('img/avatars/1_head.webp'));
-  assert.deepEqual(AV.PICKS, [1,2,3,4,5,6,7,8,9,10,11,12]);
+  assert.deepEqual(AV.PICKS, [1,2,3,4,5,6,7,8,9,10,11,12,13]);
   for (const n of AV.PICKS) {
     assert.ok(fs.existsSync(__dirname + '/public/img/avatars/' + n + '.webp'), n);
     assert.ok(fs.existsSync(__dirname + '/public/img/avatars/' + n + '_head.webp'), n + '_head');

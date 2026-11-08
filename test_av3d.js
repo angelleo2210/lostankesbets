@@ -1,4 +1,4 @@
-// Avatares estáticos 1..12 (sin capas 3D)
+// Avatares estáticos 1..13 (sin capas 3D)
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
@@ -6,7 +6,7 @@ const Av = require('./public/avatar');
 const St = require('./public/store');
 let n = 0; const t = (name, fn) => { try { fn(); n++; console.log('ok', name); } catch (e) { console.error('FAIL', name, e); process.exitCode = 1; } };
 
-t('PICKS 1..12 y DEFAULT', () => { assert.deepEqual(Av.PICKS, [1,2,3,4,5,6,7,8,9,10,11,12]); assert.deepEqual(Av.DEFAULT, { pick: 1 }); assert.deepEqual(Av.LAYERS, {}); });
+t('PICKS 1..13 y DEFAULT', () => { assert.deepEqual(Av.PICKS, [1,2,3,4,5,6,7,8,9,10,11,12,13]); assert.deepEqual(Av.DEFAULT, { pick: 1 }); assert.deepEqual(Av.LAYERS, {}); });
 t('norm y validate', () => {
   assert.deepEqual(Av.norm(null), { pick: 1 });
   assert.deepEqual(Av.norm({ pick: 5 }), { pick: 5 });
@@ -117,3 +117,32 @@ t('retos: solo RPS en menú; personajes suministrados; sin tiles pen/bb/tc nuevo
 });
 
 console.log(n + ' tests avatares estáticos');
+
+t('avatar 13: válido, 14 rechazado, archivos RGBA transparentes, 1..12 intactos', () => {
+  assert.deepEqual(Av.validate({ pick: 13 }).cfg, { pick: 13 });
+  assert.match(Av.validate({ pick: 14 }).error, /del 1 al 13/);
+  assert.ok(Av.validate({ pick: 0 }).error);
+  assert.equal(Av.norm({ pick: 13 }).pick, 13);
+  assert.match(Av.render({ pick: 13 }), /avatars\/13\.webp/);
+  assert.match(Av.render({ pick: 13 }, { head: true }), /13_head\.webp/);
+  assert.equal(Av.streakSrc(13, { kind: 'fuego', n: 3, intense: false }), 'img/avatars/13_w3.webp');
+  assert.equal(Av.streakSrc(13, { kind: 'fuego', n: 5, intense: true }), 'img/avatars/13_w5.webp');
+  assert.equal(Av.streakSrc(13, { kind: 'hielo', n: 2, intense: false }), 'img/avatars/13_l2.webp');
+  assert.equal(Av.streakSrc(13, { kind: 'hielo', n: 3, intense: true }), 'img/avatars/13_l3.webp');
+  const dir = path.join(__dirname, 'public/img/avatars');
+  const dims = b => { // VP8X: canvas w/h + alpha flag
+    assert.equal(b.toString('ascii', 0, 4), 'RIFF'); assert.equal(b.toString('ascii', 12, 16), 'VP8X');
+    assert.ok(b[20] & 0x10, 'alpha flag');
+    return [1 + b.readUIntLE(24, 3), 1 + b.readUIntLE(27, 3)];
+  };
+  assert.deepEqual(dims(fs.readFileSync(path.join(dir, '13.webp'))), [480, 640]);
+  assert.deepEqual(dims(fs.readFileSync(path.join(dir, '13_head.webp'))), [256, 256]);
+  for (const k of ['w3', 'w5', 'l2', 'l3']) assert.deepEqual(dims(fs.readFileSync(path.join(dir, `13_${k}.webp`))), [480, 640]);
+  const crypto = require('crypto');
+  const ref = fs.existsSync(path.join(__dirname, 'avatars_1_12.sha')) ? fs.readFileSync(path.join(__dirname, 'avatars_1_12.sha'), 'utf8') : '';
+  for (const line of ref.trim().split('\n').filter(Boolean)) {
+    const [h, f] = line.split(/\s+/);
+    assert.equal(crypto.createHash('sha256').update(fs.readFileSync(path.join(__dirname, f))).digest('hex'), h, f);
+  }
+  assert.ok(ref.split('\n').filter(Boolean).length >= 72);
+});
