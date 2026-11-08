@@ -33,24 +33,13 @@ t('loans at any balance, 1..100000 whole coins, 5 max then closed until bankrupt
   assert.equal(coins(u), c0 + 500000); assert.equal(debt(u), 500000);
   assert.equal(D.db.prepare("SELECT COUNT(*) c FROM bank_ledger WHERE user_id=? AND kind='loan'").get(u).c, 5);
 });
-t('repayment: 50% of net profit, floored, capped at debt; stake kept; refunds and bonus untouched', () => {
-  const { D, reg, coins, debt, win, line, opts } = mk(); const u = reg('caro');
-  D.takeLoan(u, 1000); let c = coins(u); win(u, 100, 100); assert.equal(debt(u), 950); assert.equal(coins(u), c - 100 + 150); // profit 100 -> 50
-  c = coins(u); win(u, 100, 200); assert.equal(debt(u), 850); assert.equal(coins(u), c - 100 + 200); // stake100 payout300 -> 100 collected, 200 credited
-  c = coins(u); win(u, 10, 110); assert.equal(debt(u), 845); assert.equal(coins(u), c - 10 + 16); // profit 11 -> floor(5.5)=5 collected, 6 kept
-  D.db.prepare('UPDATE bank SET debt=20 WHERE user_id=?').run(u); c = coins(u); win(u, 100, 100); assert.equal(debt(u), 0); assert.equal(coins(u), c - 100 + 180);
-  D.takeLoan(u, 500); const l = line(); D.placeBet(u, opts(l)[0].id, 100); c = coins(u); D.cancelLine(l); assert.equal(coins(u), c + 100); assert.equal(debt(u), 500);
-  c = coins(u); D.claimBonus(u); assert.equal(coins(u) - c, require('./core').BONUS); assert.equal(debt(u), 500);
-  const v = reg('sindeuda'); c = coins(v); win(v, 100, 100); assert.equal(coins(v), c + 100);
-});
-t('parlay and challenge wins collect once; all-void parlay untouched', () => {
-  const { D, reg, coins, debt, line, opts } = mk(); const u = reg('dani'), o = reg('otro'); D.takeLoan(u, 10000);
-  const a = line(100), b = line(100); D.placeParlay(u, [opts(a)[0].id, opts(b)[0].id], 100); let c = coins(u);
-  D.settleLine(a, opts(a)[0].id); D.settleLine(b, opts(b)[0].id); assert.equal(debt(u), 10000 - 150); assert.equal(coins(u), c + 400 - 150);
-  D.settleLine; assert.equal(D.db.prepare("SELECT COUNT(*) c FROM bank_ledger WHERE kind='repay'").get().c, 1);
-  const x = line(), y = line(); D.placeParlay(u, [opts(x)[0].id, opts(y)[0].id], 100); c = coins(u); const d0 = debt(u); D.cancelLine(x); D.cancelLine(y); assert.equal(coins(u), c + 100); assert.equal(debt(u), d0);
-  const g = D.rpsChallenge(u, o, 1000).id; D.rpsRespond(o, g, true); D.rpsPick(u, g, 'piedra'); c = coins(u); const d1 = debt(u); D.rpsPick(o, g, 'tijera');
-  assert.equal(debt(u), d1 - 500); assert.equal(coins(u), c + 2000 - 500);
+t('no automatic collection: winners get full payout (single, parlay, challenge); debt unchanged', () => {
+  const { D, reg, coins, debt, win, line, opts } = mk(); const u = reg('caro'), o = reg('otro');
+  D.takeLoan(u, 1000); let c = coins(u); win(u, 100, 100); assert.equal(debt(u), 1000); assert.equal(coins(u), c + 100);
+  const a = line(100), b = line(100); D.placeParlay(u, [opts(a)[0].id, opts(b)[0].id], 100); c = coins(u);
+  D.settleLine(a, opts(a)[0].id); D.settleLine(b, opts(b)[0].id); assert.equal(debt(u), 1000); assert.equal(coins(u), c + 400);
+  const g = D.rpsChallenge(u, o, 1000).id; D.rpsRespond(o, g, true); D.rpsPick(u, g, 'piedra'); c = coins(u); D.rpsPick(o, g, 'tijera'); assert.equal(debt(u), 1000); assert.equal(coins(u), c + 2000);
+  assert.equal(D.db.prepare("SELECT COUNT(*) c FROM bank_ledger WHERE kind LIKE 'repay%'").get().c, 0);
 });
 t('bankruptcy: wipes debt/loans/penalty only; pending bets, balance, history kept; calendar-month NY mark never shortened', () => {
   const { D, reg, coins, line, opts, win } = mk(); const u = reg('eva'); win(u); D.takeLoan(u, 5000);

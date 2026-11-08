@@ -52,6 +52,7 @@ app.post('/api/rps/pick', h(r => C.rpsPick(auth(r).id, r.body.id, r.body.pick)))
 app.get('/api/bonus', h(r => C.bonusStatus(auth(r).id)));
 app.get('/api/bank', h(r => C.bankStatus(auth(r).id)));
 app.post('/api/bank/loan', h(r => C.takeLoan(auth(r).id, r.body.amount)));
+app.post('/api/bank/pay', h(r => C.payDebtFull(auth(r).id, r.body.expectedDebt)));
 app.post('/api/bank/bankruptcy', h(r => C.declareBankruptcy(auth(r).id)));
 app.get('/api/admin/bank', h(r => { admin(r); return C.bankClosedUsers(); }));
 app.post('/api/admin/bank/reset', h(r => C.adminFreshStart(admin(r).id, r.body.userId, r.body.confirm)));

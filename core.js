@@ -151,13 +151,9 @@ function open(file = 'data.db') {
   const sportOf = e => { const k = String(e.sport_key || ''); if (/^soccer_/.test(k)) return 'soccer'; if (/^icehockey_/.test(k)) return 'hockey'; if (/^baseball_/.test(k)) return 'baseball'; return SPORTS.includes(e.sport) ? e.sport : null; };
   const bankRow = uid => { db.prepare('INSERT OR IGNORE INTO bank(user_id) VALUES(?)').run(uid); return db.prepare('SELECT * FROM bank WHERE user_id=?').get(uid); };
   const ledger = (uid, kind, amount, debtAfter, ref, adminId = null) => Number(db.prepare('INSERT INTO bank_ledger(user_id,kind,amount,debt_after,ref,admin_id,ts) VALUES(?,?,?,?,?,?,?)').run(uid, kind, amount, debtAfter, ref, adminId, Date.now()).lastInsertRowid);
-  // Winning credit (bets, parlays, challenges): 50% of net profit (payout - stake, floored to whole coins) repays debt, capped at the debt.
-  // Stake and the other half go to the player; refunds/voids/ties/bonus/top-ups never collected.
-  const winCredit = (uid, payout, stake, ref) => {
-    const b = db.prepare('SELECT debt FROM bank WHERE user_id=?').get(uid); const take = b && b.debt > 0 ? Math.min(b.debt, Math.floor(Math.max(0, payout - stake) / 2)) : 0;
-    db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(payout - take, uid);
-    if (take) { db.prepare('UPDATE bank SET debt=debt-? WHERE user_id=?').run(take, uid); ledger(uid, 'repay', take, b.debt - take, ref); applyRepay(uid, take, ref); }
-  };
+  // Winning credit (bets, parlays, challenges): full payout to the player. No automatic bank collection
+  // (owner: repayment is manual only). Historic 'repay' ledger rows from the old automatic 50% stay as they were.
+  const winCredit = (uid, payout) => { db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(payout, uid); };
   // FIFO: a repayment pays the oldest open loan first. A loan paid in full gives back its 7 points exactly once.
   const applyRepay = (uid, amount, ref) => { let left = amount;
     const bk = db.prepare('SELECT legacy_debt, legacy_penalty FROM bank WHERE user_id=?').get(uid);
@@ -211,7 +207,7 @@ function open(file = 'data.db') {
   const bankApi = {
     bankStatus(uid, t = Date.now()) { const b = bankRow(uid), coins = db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins;
       const state = b.closed ? 'closed_permanent' : b.loans >= BANK.MAX_LOANS ? 'closed_until_bankruptcy' : 'open';
-      return { coins, debt: b.debt, loans: b.loans, loansLeft: Math.max(0, BANK.MAX_LOANS - b.loans), bankruptcies: b.bankruptcies, bankruptciesLeft: Math.max(0, BANK.MAX_BANKRUPTCIES - b.bankruptcies), markUntil: b.mark_until && b.mark_until > t ? b.mark_until : null, penalty: bankPenalty(uid, t), state, canLoan: state === 'open', canBankrupt: !b.closed && (b.debt > 0 || b.loans > 0), maxLoan: BANK.MAX_LOAN, adminResetsLeft: Math.max(0, BANK.MAX_ADMIN_RESETS - b.admin_resets), loanPenalty: BANK.LOAN_PENALTY, markPenalty: BANK.MARK_PENALTY,
+      return { coins, debt: b.debt, loans: b.loans, loansLeft: Math.max(0, BANK.MAX_LOANS - b.loans), bankruptcies: b.bankruptcies, bankruptciesLeft: Math.max(0, BANK.MAX_BANKRUPTCIES - b.bankruptcies), markUntil: b.mark_until && b.mark_until > t ? b.mark_until : null, penalty: bankPenalty(uid, t), state, canLoan: state === 'open', canPayFull: b.debt > 0 && coins >= b.debt, canBankrupt: !b.closed && (b.debt > 0 || b.loans > 0), maxLoan: BANK.MAX_LOAN, adminResetsLeft: Math.max(0, BANK.MAX_ADMIN_RESETS - b.admin_resets), loanPenalty: BANK.LOAN_PENALTY, markPenalty: BANK.MARK_PENALTY,
         ledger: db.prepare('SELECT kind,amount,debt_after,ref,ts FROM bank_ledger WHERE user_id=? ORDER BY id DESC LIMIT 30').all(uid) }; },
     takeLoan(uid, amount) { amount = Number(amount);
       if (!Number.isInteger(amount) || amount < 1 || amount > BANK.MAX_LOAN) err('El préstamo debe ser un número entero entre 1 y 100.000');
@@ -221,6 +217,15 @@ function open(file = 'data.db') {
         db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(amount, uid);
         db.prepare('UPDATE bank SET debt=debt+?, loans=loans+1, loan_penalty=loan_penalty+? WHERE user_id=?').run(amount, BANK.LOAN_PENALTY, uid);
         const lid = ledger(uid, 'loan', amount, b.debt + amount, null); db.prepare('INSERT INTO bank_loans(user_id,amount,remaining,ledger_id,ts) VALUES(?,?,?,?,?)').run(uid, amount, amount, lid, Date.now()); return bankApi.bankStatus(uid); }); },
+    // Manual full repayment. Amount = server-side current debt; optional expectedDebt guards stale screens. Atomic: no double debit.
+    payDebtFull(uid, expectedDebt) {
+      return tx(() => { const b = db.prepare('SELECT * FROM bank WHERE user_id=?').get(uid);
+        if (!b || b.debt <= 0) err('No tienes deuda pendiente');
+        if (expectedDebt != null && Number(expectedDebt) !== b.debt) err('Tu deuda cambió. Revisa el monto actualizado e inténtalo de nuevo.');
+        const amount = b.debt, r = db.prepare('UPDATE users SET coins=coins-? WHERE id=? AND coins>=?').run(amount, uid, amount);
+        if (!r.changes) err('No tienes saldo suficiente para pagar toda la deuda');
+        db.prepare('UPDATE bank SET debt=0 WHERE user_id=? AND debt=?').run(uid, amount);
+        ledger(uid, 'repay_manual', amount, 0, 'pago completo'); applyRepay(uid, amount, 'pago completo'); return bankApi.bankStatus(uid); }); },
     declareBankruptcy(uid, t = Date.now()) {
       return tx(() => { const b = bankRow(uid);
         if (b.closed) err('El banco está cerrado permanentemente; ya no puedes declarar bancarrota.');
