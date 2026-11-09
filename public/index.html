@@ -102,9 +102,11 @@ button.odds.on{background:#38bdf855;border-color:#7dd3fc;color:#e0f2fe;box-shado
 
 
 .hrb{margin:12px 0;border-radius:16px;overflow:hidden;box-shadow:0 8px 24px #0007;border:1px solid #0000}
-.hrb-banner{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:repeating-linear-gradient(-12deg,transparent,transparent 18px,rgba(255,255,255,.04) 18px,rgba(255,255,255,.04) 36px)}
-.hrb-brand{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;opacity:.9}
-.hrb-win{font-size:18px;font-weight:900;letter-spacing:.04em}
+.hrb-banner{display:flex;align-items:flex-start;justify-content:space-between;padding:10px 14px;background:repeating-linear-gradient(-12deg,transparent,transparent 18px,rgba(255,255,255,.04) 18px,rgba(255,255,255,.04) 36px)}
+.hrb-brand-block{display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;max-width:72px}
+.hrb-crest{display:block;width:56px;height:auto;object-fit:contain;filter:drop-shadow(0 1px 2px #0006)}
+.hrb-brand{font-size:8px;font-weight:700;letter-spacing:.02em;text-transform:none;opacity:.85;line-height:1;text-align:center}
+.hrb-win{font-size:18px;font-weight:900;letter-spacing:.04em;align-self:flex-start;padding-top:2px}
 .hrb-body{padding:14px}
 .hrb-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
 .hrb-left{display:flex;align-items:center;gap:8px;min-width:0}
@@ -123,11 +125,8 @@ button.odds.on{background:#38bdf855;border-color:#7dd3fc;color:#e0f2fe;box-shado
 .hrb-details summary::after{content:' ▾';opacity:.7}
 .hrb-legs{display:flex;flex-direction:column;gap:6px;margin-top:8px}
 .hrb-leg{display:grid;grid-template-columns:18px 1fr;gap:6px;font-size:12px;opacity:.95}
-.hrb.bet-won{background:#5fcd84;color:#fff;border-color:#4ea96c}.hrb.bet-won .hrb-banner{background-color:#4ea96c;background-image:none}
-.hrb.bet-won .hrb-tag{color:#4ea96c}
-.hrb-logo-badge{width:42px;height:42px;border-radius:50%;background:#fff;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;box-shadow:0 1px 3px #0003}
-.hrb-logo-badge img{width:92%;height:92%;object-fit:contain;display:block;border-radius:50%}
-.hrb.bet-won .hrb-brand{display:none}
+.hrb.bet-won{background:#3acd6b;color:#fff;border-color:#25944b}.hrb.bet-won .hrb-banner{background-color:#25944b;background-image:none}
+.hrb.bet-won .hrb-tag{color:#25944b}
 .hrb.bet-lost{background:#b91c1c;color:#fff}.hrb.bet-lost .hrb-banner{background-color:#991b1b}
 .hrb.bet-lost .hrb-tag{color:#991b1b}.hrb.bet-lost{background:transparent;border-color:#991b1b}.hrb-leg .leg-ok{color:#22c55e;font-weight:700}.hrb.bet-won .hrb-leg .leg-ok{color:inherit}
 .hrb.bet-open{background:#1d4ed8;color:#fff}.hrb.bet-open .hrb-banner{background-color:#1e40af}
