@@ -1,15 +1,21 @@
 // Shared market validation/labels. Only whole/half thresholds: no split Asian lines.
 (function(root) {
-  const NAMES = { h2h: 'Ganador', spreads: 'Hándicap', totals: 'Total' };
-  function validate(key, options, home, away) {
+  const NAMES = { h2h: 'Ganador', spreads: 'Hándicap', totals: 'Total', props: 'Prop' };
+  function validate(key, options, home, away, propTitle) {
     if (!Object.hasOwn(NAMES, key)) throw new Error('Mercado inválido');
     if (!Array.isArray(options) || options.length < 2) throw new Error('Faltan opciones');
     for (const o of options) {
       if (!o.label || !Number.isInteger(o.odds) || Math.abs(o.odds) < 100) throw new Error('Cuota u opción inválida');
-      if (key !== 'h2h' && (typeof o.point !== 'number' || !Number.isFinite(o.point) || !Number.isInteger(o.point * 2))) throw new Error('Umbral debe ser entero o medio punto');
+      if (key !== 'h2h' && key !== 'props' && (typeof o.point !== 'number' || !Number.isFinite(o.point) || !Number.isInteger(o.point * 2))) throw new Error('Umbral debe ser entero o medio punto');
     }
-    const labels = options.map(o => o.label);
+    const labels = options.map(o => String(o.label).trim());
+    if (labels.some(l => !l)) throw new Error('Opción sin nombre');
     if (new Set(labels).size !== labels.length) throw new Error('Opciones repetidas');
+    if (key === 'props') {
+      if (!String(propTitle || '').trim()) throw new Error('Falta el título del prop');
+      if (String(propTitle).trim().length > 120) throw new Error('Título del prop demasiado largo');
+      return;
+    }
     if (key === 'totals') {
       if (options.length !== 2 || !labels.includes('Over') || !labels.includes('Under') || options[0].point !== options[1].point || options[0].point < 0) throw new Error('Total requiere Over/Under con el mismo umbral');
     } else {
@@ -19,7 +25,7 @@
     }
   }
   const threshold = (key, o) => key === 'totals' ? `${o.outcome === 'Over' || o.label === 'Over' ? 'O' : 'U'} ${o.point}` : key === 'spreads' ? `${o.point >= 0 ? '+' : ''}${o.point}` : '';
-  const label = (key, o) => `${NAMES[key]} · ${o.label === 'Draw' ? 'Empate' : o.label}${key !== 'h2h' ? ' ' + threshold(key,o) : ''}`;
+  const label = (key, o, propTitle) => key === 'props' ? `${String(propTitle || 'Prop').trim()} · ${String(o.label).trim()}` : `${NAMES[key]} · ${o.label === 'Draw' ? 'Empate' : o.label}${key !== 'h2h' ? ' ' + threshold(key,o) : ''}`;
   // Same-event parlay feasibility. leg: {event, line, market, home, away, outcome, point}.
   // Each leg must be able to win or push for some final score h-a (non-negative integers).
   // Thresholds are bounded, so scores up to 2*max|point|+6 cover every feasible case.
@@ -38,6 +44,7 @@
     for (const gs of groups.values()) {
       if (gs.length < 2) continue;
       if (new Set(gs.map(g => g.line)).size !== gs.length) return 'Solo una selección por mercado del mismo partido';
+      if (gs.some(g => g.market === 'props')) return 'Los props no se pueden combinar con otras selecciones del mismo partido';
       if (gs.some(g => !Object.hasOwn(NAMES, g.market || '') || legOk(g, 0, 0) === null)) return 'Este mercado no admite combinarse con otro del mismo partido';
       const sig = gs.map(g => `${g.market}|${g.outcome}|${g.point}`); if (new Set(sig).size !== sig.length) return 'Selección repetida en el mismo partido';
       const big = Math.max(0, ...gs.map(g => Math.abs(g.point || 0))); if (!(big <= 100)) return 'Umbral fuera de rango para combinar';

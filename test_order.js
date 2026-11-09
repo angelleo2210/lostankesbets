@@ -61,9 +61,9 @@ t('pre-existing published event + upgraded legacy line + pending bets render hom
   assert.equal(dump(), before);
 });
 t('Agregar mercados: Hándicap shows local odds first, Total keeps Over/Under; payload mapping canonical; type switch clears odds', () => {
-  const code = src.slice(src.indexOf('  const layoutExisting'), src.indexOf("  act('#eventCreate'"));
-  const el = {}; for (const id of ['existingMarket', 'existingPoint', 'existingOddsA', 'existingOddsB', 'existingHome', 'existingAway', 'existingUnit', 'existingEvent']) el[id] = { id, value: '', style: {}, placeholder: '' };
-  let handler, sent; const c = { $: q => el[q.slice(1)], act: (sel, f) => { if (sel === '#existingAdd') handler = f; }, api: (url, body) => { sent = { url, body }; } };
+  const code = src.slice(src.indexOf('  const addPropOpt'), src.indexOf("  act('#eventCreate'"));
+  const el = {}; for (const id of ['existingMarket', 'existingPoint', 'existingOddsA', 'existingOddsB', 'existingHome', 'existingAway', 'existingUnit', 'existingEvent', 'existingInputs', 'propInputs', 'existingHelp', 'propTitle', 'propOpts', 'propAddOpt']) el[id] = { id, value: '', style: {}, placeholder: '', textContent: '', innerHTML: '', children: [], append: function(d){ this.children.push(d); }, onclick: null };
+  let handler, sent; const c = { $: q => el[q.slice(1)], act: (sel, f) => { if (sel === '#existingAdd') handler = f; }, api: (url, body) => { sent = { url, body }; }, esc: x => x, document: { createElement: () => ({ className: '', innerHTML: '', children: [{ value: '' }, { value: '' }] }) } };
   el.existingMarket.value = 'spreads'; vm.runInNewContext(code, c);
   const order = () => ['existingPoint', 'existingOddsA', 'existingOddsB'].sort((x, y) => el[x].style.order - el[y].style.order);
   assert.equal(order().join(), ['existingOddsA', 'existingPoint', 'existingOddsB'].join()); assert.match(el.existingOddsB.placeholder, /visitante/); assert.match(el.existingOddsA.placeholder, /local/);

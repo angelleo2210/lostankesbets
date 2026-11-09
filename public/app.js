@@ -224,7 +224,8 @@ function marketCards(ls) {
   }
   return [...groups.values()].map(group => {
     const base = group.find(l => l.home) || group[0];
-    const by = Object.fromEntries(group.map(l => [l.market || 'h2h', l]));
+    const props = group.filter(l => l.market === 'props');
+    const by = Object.fromEntries(group.filter(l => l.market !== 'props').map(l => [l.market || 'h2h', l]));
     const winner = by.h2h;
     const teams = base.home ? displayTeams(base.home, base.away) : (winner?.options || []).filter(o => !['Draw','Empate'].includes(o.outcome || o.label)).map(o => o.outcome || o.label);
     const started = group.some(l => l.started || (l.starts && Date.now() >= Date.parse(l.starts)));
@@ -242,8 +243,17 @@ function marketCards(ls) {
       <div class="event-market-grid"><span class="market-head">Equipo</span><span class="market-head">Hándicap</span><span class="market-head">Total${base.unit ? '<br>' + esc(base.unit) : ''}</span><span class="market-head">Ganador</span>
       ${teams.map(row).join('')}${draw ? `<span class="event-team">Empate</span><span></span><span></span>${cell(winner, draw)}` : ''}</div>
       <div class="event-date small">${base.starts ? esc(new Date(base.starts).toLocaleString('es-US')) + ' (hora de tu dispositivo)' + (started ? '' : ' · se cierra al empezar') : 'Fecha no indicada · sin cierre automático'}</div>
+      ${props.length ? `<details class="event-props"><summary>Más mercados (${props.length})</summary>${props.map(pl => {
+        const popen = pl.status === 'open' && !paused;
+        return `<div class="prop-card"><div class="prop-title small">${esc(pl.prop_title || 'Prop')}</div><div class="line-grid">${pl.options.map(o => {
+          const on = boleto.some(b => b.id === o.id);
+          const lab = `<div class="line-lab" title="${esc(o.label)}">${esc((o.outcome || o.label))}</div>`;
+          const cell = popen ? `<button type="button" class="odds ${on ? 'on' : ''}" data-add="${o.id}" aria-pressed="${on ? 'true' : 'false'}"><span class="odds-n">${od(o.odds)}</span></button>` : `<div class="odds off"><span class="odds-n">${od(o.odds)}</span></div>`;
+          return `<div class="line-row">${lab}${cell}</div>`;
+        }).join('')}</div>${me?.is_admin && pl.status === 'open' && !pl.options.some(o => false) ? '' : ''}</div>`;
+      }).join('')}</details>` : ''}
       <div class="market-note small">— No disponible</div>
-      ${me?.is_admin ? `<details class="market-admin"><summary>Configurar mercados</summary><button type="button" class="alt" data-market-config="${(winner || base).id}">Agregar hándicap / total</button>${group.some(l => ['open','closed'].includes(l.status)) ? `<button type="button" class="alt" data-pause="${(winner || base).id}" data-paused="${group.some(l => l.paused) ? 1 : 0}"${started && group.some(l => l.paused) ? ' disabled title="El partido ya empezó: cambia la hora de inicio para reabrir"' : ''}>${group.some(l => l.paused) ? '▶ Reactivar apuestas' : '⏸ Pausar apuestas'}</button>` : ''}<label class="small">Inicio (hora de tu dispositivo): <input type="datetime-local" data-start-in="${(winner || base).id}" value="${base.starts ? toLocalInput(base.starts) : ''}"></label><button type="button" class="alt" data-start="${(winner || base).id}">Guardar inicio</button>${started ? '<div class="small">El partido ya empezó: solo se reabre si guardas una hora de inicio futura. Puedes liquidar normalmente.</div>' : ''}<label class="small">Deporte: <select data-sport="${(winner || base).id}">${[['','Sin especificar'],['soccer','Fútbol'],['hockey','Hockey'],['baseball','Béisbol'],['other','Otro']].map(([k,n]) => `<option value="${k}"${(base.sport || '') === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label><div class="small">${group.filter(l => l.bookmaker).map(l => `${Markets.NAMES[l.market]}: ${esc(l.bookmaker)}`).join(' · ')}</div></details>` : ''}</div>`;
+      ${me?.is_admin ? `<details class="market-admin"><summary>Configurar mercados</summary><button type="button" class="alt" data-market-config="${(winner || base).id}">Agregar hándicap / total / prop</button>${group.some(l => ['open','closed'].includes(l.status)) ? `<button type="button" class="alt" data-pause="${(winner || base).id}" data-paused="${group.some(l => l.paused) ? 1 : 0}"${started && group.some(l => l.paused) ? ' disabled title="El partido ya empezó: cambia la hora de inicio para reabrir"' : ''}>${group.some(l => l.paused) ? '▶ Reactivar apuestas' : '⏸ Pausar apuestas'}</button>` : ''}<label class="small">Inicio (hora de tu dispositivo): <input type="datetime-local" data-start-in="${(winner || base).id}" value="${base.starts ? toLocalInput(base.starts) : ''}"></label><button type="button" class="alt" data-start="${(winner || base).id}">Guardar inicio</button>${started ? '<div class="small">El partido ya empezó: solo se reabre si guardas una hora de inicio futura. Puedes liquidar normalmente.</div>' : ''}<label class="small">Deporte: <select data-sport="${(winner || base).id}">${[['','Sin especificar'],['soccer','Fútbol'],['hockey','Hockey'],['baseball','Béisbol'],['other','Otro']].map(([k,n]) => `<option value="${k}"${(base.sport || '') === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label><div class="small">${group.filter(l => l.bookmaker).map(l => `${Markets.NAMES[l.market]}: ${esc(l.bookmaker)}`).join(' · ')}</div></details>` : ''}</div>`;
   }).join('');
 }
 function lineCard(l) {
@@ -332,18 +342,20 @@ async function adminView(B) {
     <label><input type="checkbox" id="emh"> Ganador</label><div class="row"><input id="eho" placeholder="Cuota local"><input id="eao" placeholder="Cuota visitante"><input id="edo" placeholder="Cuota empate (opcional)"></div>
     <label><input type="checkbox" id="ems"> Hándicap</label><div class="row"><input id="eso" placeholder="Cuota local"><input id="esp" placeholder="Umbral local (ej. -0.5)"><input id="esao" placeholder="Cuota visitante"></div><p class="small">Visitante: umbral opuesto al local.</p>
     <label><input type="checkbox" id="emt"> Total</label><div class="row"><input id="etp" placeholder="Umbral total"><input id="eto" placeholder="Cuota Over"><input id="etuo" placeholder="Cuota Under"></div><button id="eventCreate">Crear evento</button></div>
-  <div class="card"><h2>Agregar mercados a un evento existente</h2><p class="small">Para partidos antiguos solo Ganador: selecciona el partido y escribe las cuotas y el umbral que quieres ofrecer. No se inventan ni se cambian las apuestas existentes.</p>
-  <select id="existingEvent">${ls.filter(l => l.status === 'open').map(l => `<option value="${l.id}">#${l.id} · ${esc(vsTitle(l.title, l.home, l.away))}</option>`).join('')}</select>
+  <div class="card"><h2>Agregar mercados a un evento existente</h2><p class="small">Hándicap, Total o Prop (bateadores, strikeouts, etc.) del mismo partido. No se cambian las apuestas existentes.</p>
+  <select id="existingEvent">${ls.filter(l => l.status === 'open').map(l => `<option value="${l.id}">#${l.id} · ${esc(vsTitle(l.title, l.home, l.away))}${l.market === 'props' ? ' · ' + esc(l.prop_title || 'Prop') : ''}</option>`).join('')}</select>
   <input id="existingHome" placeholder="Equipo local (nombre exacto, arriba)"><input id="existingAway" placeholder="Equipo visitante (nombre exacto, abajo)">
   <select id="existingUnit"><option value="">Unidad sin especificar</option><option value="goles">Goles</option><option value="puntos">Puntos</option><option value="carreras">Carreras</option></select>
-  <select id="existingMarket"><option value="spreads">Hándicap</option><option value="totals">Total (Over / Under)</option></select>
+  <select id="existingMarket"><option value="spreads">Hándicap</option><option value="totals">Total (Over / Under)</option><option value="props">Prop (mercado extra)</option></select>
   <div id="existingInputs" style="display:flex;flex-direction:column"><input id="existingPoint" placeholder="Umbral local de hándicap" type="number" step="0.5" style="order:2">
   <input id="existingOddsA" placeholder="Cuota americana local" type="number" style="order:1"><input id="existingOddsB" placeholder="Cuota americana visitante" type="number" style="order:3"></div>
-  <p class="small">Hándicap: el visitante recibe el umbral opuesto. Total: Over y Under usan el mismo umbral. Una cuota propia para cada opción.</p><button id="existingAdd">Agregar mercado al partido</button></div>
-  <div class="card"><h2>Liquidar / cerrar</h2>${ls.map(l => `<div class="card"><b>${esc(vsTitle(l.title, l.home, l.away))}${l.market ? " · " + Markets.NAMES[l.market] : ""}</b> <span class="small">(${l.status === 'open' ? 'abierta' : 'cerrada'})</span>
+  <div id="propInputs" style="display:none"><input id="propTitle" placeholder="Título del prop (ej: Aaron Judge 1.5+ hits)" maxlength="120">
+  <div id="propOpts"></div><button type="button" class="alt" id="propAddOpt">+ Opción</button></div>
+  <p class="small" id="existingHelp">Hándicap: el visitante recibe el umbral opuesto. Total: Over y Under usan el mismo umbral.</p><button id="existingAdd">Agregar mercado al partido</button></div>
+  <div class="card"><h2>Liquidar / cerrar</h2>${ls.map(l => `<div class="card"><b>${esc(vsTitle(l.title, l.home, l.away))}${l.market === 'props' ? ' · ' + esc(l.prop_title || 'Prop') : l.market ? " · " + Markets.NAMES[l.market] : ""}</b> <span class="small">(${l.status === 'open' ? 'abierta' : 'cerrada'})</span>
    ${l.status === 'open' ? `<button class="alt" data-close="${l.id}">Cerrar apuestas</button>` : ''}
    <select id="w${l.id}">${l.options.map(o => `<option value="${o.id}">${esc(o.label)} ${od(o.odds)}</option>`).join('')}</select>
-   <div class="row"><button data-settle="${l.id}">Ganó esta</button>${["spreads","totals"].includes(l.market) && l.options.every(o => Number.isInteger(o.point)) ? `<button class="alt" data-push="${l.id}">Push: empate exacto / devolver</button>` : ""}<button class="red" data-cancel="${l.id}">Cancelar y devolver</button></div></div>`).join('') || 'Nada pendiente.'}</div>
+   <div class="row"><button data-settle="${l.id}">Ganó esta</button>${["spreads","totals"].includes(l.market) && l.options.every(o => Number.isInteger(o.point)) ? `<button class="alt" data-push="${l.id}">Push: empate exacto / devolver</button>` : ""}<button class="red" data-cancel="${l.id}">Cancelar y devolver</button>${l.market === 'props' ? `<button class="alt" data-remove-prop="${l.id}">Quitar prop (sin apuestas)</button>` : ''}</div></div>`).join('') || 'Nada pendiente.'}</div>
   <div class="card"><h2>Recargar saldo</h2><select id="tu">${us.map(u => `<option value="${u.id}">${esc((u.avatar ? u.avatar + ' ' : '') + (u.display_name || u.username))} · 🪙 ${fmt(u.coins)}</option>`).join('')}</select>
    <input id="ta" type="number" min="1" max="10000000" step="1" placeholder="Monto (máx 10.000.000)"><button id="tgo">Recargar</button>
    ${tps.length ? '<div class="small" style="margin-top:6px">Recientes</div>' + tps.map(t => `<div class="small">${esc(new Date(t.created + 'Z').toLocaleString('es-US'))} · ${who(t)} +${fmt(t.amount)} (por ${esc(t.admin)})</div>`).join('') : ''}</div>
@@ -361,13 +373,25 @@ async function adminView(B) {
   if (marketTarget && ls.some(l => l.id === marketTarget)) $('#existingEvent').value = String(marketTarget);
   $('#existingEvent').onchange = fillExistingTeams; fillExistingTeams();
   // Display order only: Hándicap = cuota local, umbral local, cuota visitante; Total = umbral, Over, Under. Payload mapping unchanged (A=local/Over, B=visitante/Under).
-  const layoutExisting = () => { const sp = $('#existingMarket').value === 'spreads', P = $('#existingPoint'), A = $('#existingOddsA'), Bx = $('#existingOddsB');
+  const addPropOpt = (l = '', o = '') => { const d = document.createElement('div'); d.className = 'row'; d.innerHTML = `<input placeholder="Opción (ej: Más de 1.5)" value="${esc(l)}"><input placeholder="Cuota (+120)" value="${esc(o)}" type="number">`; $('#propOpts').append(d); };
+  const layoutExisting = () => {
+    const m = $('#existingMarket').value, isProp = m === 'props', sp = m === 'spreads';
+    $('#existingInputs').style.display = isProp ? 'none' : 'flex'; $('#propInputs').style.display = isProp ? 'block' : 'none';
+    $('#existingHelp').textContent = isProp ? 'Prop: título libre y al menos 2 opciones con cuota americana. No se combina con otras selecciones del mismo partido.' : 'Hándicap: el visitante recibe el umbral opuesto. Total: Over y Under usan el mismo umbral.';
+    if (isProp) { if (!$('#propOpts').children.length) { addPropOpt('Más de', '-110'); addPropOpt('Menos de', '-110'); } return; }
+    const P = $('#existingPoint'), A = $('#existingOddsA'), Bx = $('#existingOddsB');
     P.style.order = sp ? 2 : 1; A.style.order = sp ? 1 : 2; Bx.style.order = 3;
-    P.placeholder = sp ? 'Umbral local de hándicap' : 'Umbral de total'; A.placeholder = sp ? 'Cuota americana local' : 'Cuota americana Over'; Bx.placeholder = sp ? 'Cuota americana visitante' : 'Cuota americana Under'; };
-  $('#existingMarket').onchange = () => { for (const id of ['existingPoint','existingOddsA','existingOddsB']) $('#' + id).value = ''; layoutExisting(); }; layoutExisting();
+    P.placeholder = sp ? 'Umbral local de hándicap' : 'Umbral de total'; A.placeholder = sp ? 'Cuota americana local' : 'Cuota americana Over'; Bx.placeholder = sp ? 'Cuota americana visitante' : 'Cuota americana Under';
+  };
+  $('#propAddOpt').onclick = () => addPropOpt();
+  $('#existingMarket').onchange = () => { for (const id of ['existingPoint','existingOddsA','existingOddsB','propTitle']) { const el = $('#' + id); if (el) el.value = ''; } $('#propOpts').innerHTML = ''; layoutExisting(); }; layoutExisting();
   act('#existingAdd', () => {
-    const num = id => { const v = $('#' + id).value.trim(); if (!v) throw new Error('Escribe el umbral y ambas cuotas'); return Number(v); };
     const home = $('#existingHome').value.trim(), away = $('#existingAway').value.trim(), market = $('#existingMarket').value;
+    if (market === 'props') {
+      const options = [...$('#propOpts').children].map(r => ({ label: r.children[0].value.trim(), odds: Number(r.children[1].value) }));
+      return api(`/admin/lines/${Number($('#existingEvent').value)}/markets`, { home, away, unit: $('#existingUnit').value, market: 'props', prop_title: $('#propTitle').value.trim(), options });
+    }
+    const num = id => { const v = $('#' + id).value.trim(); if (!v) throw new Error('Escribe el umbral y ambas cuotas'); return Number(v); };
     const point = num('existingPoint'), a = num('existingOddsA'), b = num('existingOddsB');
     const options = market === 'spreads' ? [{ label: home, point, odds: a }, { label: away, point: -point, odds: b }] : [{ label: 'Over', point, odds: a }, { label: 'Under', point, odds: b }];
     return api(`/admin/lines/${Number($('#existingEvent').value)}/markets`, { home, away, unit: $('#existingUnit').value, market, options });
@@ -386,6 +410,7 @@ async function adminView(B) {
   act('[data-close]', b => api(`/admin/lines/${b.dataset.close}/close`, {}));
   act('[data-settle]', b => confirm('¿Liquidar esta línea?') && api(`/admin/lines/${b.dataset.settle}/settle`, { optionId: Number($('#w' + b.dataset.settle).value) }));
   act('[data-cancel]', b => confirm('¿Cancelar y devolver monedas?') && api(`/admin/lines/${b.dataset.cancel}/cancel`, {}));
+  act('[data-remove-prop]', b => confirm('¿Quitar este prop? Solo funciona si nadie apostó.') && api(`/admin/lines/${b.dataset.removeProp}/remove-prop`, {}));
   act('#tgo', () => { const n = Number($('#ta').value); return confirm(`¿Recargar ${fmt(n)} monedas?`) && api('/admin/topup', { userId: Number($('#tu').value), amount: n }); });
   act('#inv', () => api('/admin/invites', {}));
 }

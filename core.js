@@ -118,7 +118,7 @@ function open(file = 'data.db') {
   db.exec('CREATE TABLE IF NOT EXISTS purchases(user_id INTEGER, item_id TEXT, price INTEGER, color TEXT, created TEXT DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(user_id, item_id))');
   if (!db.prepare('PRAGMA table_info(purchases)').all().some(c => c.name === 'color')) db.exec('ALTER TABLE purchases ADD COLUMN color TEXT');
   // Additive migration: legacy lines remain market=NULL.
-  for (const [table, cols] of Object.entries({ lines: { market: 'TEXT', home: 'TEXT', away: 'TEXT', unit: 'TEXT', bookmaker: 'TEXT', sport: 'TEXT' }, options: { point: 'REAL', outcome: 'TEXT' } })) {
+  for (const [table, cols] of Object.entries({ lines: { market: 'TEXT', home: 'TEXT', away: 'TEXT', unit: 'TEXT', bookmaker: 'TEXT', sport: 'TEXT', prop_title: 'TEXT' }, options: { point: 'REAL', outcome: 'TEXT' } })) {
     const existing = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
     for (const [col, type] of Object.entries(cols)) if (!existing.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
   }
@@ -444,42 +444,65 @@ function open(file = 'data.db') {
       title = String(title || '').trim(); if (!title) err('Falta el título');
       if (!Array.isArray(opts) || opts.length < 2) err('Se necesitan al menos 2 opciones');
       opts.forEach(o => { if (!String(o.label || '').trim()) err('Opción sin nombre'); try { profit(100, o.odds); } catch (e) { err(e.message); } });
-      if (extra.market) { try { Markets.validate(extra.market, opts, extra.home, extra.away); } catch(e) { err(e.message); } }
+      if (extra.market) { try { Markets.validate(extra.market, opts, extra.home, extra.away, extra.prop_title); } catch(e) { err(e.message); } }
       return tx(() => {
         const id = Number(db.prepare('INSERT INTO lines(title,kind,event_id,starts) VALUES(?,?,?,?)').run(title, extra.kind || 'custom', extra.event_id || null, extra.starts || null).lastInsertRowid);
-        db.prepare('UPDATE lines SET market=?,home=?,away=?,unit=?,bookmaker=?,sport=? WHERE id=?').run(extra.market || null, extra.home || null, extra.away || null, extra.unit || '', extra.bookmaker || null, extra.sport || null, id);
-        for (const o of opts) db.prepare('INSERT INTO options(line_id,label,odds,point,outcome) VALUES(?,?,?,?,?)').run(id, extra.market ? Markets.label(extra.market,o) : String(o.label).trim(), Math.trunc(Number(o.odds)), extra.market && extra.market !== 'h2h' ? o.point : null, extra.market ? o.label : null);
+        const propTitle = extra.market === 'props' ? String(extra.prop_title || '').trim() : null;
+        db.prepare('UPDATE lines SET market=?,home=?,away=?,unit=?,bookmaker=?,sport=?,prop_title=? WHERE id=?').run(extra.market || null, extra.home || null, extra.away || null, extra.unit || '', extra.bookmaker || null, extra.sport || null, propTitle, id);
+        for (const o of opts) db.prepare('INSERT INTO options(line_id,label,odds,point,outcome) VALUES(?,?,?,?,?)').run(id, extra.market ? Markets.label(extra.market, o, propTitle) : String(o.label).trim(), Math.trunc(Number(o.odds)), extra.market && !['h2h','props'].includes(extra.market) ? o.point : null, extra.market ? String(o.label).trim() : null);
         return id;
       });
     },
     createEvent(event, kind = 'custom') {
       if (!event || !event.id || !Array.isArray(event.markets) || !event.markets.length) err('Evento sin mercados');
-      if (new Set(event.markets.map(m => m.key)).size !== event.markets.length) err('Mercados repetidos');
+      { const keys = event.markets.map(m => m.key).filter(k => k !== 'props'); if (new Set(keys).size !== keys.length) err('Mercados repetidos');
+        const pts = event.markets.filter(m => m.key === 'props').map(m => String(m.prop_title || '').trim()); if (new Set(pts).size !== pts.length) err('Props con el mismo título'); }
       if (event.starts != null && event.starts !== '') { const ms = Date.parse(String(event.starts)); if (!Number.isFinite(ms)) err('Fecha/hora inválida'); event = { ...event, starts: new Date(ms).toISOString() }; } else event = { ...event, starts: null };
       return tx(() => event.markets.map(m => {
-        try { Markets.validate(m.key, m.options, event.home, event.away); } catch(e) { err(e.message); }
+        try { Markets.validate(m.key, m.options, event.home, event.away, m.prop_title); } catch(e) { err(e.message); }
+        if (m.key === 'props') {
+          const pt = String(m.prop_title || '').trim();
+          const prior = db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND market='props' AND prop_title=?").get(String(event.id), kind, pt);
+          if (prior) return prior.id;
+          return api.createLine(event.title, m.options, { kind, event_id: String(event.id), starts: event.starts, market: 'props', prop_title: pt, home: event.home, away: event.away, unit: event.unit, bookmaker: m.bookmaker, sport: sportOf(event) });
+        }
         const prior = db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND COALESCE(market,'h2h')=?").get(String(event.id), kind, m.key);
         if (prior) return prior.id;
         return api.createLine(event.title, m.options, { kind, event_id: String(event.id), starts: event.starts, market: m.key, home: event.home, away: event.away, unit: event.unit, bookmaker: m.bookmaker, sport: sportOf(event) });
       }));
     },
-    addEventMarket(lineId, market, options, home, away, unit = '') {
+    addEventMarket(lineId, market, options, home, away, unit = '', propTitle = '') {
       return tx(() => {
         const source = db.prepare('SELECT * FROM lines WHERE id=?').get(Number(lineId));
         if (!source || source.status !== 'open') err('El evento debe tener una línea abierta');
-        if (!['spreads','totals'].includes(market)) err('Solo se pueden agregar hándicap o total');
-        home = String(home || '').trim(); away = String(away || '').trim();
-        if (source.home && (source.home !== home || source.away !== away)) err('No se pueden cambiar los equipos del evento');
-        if (!source.market) {
-          const original = db.prepare('SELECT label,odds FROM options WHERE line_id=?').all(source.id);
-          try { Markets.validate('h2h', original.map(o => ({ ...o, label: o.label === 'Empate' ? 'Draw' : o.label })), home, away); } catch { err('Los equipos deben coincidir exactamente con las opciones ganadoras existentes'); }
-        }
-        try { Markets.validate(market, options, home, away); } catch(e) { err(e.message); }
+        if (!['spreads','totals','props'].includes(market)) err('Solo se pueden agregar hándicap, total o prop');
+        home = String(home || source.home || '').trim(); away = String(away || source.away || '').trim();
+        if (market !== 'props') {
+          if (source.home && (source.home !== home || source.away !== away)) err('No se pueden cambiar los equipos del evento');
+          if (!source.market) {
+            const original = db.prepare('SELECT label,odds FROM options WHERE line_id=?').all(source.id);
+            try { Markets.validate('h2h', original.map(o => ({ ...o, label: o.label === 'Empate' ? 'Draw' : o.label })), home, away); } catch { err('Los equipos deben coincidir exactamente con las opciones ganadoras existentes'); }
+          }
+        } else if (!home || !away) err('El prop necesita un partido con equipos');
+        try { Markets.validate(market, options, home, away, propTitle); } catch(e) { err(e.message); }
         const eventId = source.event_id || `legacy:${source.id}`;
-        if (db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND market=?").get(eventId, source.kind, market)) err('Este mercado ya existe; no se sobrescriben cuotas ni apuestas');
+        if (market === 'props') {
+          const pt = String(propTitle || '').trim();
+          if (db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND market='props' AND prop_title=?").get(eventId, source.kind, pt)) err('Ya existe un prop con ese título en este partido');
+        } else if (db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND market=?").get(eventId, source.kind, market)) err('Este mercado ya existe; no se sobrescriben cuotas ni apuestas');
         // Explicit admin action upgrades grouping metadata only. Original options/bets/odds untouched.
-        db.prepare("UPDATE lines SET event_id=?,home=?,away=?,unit=?,market=COALESCE(market,'h2h') WHERE id=?").run(eventId, home, away, source.unit || String(unit || ''), source.id);
-        return api.createLine(source.title, options, { kind: source.kind, event_id: eventId, starts: source.starts, market, home, away, unit: source.unit || String(unit || ''), sport: source.sport });
+        db.prepare("UPDATE lines SET event_id=?,home=?,away=?,unit=?,market=COALESCE(market,'h2h') WHERE id=?").run(eventId, home || source.home, away || source.away, source.unit || String(unit || ''), source.id);
+        return api.createLine(source.title, options, { kind: source.kind, event_id: eventId, starts: source.starts, market, prop_title: propTitle, home: home || source.home, away: away || source.away, unit: source.unit || String(unit || ''), sport: source.sport });
+      });
+    },
+    // Remove a prop only when it has no bets/parlay legs. Otherwise close or void it.
+    removeProp(adminId, lineId) {
+      return tx(() => {
+        const a = db.prepare('SELECT is_admin FROM users WHERE id=?').get(adminId); if (!a || !a.is_admin) err('Solo el administrador');
+        const l = db.prepare('SELECT * FROM lines WHERE id=?').get(Number(lineId)); if (!l || l.market !== 'props') err('Solo se pueden quitar props');
+        const used = db.prepare('SELECT 1 FROM bets WHERE line_id=? UNION SELECT 1 FROM parlay_legs WHERE line_id=?').get(l.id, l.id);
+        if (used) err('Este prop ya tiene apuestas; ciérralo o anúlalo en vez de borrarlo');
+        db.prepare('DELETE FROM options WHERE line_id=?').run(l.id); db.prepare('DELETE FROM lines WHERE id=?').run(l.id); return { ok: true };
       });
     },
     pushLine(id) {
