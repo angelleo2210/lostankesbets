@@ -59,7 +59,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
       refunded: { banner: 'ANULADA', cls: 'ref', payK: 'Devuelto' },
       cancelled: { banner: 'CANCELADA', cls: 'ref', payK: 'Devuelto' }
     }[s] || { banner: '—', cls: 'open', payK: '—' });
-    const ticketBanner = m => `<div class="hrb-banner"><div class="hrb-brand-block" aria-hidden="true"><img class="hrb-crest" src="/icons/crest-ticket.png" width="56" height="70" alt=""><span class="hrb-brand">lostankesbets</span></div><span class="hrb-win">${m.banner}</span></div>`;
+    const ticketBanner = m => `<div class="hrb-banner"><div class="hrb-brand-block" aria-hidden="true"><img class="hrb-crest" src="/icons/crest-ticket.png" width="28" height="36" alt=""><span class="hrb-brand">lostankesbets</span></div><span class="hrb-win">${m.banner}</span></div>`;
     const money = (b) => {
       if (b.status === 'won') return fmt(b.payout || 0);
       if (b.status === 'lost') return '0';

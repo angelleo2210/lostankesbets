@@ -89,7 +89,13 @@ t('lost cards (single + parlay): red header only, transparent body; won/open/ref
   assert.ok(css.includes(tr) && css.includes(base) && css.indexOf(tr) > css.indexOf(base), 'transparent rule overrides red body (later, same specificity)');
   assert.ok(!css.includes('.hrb.hrb-parlay.bet-lost'));
   assert.ok(css.includes('.hrb.bet-lost .hrb-banner{background-color:#991b1b}') && css.includes('.hrb-leg .leg-ok{color:#22c55e'));
-  assert.ok(css.includes('.hrb-crest{') && css.includes('.hrb-brand-block{') && !css.includes('.hrb-logo-badge{') && src.includes('ticketBanner') && src.includes('/icons/crest-ticket.png') && src.includes('lostankesbets') && require('fs').existsSync('public/icons/crest-ticket.png'));
+  assert.ok(css.includes('.hrb-crest{') && css.includes('width:28px') && css.includes('padding:6px 12px') && css.includes('.hrb-brand-block{') && !css.includes('.hrb-logo-badge{') && src.includes('ticketBanner') && src.includes('/icons/crest-ticket.png') && src.includes('width="28"') && src.includes('lostankesbets') && fs.existsSync(__dirname + '/public/icons/crest-ticket.png'));
+  { const { execFileSync } = require('child_process');
+    const out = execFileSync('python3', ['-c', "from PIL import Image; im=Image.open('public/icons/crest-ticket.png'); cx,cy=im.size[0]//2,im.size[1]//2; print(im.getpixel((cx,cy))[3], im.getpixel((0,0))[3], im.size[0], im.size[1])"], {encoding:'utf8', cwd: __dirname}).trim().split(/\s+/);
+    assert.equal(+out[0], 255, 'crest centroid must be opaque');
+    assert.equal(+out[1], 0, 'crest corner must be transparent');
+    assert.ok(+out[2] <= 50 && +out[3] <= 64, 'crest display asset should be compact');
+  }
   for (const r of ['.hrb.bet-won{background:#3acd6b;color:#fff;border-color:#25944b}', '.hrb.bet-won .hrb-banner{background-color:#25944b;background-image:none}', '.hrb.bet-open{background:#1d4ed8;color:#fff}', '.hrb.bet-ref{background:#475569;color:#fff}', '.hrb.bet-won .hrb-leg .leg-ok{color:inherit}']) assert.ok(css.includes(r), r);
   assert.ok(src.includes('<article class="hrb bet-${m.cls}"') && src.includes('<article class="hrb hrb-parlay bet-${m.cls}"') && src.includes(`<span\${g.status === 'won' ? ' class="leg-ok"' : ''}>`));
 });
