@@ -59,6 +59,9 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
       refunded: { banner: 'ANULADA', cls: 'ref', payK: 'Devuelto' },
       cancelled: { banner: 'CANCELADA', cls: 'ref', payK: 'Devuelto' }
     }[s] || { banner: '—', cls: 'open', payK: '—' });
+    const ticketBanner = m => m.cls === 'won'
+      ? `<div class="hrb-banner"><span class="hrb-logo-badge" aria-hidden="true"><img src="/icons/icon-192.png" width="42" height="42" alt=""></span><span class="hrb-win">${m.banner}</span></div>`
+      : `<div class="hrb-banner"><span class="hrb-brand">LosTankesBets</span><span class="hrb-win">${m.banner}</span></div>`;
     const money = (b) => {
       if (b.status === 'won') return fmt(b.payout || 0);
       if (b.status === 'lost') return '0';
@@ -81,7 +84,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
       const m = meta(b.status);
       const share = `LosTankesBets · ${m.banner} · ${b.title} · ${b.label} ${od(b.odds)} · Apostado ${fmt(b.stake)} · ${m.payK} ${money(b)} · #${b.id}`;
       return `<article class="hrb bet-${m.cls}" data-betshare="b-${b.id}" data-share="${esc(share)}">
-        <div class="hrb-banner"><span class="hrb-brand">LosTankesBets</span><span class="hrb-win">${m.banner}</span></div>
+        ${ticketBanner(m)}
         <div class="hrb-body">
           <div class="hrb-row"><div class="hrb-left"><span class="hrb-tag">Simple</span><span class="hrb-name">${esc(vsTitle(b.title, b.home, b.away))}</span></div><span class="hrb-odds">${od(b.odds)}</span></div>
           <div class="hrb-sel">${esc(b.label)}</div>
@@ -97,7 +100,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
       const share = `LosTankesBets · ${m.banner} · Parlay ${n} · ${picks} · Apostado ${fmt(p.stake)} · ${m.payK} ${money(p)} · #${p.id}`;
       const legs = (p.legs || []).map(g => `<div class="hrb-leg"><span${g.status === 'won' ? ' class="leg-ok"' : ''}>${gst[g.status] || '·'}</span><span>${esc(vsTitle(g.title, g.home, g.away))}: <b>${esc(g.label)}</b> ${od(g.odds)}</span></div>`).join('');
       return `<article class="hrb hrb-parlay bet-${m.cls}" data-betshare="p-${p.id}" data-share="${esc(share)}">
-        <div class="hrb-banner"><span class="hrb-brand">LosTankesBets</span><span class="hrb-win">${m.banner}</span></div>
+        ${ticketBanner(m)}
         <div class="hrb-body">
           <div class="hrb-row"><div class="hrb-left"><span class="hrb-tag">Parlay</span><span class="hrb-name">${n}-Pick Parlay</span></div><span class="hrb-odds">${p.odds ? od(p.odds) : ''}</span></div>
           <div class="hrb-sel">${esc(picks)}</div>${p.pricing_note ? `<details class="odds-info small"><summary>Cuota estimada · Sobre la cuota</summary><div>${esc(p.pricing_note)}</div></details>` : ''}

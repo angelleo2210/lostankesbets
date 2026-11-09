@@ -89,7 +89,8 @@ t('lost cards (single + parlay): red header only, transparent body; won/open/ref
   assert.ok(css.includes(tr) && css.includes(base) && css.indexOf(tr) > css.indexOf(base), 'transparent rule overrides red body (later, same specificity)');
   assert.ok(!css.includes('.hrb.hrb-parlay.bet-lost'));
   assert.ok(css.includes('.hrb.bet-lost .hrb-banner{background-color:#991b1b}') && css.includes('.hrb-leg .leg-ok{color:#22c55e'));
-  for (const r of ['.hrb.bet-won{background:#15803d;color:#fff}', '.hrb.bet-won .hrb-banner{background-color:#166534}', '.hrb.bet-open{background:#1d4ed8;color:#fff}', '.hrb.bet-ref{background:#475569;color:#fff}', '.hrb.bet-won .hrb-leg .leg-ok{color:inherit}']) assert.ok(css.includes(r), r);
+  assert.ok(css.includes('.hrb-logo-badge{') && src.includes('ticketBanner') && src.includes('/icons/icon-192.png'));
+  for (const r of ['.hrb.bet-won{background:#5fcd84;color:#fff;border-color:#4ea96c}', '.hrb.bet-won .hrb-banner{background-color:#4ea96c;background-image:none}', '.hrb.bet-open{background:#1d4ed8;color:#fff}', '.hrb.bet-ref{background:#475569;color:#fff}', '.hrb.bet-won .hrb-leg .leg-ok{color:inherit}']) assert.ok(css.includes(r), r);
   assert.ok(src.includes('<article class="hrb bet-${m.cls}"') && src.includes('<article class="hrb hrb-parlay bet-${m.cls}"') && src.includes(`<span\${g.status === 'won' ? ' class="leg-ok"' : ''}>`));
 });
 console.log(n + ' order tests passed');
