@@ -96,6 +96,11 @@
     let total = 1; const out = [];
     for (const [k, gs] of groups) {
       if (gs.length === 1) { const d = dec(gs[0].odds); total *= d; out.push({ options: [gs[0].option], dec: d, model: null }); continue; }
+      // Any same-match group that includes props: plain product of American odds (no Poisson SGP).
+      if (gs.some(g => g.market === 'props')) {
+        let d = 1; for (const g of gs) d *= dec(g.odds); total *= d;
+        out.push({ options: gs.map(g => g.option), dec: d, model: null }); continue;
+      }
       const L = gs.map(g => ({ ...g, outcome: outcomeOf(g.market, g) }));
       if (L.some(g => g.market !== 'h2h' && !Number.isInteger(g.point - 0.5))) return { error: 'Por ahora, las combinaciones del mismo partido solo admiten Hándicap y Total de medio punto (por ejemplo 2.5), para que no haya devoluciones parciales (push). Las apuestas simples y los parlays con partidos distintos no cambian.' };
       const f = fit(eventLines[k] || []); if (f.error) return { error: f.error };

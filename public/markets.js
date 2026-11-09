@@ -44,13 +44,15 @@
     for (const gs of groups.values()) {
       if (gs.length < 2) continue;
       if (new Set(gs.map(g => g.line)).size !== gs.length) return 'Solo una selección por mercado del mismo partido';
-      if (gs.some(g => g.market === 'props')) return 'Los props no se pueden combinar con otras selecciones del mismo partido';
-      if (gs.some(g => !Object.hasOwn(NAMES, g.market || '') || legOk(g, 0, 0) === null)) return 'Este mercado no admite combinarse con otro del mismo partido';
       const sig = gs.map(g => `${g.market}|${g.outcome}|${g.point}`); if (new Set(sig).size !== sig.length) return 'Selección repetida en el mismo partido';
-      const big = Math.max(0, ...gs.map(g => Math.abs(g.point || 0))); if (!(big <= 100)) return 'Umbral fuera de rango para combinar';
-      const M = 2 * Math.ceil(Math.max(0, ...gs.map(g => Math.abs(g.point || 0)))) + 6;
+      // Props: allowed with anything; priced as plain product in Sgp.quote. Score feasibility only for Ganador/Hándicap/Total.
+      const scored = gs.filter(g => g.market !== 'props');
+      if (scored.some(g => !Object.hasOwn(NAMES, g.market || '') || legOk(g, 0, 0) === null)) return 'Este mercado no admite combinarse con otro del mismo partido';
+      if (scored.length < 2) continue;
+      const big = Math.max(0, ...scored.map(g => Math.abs(g.point || 0))); if (!(big <= 100)) return 'Umbral fuera de rango para combinar';
+      const M = 2 * Math.ceil(Math.max(0, ...scored.map(g => Math.abs(g.point || 0)))) + 6;
       let ok = false;
-      for (let h = 0; h <= M && !ok; h++) for (let a = 0; a <= M && !ok; a++) ok = gs.every(g => legOk(g, h, a));
+      for (let h = 0; h <= M && !ok; h++) for (let a = 0; a <= M && !ok; a++) ok = scored.every(g => legOk(g, h, a));
       if (!ok) return `Selecciones contradictorias en ${gs[0].home || 'el mismo partido'} vs ${gs[0].away || ''}: no existe un marcador en que todas puedan cumplirse`.replace(/ vs $/, '');
     }
     return null;

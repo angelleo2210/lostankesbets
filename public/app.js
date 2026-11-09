@@ -377,7 +377,7 @@ async function adminView(B) {
   const layoutExisting = () => {
     const m = $('#existingMarket').value, isProp = m === 'props', sp = m === 'spreads';
     $('#existingInputs').style.display = isProp ? 'none' : 'flex'; $('#propInputs').style.display = isProp ? 'block' : 'none';
-    $('#existingHelp').textContent = isProp ? 'Prop: título libre y al menos 2 opciones con cuota americana. No se combina con otras selecciones del mismo partido.' : 'Hándicap: el visitante recibe el umbral opuesto. Total: Over y Under usan el mismo umbral.';
+    $('#existingHelp').textContent = isProp ? 'Prop: título libre y al menos 2 opciones con cuota americana. Se puede combinar en parlays (cuota = producto).' : 'Hándicap: el visitante recibe el umbral opuesto. Total: Over y Under usan el mismo umbral.';
     if (isProp) { if (!$('#propOpts').children.length) { addPropOpt('Más de', '-110'); addPropOpt('Menos de', '-110'); } return; }
     const P = $('#existingPoint'), A = $('#existingOddsA'), Bx = $('#existingOddsB');
     P.style.order = sp ? 2 : 1; A.style.order = sp ? 1 : 2; Bx.style.order = 3;

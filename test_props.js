@@ -32,13 +32,33 @@ t('bet + settle win/lose/void; inherits pause and start lock', () => {
   const p2 = D.addEventMarket(w, 'props', [{ label: 'A', odds: 100 }, { label: 'B', odds: -120 }], 'Yankees', 'Red Sox', '', 'Void prop');
   D.placeBet(u, opt(p2, 'A').id, 20, S + 10); const c = coins(); D.cancelLine(p2); assert.equal(coins(), c + 20);
 });
-t('parlay: prop + other event OK; prop + same-event market blocked', () => {
-  const { D, u, opt } = mk();
-  const [w1] = D.createEvent(base('a')); const [w2] = D.createEvent({ ...base('b'), home: 'Dodgers', away: 'Giants', title: 'Dodgers vs Giants', markets: [{ key: 'h2h', options: [{ label: 'Dodgers', odds: -110 }, { label: 'Giants', odds: -110 }] }] });
-  const p = D.addEventMarket(w1, 'props', [{ label: 'Over', odds: 105 }, { label: 'Under', odds: -125 }], 'Yankees', 'Red Sox', '', 'Judge hits');
+t('parlay: props combine with same-match markets and other events; odds = plain product; same line still blocked', () => {
+  const { D, u, opt, coins } = mk();
+  const [w1, tot] = D.createEvent(base('a')); const [w2] = D.createEvent({ ...base('b'), home: 'Dodgers', away: 'Giants', title: 'Dodgers vs Giants', markets: [{ key: 'h2h', options: [{ label: 'Dodgers', odds: -110 }, { label: 'Giants', odds: -110 }] }] });
+  const p = D.addEventMarket(w1, 'props', [{ label: 'Over', odds: 100 }, { label: 'Under', odds: -120 }], 'Yankees', 'Red Sox', '', 'Judge hits');
+  const p2 = D.addEventMarket(w1, 'props', [{ label: 'Sí', odds: -150 }, { label: 'No', odds: 130 }], 'Yankees', 'Red Sox', '', 'Soto HR');
+  // other event
   D.placeParlay(u, [opt(p, 'Over').id, opt(w2, 'Dodgers').id], 50);
-  assert.throws(() => D.placeParlay(u, [opt(p, 'Over').id, opt(w1, 'Yankees').id], 50), /props no se pueden combinar/i);
-  assert.equal(Markets.sameEventError([{ event: 'custom:a', line: 1, market: 'props', home: 'Yankees', away: 'Red Sox', outcome: 'Over', label: 'x', point: null }, { event: 'custom:a', line: 2, market: 'h2h', home: 'Yankees', away: 'Red Sox', outcome: 'Yankees', label: 'y', point: null }]), 'Los props no se pueden combinar con otras selecciones del mismo partido');
+  // same match: prop + moneyline + another prop (product of odds, not SGP model)
+  const c0 = coins(); const pid = D.placeParlay(u, [opt(p, 'Over').id, opt(w1, 'Yankees').id, opt(p2, 'Sí').id], 100);
+  assert.equal(coins(), c0 - 100);
+  const row = D.db.prepare('SELECT * FROM parlays WHERE id=?').get(pid);
+  assert.equal(row.pricing, null); // plain product, no Poisson model saved
+  // product: +100 => 2.0, -140 => ~1.714, -150 => ~1.667 → ~5.714
+  const Sgp = require('./public/sgp');
+  const legs = [
+    { option: 1, line: p, event: 'custom:a', market: 'props', home: 'Yankees', away: 'Red Sox', outcome: 'Over', label: 'x', point: null, odds: 100 },
+    { option: 2, line: w1, event: 'custom:a', market: 'h2h', home: 'Yankees', away: 'Red Sox', outcome: 'Yankees', label: 'y', point: null, odds: -140 },
+    { option: 3, line: p2, event: 'custom:a', market: 'props', home: 'Yankees', away: 'Red Sox', outcome: 'Sí', label: 'z', point: null, odds: -150 },
+  ];
+  const q = Sgp.quote(legs, {}); assert.ok(!q.error); assert.ok(!q.modeled);
+  assert.ok(Math.abs(q.dec - (2 * (1 + 100/140) * (1 + 100/150))) < 1e-9);
+  assert.equal(Markets.sameEventError(legs), null);
+  // cannot pick both sides of the same prop
+  assert.throws(() => D.placeParlay(u, [opt(p, 'Over').id, opt(p, 'Under').id], 10), /Solo una selección por/);
+  // settlement: win all props/ml legs
+  D.settleLine(p, opt(p, 'Over').id); D.settleLine(p2, opt(p2, 'Sí').id); D.settleLine(w1, opt(w1, 'Yankees').id);
+  assert.equal(D.db.prepare('SELECT status FROM parlays WHERE id=?').get(pid).status, 'won');
 });
 t('remove prop only without bets; createEvent can include props', () => {
   const { D, adminId, u, opt } = mk();
