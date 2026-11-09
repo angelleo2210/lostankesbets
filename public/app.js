@@ -53,13 +53,15 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
     bindBets(ls); $('#realSport').onchange = e => { window.realSport = e.target.value; render(); }; B.querySelectorAll('[data-imp]').forEach(b => b.onclick = async () => { try { const r = await api('/admin/import', { eventId: b.dataset.imp, sport: window.realSport }); if (r.error) throw new Error(r.error); render(); } catch (e) { flash(e.message); } }); }
   if (tab === 'mias') {
     const meta = s => ({
-      won: { banner: 'GANASTE', cls: 'won', payK: 'Cobrado' },
+      won: { banner: 'GANADOR', cls: 'won', payK: 'Cobrado' },
       lost: { banner: 'PERDISTE', cls: 'lost', payK: 'Resultado' },
       open: { banner: 'PENDIENTE', cls: 'open', payK: 'Ganarías' },
       refunded: { banner: 'ANULADA', cls: 'ref', payK: 'Devuelto' },
       cancelled: { banner: 'CANCELADA', cls: 'ref', payK: 'Devuelto' }
     }[s] || { banner: '—', cls: 'open', payK: '—' });
-    const ticketBanner = m => `<div class="hrb-banner"><div class="hrb-brand-block" aria-hidden="true"><img class="hrb-crest" src="/icons/crest-ticket.png" width="28" height="36" alt=""><span class="hrb-brand">lostankesbets</span></div><span class="hrb-win">${m.banner}</span></div>`;
+    const ticketBanner = m => m.cls === 'won'
+      ? `<div class="hrb-banner"><div class="hrb-wm" aria-hidden="true"><span>LOSTANKESBETS LOSTANKESBETS LOSTANKESBETS LOSTANKESBETS LOSTANKESBETS</span><span>GANADOR GANADOR GANADOR GANADOR GANADOR GANADOR GANADOR</span><span>LOSTANKESBETS LOSTANKESBETS LOSTANKESBETS LOSTANKESBETS LOSTANKESBETS</span></div><div class="hrb-brand-block"><img class="hrb-crest" src="/icons/crest-ticket.png" width="28" height="36" alt=""></div><span class="hrb-win">${m.banner}</span></div>`
+      : `<div class="hrb-banner"><div class="hrb-brand-block" aria-hidden="true"><img class="hrb-crest" src="/icons/crest-ticket.png" width="28" height="36" alt=""><span class="hrb-brand">lostankesbets</span></div><span class="hrb-win">${m.banner}</span></div>`;
     const money = (b) => {
       if (b.status === 'won') return fmt(b.payout || 0);
       if (b.status === 'lost') return '0';
