@@ -56,13 +56,13 @@ t('void in a modeled group voids the group; all void refunds; loss loses; no dou
   [w, , tot] = mkEv('d'); c0 = coins(); D.placeParlay(u, [op(w, 'Draw').id, op(tot, 'Under').id], 50); D.settleLine(w, op(w, 'PSG').id); D.settleLine(tot, op(tot, 'Under').id);
   assert.equal(D.myParlays(u)[0].status, 'lost'); assert.equal(coins(), c0 - 50);
 });
-t('integer lines and contradictions rejected without charge; different events keep product', () => {
+t('integer lines and hard combos fall back to product (never block); different events keep product', () => {
   const R = open(':memory:'); R.setupAdmin('admin', '1234'); const v = R.register(R.newInvite(), 'pepe', '1234');
   const e = ev('i'); e.markets[2].options.forEach(o => o.point = 3); const [w, , tot] = R.createEvent(e, 'real');
   const o2 = (id, l) => R.lines().find(x => x.id === id).options.find(o => o.outcome === l); const c = R.db.prepare('SELECT coins FROM users WHERE id=?').get(v).coins;
-  assert.throws(() => R.placeParlay(v, [o2(w, 'PSG').id, o2(tot, 'Over').id], 10), /medio punto/);
-  assert.throws(() => R.placeParlay(v, [o2(w, 'Draw').id, R.lines().find(x => x.market === 'spreads').options[0].id], 10), /contradictorias/);
-  assert.equal(R.db.prepare('SELECT coins FROM users WHERE id=?').get(v).coins, c);
+  assert.ok(R.placeParlay(v, [o2(w, 'PSG').id, o2(tot, 'Over').id], 10));
+  assert.ok(R.placeParlay(v, [o2(w, 'Draw').id, R.lines().find(x => x.market === 'spreads').options[0].id], 10));
+  assert.equal(R.db.prepare('SELECT coins FROM users WHERE id=?').get(v).coins, c - 20);
   const a = R.createLine('A1', [{ label: 'A', odds: 110 }, { label: 'B', odds: -120 }]), b = R.createLine('B1', [{ label: 'A', odds: -150 }, { label: 'B', odds: 130 }]);
   R.placeParlay(v, [R.lines().find(x => x.id === a).options[0].id, R.lines().find(x => x.id === b).options[0].id], 100); const p = R.myParlays(v)[0];
   assert.equal(p.model, undefined); assert.equal(p.pricing_note, undefined); assert.equal(p.potential, Math.floor(100 * (1 * S.dec(110) * S.dec(-150))));
@@ -115,11 +115,12 @@ t('published events without draw / without Ganador accept 2-leg combos at server
   R.placeParlay(v, [ol(sp, 'PSG').id, ol(tot2, 'Over').id], 10);
   const e3 = only(ev('c'), ['spreads', 'totals']); e3.markets[0].options = [{ label: 'PSG', point: -2.5, odds: 250 }, { label: 'Troyes', point: 2.5, odds: -330 }];
   const [sp3, t3] = R.createEvent(e3, 'real'); const c1 = coinsR();
-  assert.throws(() => R.placeParlay(v, [ol(sp3, 'PSG').id, ol(t3, 'Under').id], 10), /contradictorias/); assert.equal(coinsR(), c1);
+  assert.ok(R.placeParlay(v, [ol(sp3, 'PSG').id, ol(t3, 'Under').id], 10)); assert.equal(coinsR(), c1 - 10);
   // tie loses Ganador (not draw-no-bet): Troyes win is impossible with 0-0 etc.; settle draw-like result as Troyes leg lost
   const p = R.myParlays(v).find(x => x.legs.some(g => g.option_id === ol(w, 'Troyes').id)); R.settleLine(w, ol(w, 'PSG').id);
   assert.equal(R.myParlays(v).find(x => x.id === p.id).status, 'lost');
-  for (const q of R.myParlays(v)) assert.equal(q.model, 'poisson-v4');
+  // Modeled only when SGP succeeded; product fallbacks have no model
+  assert.ok(R.myParlays(v).some(q => q.model === 'poisson-v4'));
 });
 t('old v1 snapshot settles at frozen price after model upgrade', () => {
   const R = open(':memory:'); R.setupAdmin('admin', '1234'); const v = R.register(R.newInvite(), 'pepe', '1234');

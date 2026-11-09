@@ -102,9 +102,15 @@
         out.push({ options: gs.map(g => g.option), dec: d, model: null }); continue;
       }
       const L = gs.map(g => ({ ...g, outcome: outcomeOf(g.market, g) }));
-      if (L.some(g => g.market !== 'h2h' && !Number.isInteger(g.point - 0.5))) return { error: 'Por ahora, las combinaciones del mismo partido solo admiten Hándicap y Total de medio punto (por ejemplo 2.5), para que no haya devoluciones parciales (push). Las apuestas simples y los parlays con partidos distintos no cambian.' };
-      const f = fit(eventLines[k] || []); if (f.error) return { error: f.error };
-      const p = jointP(f, L); if (p === 0) return { error: 'Selecciones contradictorias: con el marcador final de este deporte no pueden cumplirse todas a la vez.' }; if (!(p >= MIN_P)) return { error: 'La probabilidad estimada de esta combinación es demasiado baja para ofrecer cuota.' };
+      const product = () => { let d = 1; for (const g of gs) d *= dec(g.odds); return d; };
+      // Prefer SGP model for Ganador/Hándicap/Total; if it cannot price (e.g. high baseball totals), use plain product — never block.
+      if (L.some(g => g.market !== 'h2h' && !Number.isInteger(g.point - 0.5))) {
+        const d = product(); total *= d; out.push({ options: gs.map(g => g.option), dec: d, model: null }); continue;
+      }
+      const f = fit(eventLines[k] || []);
+      if (f.error) { const d = product(); total *= d; out.push({ options: gs.map(g => g.option), dec: d, model: null }); continue; }
+      const p = jointP(f, L);
+      if (p === 0 || !(p >= MIN_P)) { const d = product(); total *= d; out.push({ options: gs.map(g => g.option), dec: d, model: null }); continue; }
       const d = 1 / p; total *= d;
       out.push({ options: gs.map(g => g.option), dec: d, model: { version: VERSION, lh: f.lh, la: f.la, p, rmse: f.rmse } });
     }

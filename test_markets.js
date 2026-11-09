@@ -28,8 +28,8 @@ t('import identity/idempotence, labels, distinct markets, atomic validation',()=
  const before=ls.length;const broken=event('bad');broken.markets[2].options=[{label:'Over',point:3,odds:0}];assert.throws(()=>Q.createEvent(broken),/Faltan|Cuota/);assert.equal(Q.lines().length,before);
 });
 const op=id=>Q.lines().find(l=>l.id===id).options;
-t('same event correlated parlay rejected; single markets coexist; cross settlement prohibited',()=>{
- const b=coin();assert.throws(()=>Q.placeParlay(u,[op(ids[0])[2].id,op(ids[1])[0].id],100),/contradictorias/);assert.equal(coin(),b);
+t('same event Draw+spread allowed (product/SGP); single markets coexist; cross settlement prohibited',()=>{
+ const b=coin();assert.ok(Q.placeParlay(u,[op(ids[0])[2].id,op(ids[1])[0].id],100));assert.equal(coin(),b-100);
  const betA=Q.placeBet(u,op(ids[0])[0].id,100),betB=Q.placeBet(u,op(ids[1])[0].id,100);
  assert.throws(()=>Q.settleLine(ids[1],op(ids[0])[0].id),/inválida/);
  Q.settleLine(ids[0],op(ids[0])[0].id);
@@ -81,7 +81,7 @@ t('legacy winner-only add handicap+total keeps old bets, creates selectable inde
  assert.throws(()=>R.addEventMarket(id,'totals',options.totals,'Local','Visita'),/ya existe/);
  // Each offered handicap and total outcome is a valid single selection.
  for(const lineId of [sp,total]) for(const o of R.lines().find(l=>l.id===lineId).options) assert.ok(R.placeBet(u,o.id,10));
- assert.throws(()=>R.placeParlay(u,[oldOptions[0].id,R.lines().find(l=>l.id===total).options[0].id],10),/medio punto/);assert.throws(()=>R.placeParlay(u,[oldOptions[2].id,R.lines().find(l=>l.id===sp).options[0].id],10),/contradictorias/);
+ assert.ok(R.placeParlay(u,[oldOptions[0].id,R.lines().find(l=>l.id===total).options[0].id],10));assert.ok(R.placeParlay(u,[oldOptions[2].id,R.lines().find(l=>l.id===sp).options[0].id],10));
  const other=R.createLine('Other fixture',[{label:'A',odds:110},{label:'B',odds:-120}]);
  assert.ok(R.placeParlay(u,[R.lines().find(l=>l.id===sp).options[0].id,R.lines().find(l=>l.id===other).options[0].id],10));
  const fs=require('node:fs'),vm=require('node:vm'),src=fs.readFileSync('public/app.js','utf8');const ctx={Markets:M,me:{is_admin:true},boleto:[],esc:String,od:String};
@@ -122,13 +122,9 @@ t('legacy cards retain three equal market columns with compact nonoverflowing mo
 
 {const assert=require('node:assert/strict');const M=require('./public/markets');
  const L=(line,market,outcome,point)=>({event:'real:psg',line,market,home:'PSG',away:'Troyes',outcome,point});
- const ok=gs=>assert.equal(M.sameEventError(gs),null,JSON.stringify(gs)),bad=(gs,re=/contradictorias/)=>assert.match(M.sameEventError(gs)||'',re);
- ok([L(1,'h2h','PSG'),L(3,'totals','Over',3.5)]);ok([L(1,'h2h','PSG'),L(3,'totals','Under',3.5)]);
- ok([L(2,'spreads','PSG',-1.5),L(3,'totals','Over',3.5)]);ok([L(1,'h2h','Draw'),L(3,'totals','Under',3.5)]);
- ok([L(1,'h2h','PSG'),L(2,'spreads','PSG',2.5)]);ok([L(1,'h2h','PSG'),L(2,'spreads','Troyes',1)]);
- bad([L(1,'h2h','PSG'),L(1,'h2h','Troyes')],/una selección/);bad([L(1,'h2h','Draw'),L(2,'spreads','PSG',-1.5)]);
- bad([L(2,'spreads','PSG',-2.5),L(3,'totals','Under',2.5)]);bad([L(1,'h2h','Draw'),L(3,'totals','Over',2.5),L(4,'totals','Under',3)]);
- ok([L(1,'h2h','Draw'),L(3,'totals','Over',1.5),L(4,'totals','Under',3)]);bad([L(1,'h2h','Draw'),L(3,'totals','Over',2.5),L(4,'totals','Under',3.5)]);// parity: draw totals even
- bad([L(3,'totals','Over',3.5),L(4,'totals','Under',2.5)]);bad([L(1,'h2h','PSG'),L(2,'spreads','Troyes',-0.5)]);
- bad([L(1,'h2h','PSG'),{...L(9,undefined,'x')}],/no admite/);bad([L(3,'totals','Over',2.5),L(4,'totals','Over',2.5)],/repetida/);
+ const ok=gs=>assert.equal(M.sameEventError(gs),null,JSON.stringify(gs));
+ ok([L(1,'h2h','PSG'),L(3,'totals','Over',3.5)]);ok([L(2,'spreads','PSG',8.5),L(3,'totals','Under',24.5)]);
+ ok([L(1,'h2h','Draw'),L(2,'spreads','PSG',-1.5)]);ok([L(5,'props','Under',null),L(6,'props','Under',null)]);
+ ok([L(2,'spreads','PSG',8.5),L(5,'props','Under',null),L(6,'props','Over',null)]);
+ assert.match(M.sameEventError([L(1,'h2h','PSG'),L(1,'h2h','Troyes')])||'',/una selección/);
  assert.equal(M.sameEventError([{...L(1,'h2h','PSG'),event:'a'},{...L(2,'h2h','Troyes'),event:'b'}]),null);console.log('OK same-event parlay feasibility');}

@@ -44,7 +44,7 @@ t('hockey ML -150/+130 + O/U 6.5 +120/-140: all favourite/underdog x Over/Under 
   const q = S.quote([leg('spreads', 'A', 1.5, -200), leg('totals', 'Under', 6.5, -140)], { e: pl }); assert.ok(q.modeled && q.dec > 1, JSON.stringify(q)); assert.equal(S.fit(pl).tb, true);
   // H +0.5 and A +0.5 together can only win on a level FINAL score: impossible in hockey -> explicit contradiction
   assert.equal(S.jointP(f, [{ market: 'spreads', outcome: 'H', point: 0.5, home: 'H', away: 'A' }, { market: 'spreads', outcome: 'A', point: 0.5, home: 'H', away: 'A' }]), 0);
-  const q0 = S.quote([leg('totals', 'Under', 6.5, -140), { ...leg('spreads', 'H', 0.5, -110), line: 4 }, { ...leg('spreads', 'A', 0.5, -110), line: 5 }], { e: pl }); assert.match(q0.error, /contradictorias/);
+  const q0 = S.quote([leg('totals', 'Under', 6.5, -140), { ...leg('spreads', 'H', 0.5, -110), line: 4 }, { ...leg('spreads', 'A', 0.5, -110), line: 5 }], { e: pl }); assert.ok(!q0.error && q0.dec > 1); // product fallback, never block
 });
 t('soccer stays regulation (no fake goal); unspecified sport 2-way defaults to decided winner', () => {
   assert.equal(S.fit(ML(null)).tb, true); assert.match(S.fit(ML('soccer')).error, /no encajan/);
@@ -58,7 +58,7 @@ t('server: hockey event sport stored, 2-way ML + Over 6.5 parlay accepted with v
   const { D, adminId, u, ol } = mk(); const [w, tot] = D.createEvent(hockey('h'), 'custom'); assert.equal(D.lines().find(l => l.id === w).sport, 'hockey');
   D.placeParlay(u, [ol(w, 'Bruins').id, ol(tot, 'Over').id], 10); assert.equal(D.myParlays(u)[0].model, 'poisson-v4');
   D.setEventSport(adminId, w, 'soccer'); assert.ok(D.lines().filter(l => [w, tot].includes(l.id)).every(l => l.sport === 'soccer'));
-  assert.throws(() => D.placeParlay(u, [ol(w, 'Rangers').id, ol(tot, 'Under').id], 10), /no encajan/);
+  assert.ok(D.placeParlay(u, [ol(w, 'Rangers').id, ol(tot, 'Under').id], 10)); // soccer 2-way fit fails → product fallback
   assert.throws(() => D.setEventSport(adminId, w, 'tenis'), /inválido/);
   const [rw] = D.createEvent({ ...hockey('r'), sport: undefined, sport_key: 'icehockey_nhl' }, 'real'); assert.equal(D.lines().find(l => l.id === rw).sport, 'hockey');
 });

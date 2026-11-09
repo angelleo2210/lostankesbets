@@ -73,4 +73,37 @@ t('UI: Más mercados disclosure + admin prop form present', () => {
   assert.ok(src.includes('Más mercados (') && src.includes('event-props') && src.includes('value="props"') && src.includes('prop_title'));
   assert.ok(src.includes('remove-prop') && src.includes('Agregar hándicap / total / prop'));
 });
+
+t('Ángel fixture: handicap +8.5 + two different props (Under+Over) + handicap+match Under; client+server; same prop both sides still blocked', () => {
+  const { D, u, opt, coins } = mk();
+  const ev = { id: 'chapa', title: 'La Chapa Cubana', home: 'Los Largers', away: 'Visitante', unit: 'carreras', sport: 'baseball', markets: [
+    { key: 'h2h', options: [{ label: 'Los Largers', odds: -150 }, { label: 'Visitante', odds: 130 }] },
+    { key: 'spreads', options: [{ label: 'Los Largers', point: 8.5, odds: -130 }, { label: 'Visitante', point: -8.5, odds: 110 }] },
+    { key: 'totals', options: [{ label: 'Over', point: 24.5, odds: -110 }, { label: 'Under', point: 24.5, odds: -110 }] }] };
+  const [w, sp, tot] = D.createEvent(ev);
+  const livan = D.addEventMarket(w, 'props', [{ label: 'Over', odds: 100 }, { label: 'Under', odds: -480 }], 'Los Largers', 'Visitante', '', 'Livan 2.5 Hits');
+  const fabian = D.addEventMarket(w, 'props', [{ label: 'Over', odds: 280 }, { label: 'Under', odds: -340 }], 'Los Largers', 'Visitante', '', 'Fabián 1.5 Hits');
+  const legs3 = [
+    { option: opt(sp, 'Los Largers').id, line: sp, event: 'custom:chapa', market: 'spreads', home: 'Los Largers', away: 'Visitante', outcome: 'Los Largers', point: 8.5, odds: -130 },
+    { option: opt(livan, 'Under').id, line: livan, event: 'custom:chapa', market: 'props', home: 'Los Largers', away: 'Visitante', outcome: 'Under', point: null, odds: -480 },
+    { option: opt(fabian, 'Over').id, line: fabian, event: 'custom:chapa', market: 'props', home: 'Los Largers', away: 'Visitante', outcome: 'Over', point: null, odds: 280 },
+  ];
+  assert.equal(Markets.sameEventError(legs3), null);
+  const Sgp = require('./public/sgp'); const q = Sgp.quote(legs3, {}); assert.ok(!q.error && !q.modeled); assert.ok(Math.abs(q.dec - (Sgp.dec(-130)*Sgp.dec(-480)*Sgp.dec(280))) < 1e-9);
+  // two props both Under — previously false "Selección repetida"
+  const bothUnder = [legs3[0], legs3[1], { ...legs3[2], option: opt(fabian, 'Under').id, outcome: 'Under', odds: -340, line: fabian }];
+  assert.equal(Markets.sameEventError(bothUnder), null);
+  assert.ok(!Sgp.quote(bothUnder, {}).error);
+  // handicap + match Under
+  const hu = [
+    { option: opt(sp, 'Los Largers').id, line: sp, event: 'custom:chapa', market: 'spreads', home: 'Los Largers', away: 'Visitante', outcome: 'Los Largers', point: 8.5, odds: -130 },
+    { option: opt(tot, 'Under').id, line: tot, event: 'custom:chapa', market: 'totals', home: 'Los Largers', away: 'Visitante', outcome: 'Under', point: 24.5, odds: -110 },
+  ];
+  assert.equal(Markets.sameEventError(hu), null); assert.ok(!Sgp.quote(hu, { 'custom:chapa': D.lines().filter(l => l.event_id === 'chapa') }).error);
+  const c0 = coins();
+  D.placeParlay(u, [opt(sp, 'Los Largers').id, opt(livan, 'Under').id, opt(fabian, 'Over').id], 100);
+  D.placeParlay(u, [opt(sp, 'Los Largers').id, opt(tot, 'Under').id], 50);
+  assert.equal(coins(), c0 - 150);
+  assert.throws(() => D.placeParlay(u, [opt(livan, 'Over').id, opt(livan, 'Under').id], 10), /Solo una selección/);
+});
 console.log(n, 'props tests passed');
