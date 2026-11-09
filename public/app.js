@@ -57,7 +57,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
       lost: { banner: 'PERDISTE', cls: 'lost', payK: 'Resultado' },
       open: { banner: 'PENDIENTE', cls: 'open', payK: 'Ganarías' },
       refunded: { banner: 'ANULADA', cls: 'ref', payK: 'Devuelto' },
-      cancelled: { banner: 'ANULADA', cls: 'ref', payK: 'Devuelto' }
+      cancelled: { banner: 'CANCELADA', cls: 'ref', payK: 'Devuelto' }
     }[s] || { banner: '—', cls: 'open', payK: '—' });
     const money = (b) => {
       if (b.status === 'won') return fmt(b.payout || 0);
@@ -86,7 +86,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
           <div class="hrb-row"><div class="hrb-left"><span class="hrb-tag">Simple</span><span class="hrb-name">${esc(vsTitle(b.title, b.home, b.away))}</span></div><span class="hrb-odds">${od(b.odds)}</span></div>
           <div class="hrb-sel">${esc(b.label)}</div>
           <div class="hrb-money"><div><span class="k">Apostado</span><b>${fmt(b.stake)}</b></div><div><span class="k">${m.payK}</span><b>${money(b)}</b></div></div>
-          <div class="hrb-foot"><button type="button" class="hrb-id" data-copy="${b.id}">#${b.id}</button><button type="button" class="hrb-share" data-sharebtn="b-${b.id}">Compartir</button></div>
+          <div class="hrb-foot"><button type="button" class="hrb-id" data-copy="${b.id}">#${b.id}</button><button type="button" class="hrb-share" data-sharebtn="b-${b.id}">Compartir</button>${b.cancellable ? `<button type="button" class="alt hrb-cancel" data-cancel-bet="${b.id}">Cancelar apuesta</button>` : ''}</div>
         </div></article>`;
     };
     const gst = { open: '○', won: '✓', lost: '✕', cancelled: '⊘', refunded: '⊘' };
@@ -102,7 +102,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
           <div class="hrb-row"><div class="hrb-left"><span class="hrb-tag">Parlay</span><span class="hrb-name">${n}-Pick Parlay</span></div><span class="hrb-odds">${p.odds ? od(p.odds) : ''}</span></div>
           <div class="hrb-sel">${esc(picks)}</div>${p.pricing_note ? `<details class="odds-info small"><summary>Cuota estimada · Sobre la cuota</summary><div>${esc(p.pricing_note)}</div></details>` : ''}
           <div class="hrb-money"><div><span class="k">Apostado</span><b>${fmt(p.stake)}</b></div><div><span class="k">${m.payK}</span><b>${money(p)}</b></div></div>
-          <div class="hrb-foot"><button type="button" class="hrb-id" data-copy="${p.id}">#${p.id}</button><button type="button" class="hrb-share" data-sharebtn="p-${p.id}">Compartir</button></div>
+          <div class="hrb-foot"><button type="button" class="hrb-id" data-copy="${p.id}">#${p.id}</button><button type="button" class="hrb-share" data-sharebtn="p-${p.id}">Compartir</button>${p.cancellable ? `<button type="button" class="alt hrb-cancel" data-cancel-parlay="${p.id}">Cancelar apuesta</button>` : ''}</div>
           <details class="hrb-details"><summary>Ver selecciones</summary><div class="hrb-legs">${legs}</div></details>
         </div></article>`;
     };
@@ -112,6 +112,18 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
       const id = b.dataset.copy;
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(String(id)).then(() => flash('ID copiado')).catch(() => flash('#' + id));
       else flash('#' + id);
+    });
+    B.querySelectorAll('[data-cancel-bet]').forEach(b => b.onclick = async () => {
+      if (!confirm('¿Cancelar esta apuesta? Se te devolverá el monto apostado.')) return;
+      b.disabled = true;
+      try { const r = await api('/bet/cancel', { betId: Number(b.dataset.cancelBet) }); if (r.error) throw new Error(r.error); flash('Apuesta cancelada · devuelto ' + fmt(r.refunded)); render(); }
+      catch (e) { b.disabled = false; flash(e.message); }
+    });
+    B.querySelectorAll('[data-cancel-parlay]').forEach(b => b.onclick = async () => {
+      if (!confirm('¿Cancelar este parlay? Se te devolverá el monto apostado.')) return;
+      b.disabled = true;
+      try { const r = await api('/parlay/cancel', { parlayId: Number(b.dataset.cancelParlay) }); if (r.error) throw new Error(r.error); flash('Parlay cancelado · devuelto ' + fmt(r.refunded)); render(); }
+      catch (e) { b.disabled = false; flash(e.message); }
     });
     B.querySelectorAll('[data-sharebtn]').forEach(b => b.onclick = () => {
       const key = b.dataset.sharebtn;

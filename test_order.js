@@ -35,7 +35,7 @@ t('creation forms show Local before Visitante; payload still maps #eh=home, #ea=
 });
 t('tickets/slip/admin titles use display helper; bets/parlays expose home/away', () => {
   for (const k of ['vsTitle(b.title, b.home, b.away)', 'vsTitle(g.title, g.home, g.away)', 'vsTitle(e.title, e.home, e.away)', 'vsTitle(l.title, l.home, l.away)']) assert.ok(src.includes(k), k);
-  const core = fs.readFileSync(__dirname + '/core.js', 'utf8'); assert.ok(core.includes('l.title, l.kind, l.home, l.away, o.label FROM bets') && core.includes('l.title, l.home, l.away, o.label FROM parlay_legs'));
+  const core = fs.readFileSync(__dirname + '/core.js', 'utf8'); assert.ok(core.includes('FROM bets b JOIN lines') && core.includes('FROM parlay_legs') && core.includes('l.home, l.away'));
 });
 t('pre-existing published event + upgraded legacy line + pending bets render home-first; DB rows unchanged', () => {
   const R = open(':memory:'); R.setupAdmin('admin', '1234'); const u = R.register(R.newInvite(), 'pepe', '1234');

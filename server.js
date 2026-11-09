@@ -24,6 +24,8 @@ app.get('/api/lines', h(r => { auth(r); return C.lines(['open', 'closed']); }));
 app.get('/api/leaderboard', h(r => { auth(r); return C.leaderboard(r.query.period); }));
 app.get('/api/tabla', h(r => { const u = auth(r); const d = C.tabla(r.query.period || 'temporada'); return { ...d, me: u.id }; }));
 app.post('/api/bet', h(r => { const u = auth(r); C.placeBet(u.id, r.body.optionId, r.body.stake); }));
+app.post('/api/bet/cancel', h(r => C.cancelBet(auth(r).id, r.body.betId)));
+app.post('/api/parlay/cancel', h(r => C.cancelParlay(auth(r).id, r.body.parlayId)));
 app.post('/api/profile', h(r => { const u = auth(r); return C.setProfile(u.id, r.body.avatar, r.body.display_name, r.body.facialHair, r.body.cosmetics, r.body.avatarCfg); }));
 app.get('/api/owned', h(r => { const u = auth(r); return { owned: C.owned(u.id) }; }));
 app.get('/api/chat/:kind/:id', h(r => C.chatList(auth(r).id, r.params.kind, r.params.id)));

@@ -576,12 +576,41 @@ function open(file = 'data.db') {
           if (st === 'won') winCredit(p.user_id, pay, p.stake, `parlay#${pid}`); else db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(pay, p.user_id); }
       }
     },
-    myParlays: uid => db.prepare('SELECT * FROM parlays WHERE user_id=? ORDER BY id DESC').all(uid).map(p => {
-      const legs = db.prepare('SELECT g.*, l.title, l.home, l.away, o.label FROM parlay_legs g JOIN lines l ON l.id=g.line_id JOIN options o ON o.id=g.option_id WHERE g.parlay_id=? ORDER BY g.id').all(p.id);
+    myParlays: (uid, t = Date.now()) => db.prepare('SELECT * FROM parlays WHERE user_id=? ORDER BY id DESC').all(uid).map(p => {
+      const legs = db.prepare('SELECT g.*, l.title, l.home, l.away, l.starts, l.status AS line_status, o.label FROM parlay_legs g JOIN lines l ON l.id=g.line_id JOIN options o ON o.id=g.option_id WHERE g.parlay_id=? ORDER BY g.id').all(p.id);
       const d = p.pricing ? modeledFactor(p, legs).d : legs.filter(g => g.status !== 'cancelled').reduce((m, g) => m * dec(g.odds), 1);
       const { pricing, ...pp } = p;
-      return { ...pp, legs, ...(p.pricing ? { pricing_note: Sgp.NOTE, model: JSON.parse(p.pricing).version } : p.same_event ? { pricing_note: Markets.SAME_EVENT_NOTE } : {}), odds: d > 1 ? toAmerican(d) : null, potential: Math.floor(p.stake * d) };
+      const cancellable = p.status === 'open' && legs.every(g => ['open','closed'].includes(g.line_status) && !hasStarted(g, t));
+      return { ...pp, legs, cancellable, ...(p.pricing ? { pricing_note: Sgp.NOTE, model: JSON.parse(p.pricing).version } : p.same_event ? { pricing_note: Markets.SAME_EVENT_NOTE } : {}), odds: d > 1 ? toAmerican(d) : null, potential: Math.floor(p.stake * d) };
     }),
+    // User cancel before scheduled start: full stake back to coins (no credit wallet yet). Idempotent; owner-only.
+    cancelBet(userId, betId, t = Date.now()) {
+      return tx(() => {
+        const b = db.prepare('SELECT b.*, l.starts, l.status AS line_status FROM bets b JOIN lines l ON l.id=b.line_id WHERE b.id=?').get(Number(betId));
+        if (!b || b.user_id !== userId) err('Apuesta no encontrada');
+        if (b.status !== 'open') err('Esta apuesta ya no se puede cancelar');
+        if (!['open', 'closed'].includes(b.line_status)) err('Este partido ya fue liquidado o anulado');
+        if (hasStarted(b, t)) err('El partido ya empezó; no se puede cancelar');
+        if (db.prepare("UPDATE bets SET status='cancelled', payout=?, ts=? WHERE id=? AND status='open' AND user_id=?").run(b.stake, now(), b.id, userId).changes !== 1) err('Esta apuesta ya no se puede cancelar');
+        db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(b.stake, userId);
+        return { ok: true, refunded: b.stake, coins: db.prepare('SELECT coins FROM users WHERE id=?').get(userId).coins };
+      });
+    },
+    cancelParlay(userId, parlayId, t = Date.now()) {
+      return tx(() => {
+        const p = db.prepare('SELECT * FROM parlays WHERE id=?').get(Number(parlayId));
+        if (!p || p.user_id !== userId) err('Parlay no encontrado');
+        if (p.status !== 'open') err('Este parlay ya no se puede cancelar');
+        const legs = db.prepare('SELECT g.*, l.starts, l.status AS line_status FROM parlay_legs g JOIN lines l ON l.id=g.line_id WHERE g.parlay_id=?').all(p.id);
+        if (!legs.length) err('Parlay sin selecciones');
+        if (legs.some(g => !['open', 'closed'].includes(g.line_status))) err('Un partido del parlay ya fue liquidado o anulado');
+        if (legs.some(g => hasStarted(g, t))) err('Un partido del parlay ya empezó; no se puede cancelar');
+        if (db.prepare("UPDATE parlays SET status='cancelled', payout=?, ts=? WHERE id=? AND status='open' AND user_id=?").run(p.stake, now(), p.id, userId).changes !== 1) err('Este parlay ya no se puede cancelar');
+        db.prepare("UPDATE parlay_legs SET status='cancelled' WHERE parlay_id=? AND status='open'").run(p.id);
+        db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(p.stake, userId);
+        return { ok: true, refunded: p.stake, coins: db.prepare('SELECT coins FROM users WHERE id=?').get(userId).coins };
+      });
+    },
     closeLine(id) { if (db.prepare("UPDATE lines SET status='closed' WHERE id=? AND status='open'").run(id).changes !== 1) err('La línea no está abierta'); },
     settleLine(id, winnerOptionId) {
       return tx(() => {
@@ -611,7 +640,7 @@ function open(file = 'data.db') {
         api._parlayLegs(l.id, null); api.refreshRanks();
       });
     },
-    myBets: uid => db.prepare('SELECT b.*, l.title, l.kind, l.home, l.away, o.label FROM bets b JOIN lines l ON l.id=b.line_id JOIN options o ON o.id=b.option_id WHERE b.user_id=? ORDER BY b.id DESC').all(uid),
+    myBets: (uid, t = Date.now()) => db.prepare('SELECT b.*, l.title, l.kind, l.home, l.away, l.starts, l.status AS line_status, o.label FROM bets b JOIN lines l ON l.id=b.line_id JOIN options o ON o.id=b.option_id WHERE b.user_id=? ORDER BY b.id DESC').all(uid).map(b => ({ ...b, cancellable: b.status === 'open' && ['open','closed'].includes(b.line_status) && !hasStarted(b, t) })),
     setProfile(uid, avatar, displayName, facialHair, cosmetics, avatarCfg) {
       let cos, acfg;
       if (avatarCfg !== undefined && avatarCfg !== null) { const v = AV.validate(avatarCfg); if (v.error) err(v.error); acfg = v.cfg; }
