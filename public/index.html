@@ -219,5 +219,15 @@ button.odds.on{background:#38bdf855;border-color:#7dd3fc;color:#e0f2fe;box-shado
 @media(max-width:380px){.event-team{font-size:12px;padding-right:5px}.event-market-grid .odds-n{font-size:14px}.market-point{font-size:12px}}
 
 .odds-info{margin-top:4px;color:inherit;opacity:.8;font-weight:400}.odds-info summary{cursor:pointer;list-style-position:inside}.odds-info div{margin-top:4px;line-height:1.35}
-.event-props{margin-top:8px}.event-props summary{cursor:pointer;font-weight:600;opacity:.9}.prop-card{margin:8px 0;padding:8px;border:1px solid #334155;border-radius:8px}.prop-title{font-weight:600;margin-bottom:4px}
+.event-props{margin-top:8px}.event-props summary{cursor:pointer;font-weight:600;opacity:.9}
+.prop-board{display:flex;flex-direction:column;gap:0;margin-top:6px}
+.prop-board-hd,.prop-row{display:grid;grid-template-columns:minmax(0,1.45fr) repeat(2,minmax(70px,1fr));gap:6px;align-items:center}
+.prop-board-hd{margin-bottom:2px}.prop-board-hd span{font-size:10px;font-weight:700;letter-spacing:.08em;color:#94a3b8;text-align:center}.prop-board-hd span:first-child{text-align:left}
+.prop-row{padding:7px 0;border-bottom:1px solid #1e293b}
+.prop-name{font-size:14px;font-weight:600;color:#e2e8f0;min-width:0;overflow-wrap:anywhere;line-height:1.25;padding-right:4px}
+.prop-row .odds,.prop-row button.odds{width:100%!important;min-width:0!important;max-width:none!important;min-height:52px;margin:0;padding:5px 2px!important;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border-radius:6px;box-sizing:border-box}
+.prop-row .market-point{font-size:12px;font-weight:600;color:#e2e8f0}.prop-row .odds-n{font-size:14px;line-height:1.1;white-space:nowrap}
+.prop-row-x{grid-template-columns:minmax(0,1.2fr) minmax(0,2fr)}
+.prop-x{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+.prop-x .odds,.prop-x button.odds{width:auto!important;min-width:76px!important;max-width:120px!important;flex:1 1 76px}
 </style></head><body><main id="app"></main><script src="intro.js"></script><script src="avatar.js"></script><script src="store.js"></script><script src="markets.js"></script><script src="sgp.js"></script><script src="app.js"></script><script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{}));</script></body></html>

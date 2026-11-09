@@ -229,6 +229,16 @@ function newestFirst(parlays, bets) { return [...(parlays || []).map(v => ({ typ
 function toLocalInput(iso) { const d = new Date(iso); if (isNaN(d)) return ''; const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; }
 function vsTitle(t, home, away) { t = String(t || ''); return home && away ? t.split(`${away} vs ${home}`).join(`${home} vs ${away}`) : t; }
 function displayTeams(home, away) { return [home, away]; }
+function propTitleParts(title) {
+  const t = String(title || 'Prop').trim();
+  const m = t.match(/^(.+?)\s+(\d+(?:\.\d+)?)\+?\s*(.*)$/);
+  if (!m || !m[1].trim()) return { name: t, line: null };
+  return { name: m[1].trim(), line: m[2], rest: (m[3] || '').trim() };
+}
+function isPropOu(options) {
+  const labs = (options || []).map(o => o.outcome || o.label);
+  return labs.length === 2 && labs.includes('Over') && labs.includes('Under');
+}
 // Group independently settled market lines into one event card; legacy custom lines stay unchanged.
 function marketCards(ls) {
   const groups = new Map();
@@ -258,15 +268,35 @@ function marketCards(ls) {
       <div class="event-market-grid"><span class="market-head">Equipo</span><span class="market-head">Hándicap</span><span class="market-head">Total${base.unit ? '<br>' + esc(base.unit) : ''}</span><span class="market-head">Ganador</span>
       ${teams.map(row).join('')}${draw ? `<span class="event-team">Empate</span><span></span><span></span>${cell(winner, draw)}` : ''}</div>
       <div class="event-date small">${base.starts ? esc(new Date(base.starts).toLocaleString('es-US')) + ' (hora de tu dispositivo)' + (started ? '' : ' · se cierra al empezar') : 'Fecha no indicada · sin cierre automático'}</div>
-      ${props.length ? `<details class="event-props"><summary>Más mercados (${props.length})</summary>${props.map(pl => {
-        const popen = pl.status === 'open' && !paused;
-        return `<div class="prop-card"><div class="prop-title small">${esc(pl.prop_title || 'Prop')}</div><div class="line-grid">${pl.options.map(o => {
+      ${props.length ? (() => {
+        const hasOu = props.some(pl => isPropOu(pl.options));
+        const propCell = (pl, o, pointLab) => {
+          if (!o) return '<span class="market-unavailable" aria-label="No disponible">—</span>';
           const on = boleto.some(b => b.id === o.id);
-          const lab = `<div class="line-lab" title="${esc(o.label)}">${esc((o.outcome || o.label))}</div>`;
-          const cell = popen ? `<button type="button" class="odds ${on ? 'on' : ''}" data-add="${o.id}" aria-pressed="${on ? 'true' : 'false'}"><span class="odds-n">${od(o.odds)}</span></button>` : `<div class="odds off"><span class="odds-n">${od(o.odds)}</span></div>`;
-          return `<div class="line-row">${lab}${cell}</div>`;
-        }).join('')}</div>${me?.is_admin && pl.status === 'open' && !pl.options.some(o => false) ? '' : ''}</div>`;
-      }).join('')}</details>` : ''}
+          const popen = pl.status === 'open' && !paused;
+          const top = pointLab ? `<span class="market-point">${esc(pointLab)}</span>` : (isPropOu(pl.options) ? '' : `<span class="market-point">${esc(o.outcome || o.label)}</span>`);
+          const content = `${top}<span class="odds-n">${od(o.odds)}</span>`;
+          return popen
+            ? `<button type="button" class="odds ${on ? 'on' : ''}" data-add="${o.id}" aria-pressed="${on}" aria-label="${esc(o.label)} ${od(o.odds)}">${content}</button>`
+            : `<div class="odds off" aria-label="${started ? 'Partido empezado' : paused ? 'Pausada' : 'Cerrada'}">${content}</div>`;
+        };
+        const rows = props.map(pl => {
+          const parts = propTitleParts(pl.prop_title || 'Prop');
+          if (isPropOu(pl.options)) {
+            const over = pl.options.find(o => (o.outcome || o.label) === 'Over');
+            const under = pl.options.find(o => (o.outcome || o.label) === 'Under');
+            const line = (typeof over?.point === 'number' && Number.isFinite(over.point) ? over.point : null)
+              ?? (typeof under?.point === 'number' && Number.isFinite(under.point) ? under.point : null)
+              ?? (parts.line != null ? Number(parts.line) : null);
+            const left = line != null && parts.line != null ? parts.name : (pl.prop_title || 'Prop');
+            const oLab = line != null ? `O ${line}` : 'Over';
+            const uLab = line != null ? `U ${line}` : 'Under';
+            return `<div class="prop-row"><div class="prop-name" title="${esc(pl.prop_title || '')}">${esc(left)}</div>${propCell(pl, over, oLab)}${propCell(pl, under, uLab)}</div>`;
+          }
+          return `<div class="prop-row prop-row-x"><div class="prop-name" title="${esc(pl.prop_title || '')}">${esc(pl.prop_title || 'Prop')}</div><div class="prop-x">${pl.options.map(o => propCell(pl, o, o.outcome || o.label)).join('')}</div></div>`;
+        }).join('');
+        return `<details class="event-props"><summary>Más mercados (${props.length})</summary><div class="prop-board">${hasOu ? '<div class="prop-board-hd"><span></span><span>OVER</span><span>UNDER</span></div>' : ''}${rows}</div></details>`;
+      })() : ''}
       <div class="market-note small">— No disponible</div>
       ${me?.is_admin ? `<details class="market-admin"><summary>Configurar mercados</summary><button type="button" class="alt" data-market-config="${(winner || base).id}">Agregar hándicap / total / prop</button>${group.some(l => ['open','closed'].includes(l.status)) ? `<button type="button" class="alt" data-pause="${(winner || base).id}" data-paused="${group.some(l => l.paused) ? 1 : 0}"${started && group.some(l => l.paused) ? ' disabled title="El partido ya empezó: cambia la hora de inicio para reabrir"' : ''}>${group.some(l => l.paused) ? '▶ Reactivar apuestas' : '⏸ Pausar apuestas'}</button>` : ''}<label class="small">Inicio (hora de tu dispositivo): <input type="datetime-local" data-start-in="${(winner || base).id}" value="${base.starts ? toLocalInput(base.starts) : ''}"></label><button type="button" class="alt" data-start="${(winner || base).id}">Guardar inicio</button>${started ? '<div class="small">El partido ya empezó: solo se reabre si guardas una hora de inicio futura. Puedes liquidar normalmente.</div>' : ''}<label class="small">Deporte: <select data-sport="${(winner || base).id}">${[['','Sin especificar'],['soccer','Fútbol'],['hockey','Hockey'],['baseball','Béisbol'],['other','Otro']].map(([k,n]) => `<option value="${k}"${(base.sport || '') === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label><div class="small">${group.filter(l => l.bookmaker).map(l => `${Markets.NAMES[l.market]}: ${esc(l.bookmaker)}`).join(' · ')}</div></details>` : ''}</div>`;
   }).join('');

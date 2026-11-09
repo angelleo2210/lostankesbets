@@ -70,8 +70,29 @@ t('remove prop only without bets; createEvent can include props', () => {
 });
 t('UI: Más mercados disclosure + admin prop form present', () => {
   const src = require('node:fs').readFileSync(__dirname + '/public/app.js', 'utf8');
+  const css = require('node:fs').readFileSync(__dirname + '/public/index.html', 'utf8');
   assert.ok(src.includes('Más mercados (') && src.includes('event-props') && src.includes('value="props"') && src.includes('prop_title'));
   assert.ok(src.includes('remove-prop') && src.includes('Agregar hándicap / total / prop'));
+  assert.ok(src.includes('prop-board') && src.includes('propTitleParts') && src.includes('isPropOu') && css.includes('.prop-board{') && css.includes('.prop-row{'));
+});
+t('UI: Over/Under props board shows name left + O/U columns; custom props keep title + option buttons', () => {
+  const src = require('node:fs').readFileSync(__dirname + '/public/app.js', 'utf8');
+  const vm = require('node:vm');
+  const ctx = { boleto: [], me: null, Markets: require('./public/markets'), esc: s => String(s ?? ''), od: o => (o > 0 ? '+' : '') + o };
+  vm.runInNewContext(src.slice(src.indexOf('// Display-only'), src.indexOf('function boletoCard(')) + '\nthis.cards=marketCards;this.vs=vsTitle;this.ptp=propTitleParts;this.isOu=isPropOu;', ctx);
+  assert.equal(JSON.stringify(ctx.ptp('Livan 2.5 Hits')), JSON.stringify({ name: 'Livan', line: '2.5', rest: 'Hits' }));
+  assert.equal(ctx.ptp('Soto HR').line, null);
+  assert.ok(ctx.isOu([{ label: 'Over' }, { label: 'Under' }]));
+  assert.ok(!ctx.isOu([{ label: 'Sí' }, { label: 'No' }]));
+  const html = ctx.cards([
+    { id: 1, event_id: 'e', kind: 'real', title: 'A vs B', home: 'A', away: 'B', market: 'h2h', status: 'open', options: [{ id: 10, label: 'A', outcome: 'A', odds: -110 }, { id: 11, label: 'B', outcome: 'B', odds: -110 }] },
+    { id: 2, event_id: 'e', kind: 'real', title: 'A vs B', home: 'A', away: 'B', market: 'props', prop_title: 'Livan 2.5 Hits', status: 'open', options: [{ id: 20, label: 'x', outcome: 'Over', odds: 100 }, { id: 21, label: 'y', outcome: 'Under', odds: -480 }] },
+    { id: 3, event_id: 'e', kind: 'real', title: 'A vs B', home: 'A', away: 'B', market: 'props', prop_title: 'Soto HR', status: 'open', options: [{ id: 30, label: 'Sí', outcome: 'Sí', odds: -150 }, { id: 31, label: 'No', outcome: 'No', odds: 130 }] },
+  ]);
+  assert.ok(html.includes('Más mercados (2)') && html.includes('prop-board') && html.includes('>OVER<') && html.includes('>UNDER<'));
+  assert.ok(html.includes('>Livan<') && html.includes('O 2.5') && html.includes('U 2.5') && html.includes('data-add="20"') && html.includes('data-add="21"'));
+  assert.ok(html.includes('>Soto HR<') && html.includes('prop-row-x') && html.includes('data-add="30"') && html.includes('Sí'));
+  assert.ok(!html.includes('prop-card'));
 });
 
 t('Ángel fixture: handicap +8.5 + two different props (Under+Over) + handicap+match Under; client+server; same prop both sides still blocked', () => {
