@@ -718,7 +718,7 @@ async function retosMenu(B) {
   const tile = (k, ic, n, d, legacy) => `<button class="alt retot${legacy ? ' legacy' : ''}" data-gm="${k}">${ic}<b>${n}</b><span class="small">${pend(d) ? `📩 ${pend(d)} reto(s) recibido(s)` : ''}${turn(d) ? ` · 🎯 te toca en ${turn(d)}` : (!pend(d) && live(d).length ? ` · ${live(d).length} en curso` : '')}</span></button>`;
   const legacyTiles = [['pen', 'Tanda de penaltis (antiguo)', p], ['bb', 'Béisbol (antiguo)', q], ['tc', 'Three Contest (antiguo)', z]]
     .filter(([, , d]) => live(d).length).map(([k, n, d]) => tile(k, '<span class="legacy-dot">⏳</span>', n, d, true)).join('');
-  const ruTile = `<button class="alt retot" data-gm="roulette"><span style="font-size:42px;line-height:1">🎡</span><b>Ruleta</b><span class="small">Europea · un solo cero</span></button>`;
+  const ruTile = `<button class="alt retot" data-gm="roulette"><img class="rl-game-icon" src="/icons/roulette-icon.png" srcset="/icons/roulette-icon.png 1x, /icons/roulette-icon@2x.png 2x" width="192" height="192" alt="Ruleta" decoding="async"><b>Ruleta</b><span class="small">Europea · un solo cero</span></button>`;
   B.innerHTML = `<div class="card"><h2>⚔️ Retos</h2><p class="small">Juega piedra, papel o tijera, o prueba la ruleta europea de un cero (monedas de juego).</p>
     <div class="retos">${tile('rps', `<img class="rps-game-icon" src="/img/rps/tile.webp" width="148" height="148" alt="Piedra papel o tijera" decoding="async">`, 'Piedra, papel o tijera', r, false)}${ruTile}</div>
     ${legacyTiles ? `<div class="small" style="margin-top:10px">Retos antiguos aún abiertos (solo para terminar o responder; ya no se pueden crear nuevos):</div><div class="retos">${legacyTiles}</div>` : ''}

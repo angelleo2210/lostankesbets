@@ -115,7 +115,9 @@ t('UI hooks and European wheel present; retos entry + no sports ranking mix', ()
   const ui = fs.readFileSync(__dirname + '/public/roulette-ui.js', 'utf8');
   const css = fs.readFileSync(__dirname + '/public/index.html', 'utf8');
   const core = fs.readFileSync(__dirname + '/core.js', 'utf8');
-  assert.ok(app.includes("gameSel === 'roulette'") && app.includes('data-gm="roulette"') && app.includes('Ruleta'));
+  assert.ok(app.includes("gameSel === 'roulette'") && app.includes('data-gm="roulette"') && app.includes('Ruleta') && app.includes('/icons/roulette-icon.png') && !app.includes('🎡'));
+  assert.ok(require('fs').existsSync(__dirname + '/public/icons/roulette-icon.png') && require('fs').existsSync(__dirname + '/public/icons/roulette-icon@2x.png'));
+  assert.ok(css.includes('.rl-game-icon{') && css.includes('border-radius:22%') && !css.includes('.rl-game-icon{border-radius:50%'));
   assert.ok(ui.includes('Hagan sus apuestas') && ui.includes('No va más') && ui.includes("const WHEEL = [0, 32, 15, 19, 4, 21, 2, 25"));
   assert.ok(ui.includes('rl-ball-track') && css.includes('.rl-felt{') && css.includes('.rl-dolly') || css.includes('dolly'));
   assert.ok(core.includes('roulette_spins') && !/refreshRanks\(\).*roulette|roulette.*refreshRanks/.test(core));
