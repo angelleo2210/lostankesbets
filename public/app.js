@@ -89,6 +89,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
           <div class="hrb-row"><div class="hrb-left"><span class="hrb-tag">Simple</span><span class="hrb-name">${esc(vsTitle(b.title, b.home, b.away))}</span></div><span class="hrb-odds">${od(b.odds)}</span></div>
           <div class="hrb-sel">${esc(b.label)}</div>
           <div class="hrb-money"><div><span class="k">Apostado</span><b>${fmt(b.stake)}</b></div><div><span class="k">${m.payK}</span><b>${money(b)}</b></div></div>
+          ${b.repeatNoPoints ? '<div class="hrb-dup small">Apuesta repetida: no suma puntos</div>' : ''}
           <div class="hrb-foot"><button type="button" class="hrb-id" data-copy="${b.id}">#${b.id}</button><button type="button" class="hrb-share" data-sharebtn="b-${b.id}">Compartir</button>${b.cancellable ? `<button type="button" class="alt hrb-cancel" data-cancel-bet="${b.id}">Cancelar apuesta</button>` : ''}</div>
         </div></article>`;
     };
@@ -105,6 +106,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
           <div class="hrb-row"><div class="hrb-left"><span class="hrb-tag">Parlay</span><span class="hrb-name">${n}-Pick Parlay</span></div><span class="hrb-odds">${p.odds ? od(p.odds) : ''}</span></div>
           <div class="hrb-sel">${esc(picks)}</div>${p.pricing_note ? `<details class="odds-info small"><summary>Cuota estimada · Sobre la cuota</summary><div>${esc(p.pricing_note)}</div></details>` : ''}
           <div class="hrb-money"><div><span class="k">Apostado</span><b>${fmt(p.stake)}</b></div><div><span class="k">${m.payK}</span><b>${money(p)}</b></div></div>
+          ${p.repeatNoPoints ? '<div class="hrb-dup small">Apuesta repetida: no suma puntos</div>' : ''}
           <div class="hrb-foot"><button type="button" class="hrb-id" data-copy="${p.id}">#${p.id}</button><button type="button" class="hrb-share" data-sharebtn="p-${p.id}">Compartir</button>${p.cancellable ? `<button type="button" class="alt hrb-cancel" data-cancel-parlay="${p.id}">Cancelar apuesta</button>` : ''}</div>
           <details class="hrb-details"><summary>Ver selecciones</summary><div class="hrb-legs">${legs}</div></details>
         </div></article>`;

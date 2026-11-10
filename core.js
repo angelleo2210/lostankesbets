@@ -113,6 +113,12 @@ function open(file = 'data.db') {
   for (const [c, t] of [['pricing', 'TEXT'], ['odds_dec', 'REAL']]) if (!db.prepare('PRAGMA table_info(parlays)').all().some(x => x.name === c)) db.exec(`ALTER TABLE parlays ADD COLUMN ${c} ${t}`);
   if (!db.prepare('PRAGMA table_info(parlays)').all().some(c => c.name === 'same_event')) db.exec('ALTER TABLE parlays ADD COLUMN same_event INTEGER DEFAULT 0');
   for (const t of ['bets', 'parlays']) if (!db.prepare(`PRAGMA table_info(${t})`).all().some(c => c.name === 'ts')) db.exec(`ALTER TABLE ${t} ADD COLUMN ts INTEGER`);
+  for (const t of ['bets', 'parlays']) {
+    const cols = db.prepare(`PRAGMA table_info(${t})`).all().map(c => c.name);
+    if (!cols.includes('rank_credit')) db.exec(`ALTER TABLE ${t} ADD COLUMN rank_credit INTEGER`);
+    if (!cols.includes('sel_key')) db.exec(`ALTER TABLE ${t} ADD COLUMN sel_key TEXT`);
+  }
+
   let tick = 0; const now = () => Date.now() * 1000 + (tick++ % 1000);
   if (!ucols.includes('last_bonus')) db.exec('ALTER TABLE users ADD COLUMN last_bonus INTEGER');
   if (!ucols.includes('facial_hair')) db.exec('ALTER TABLE users ADD COLUMN facial_hair TEXT');
@@ -281,6 +287,51 @@ function open(file = 'data.db') {
         else db.prepare('DELETE FROM paused_events WHERE key=?').run(eventKey(l));
         return { paused: !!paused }; }); },
   };
+
+  const selKeyFrom = (l, o) => {
+    const ev = l.event_id != null && String(l.event_id) !== '' ? `${l.kind}:${l.event_id}` : `line:${l.line_id ?? l.id}`;
+    const m = l.market || '';
+    const prop = m === 'props' ? String(l.prop_title || '') : '';
+    const out = String(o.outcome || o.label || '');
+    const pt = (o.point == null || o.point === '') ? '' : String(o.point);
+    return `b:${ev}|${m}|${prop}|${out}|${pt}`;
+  };
+  const betSelKey = (lineId, optionId) => {
+    const l = db.prepare('SELECT id, event_id, kind, market, prop_title FROM lines WHERE id=?').get(lineId);
+    const o = db.prepare('SELECT outcome, label, point FROM options WHERE id=?').get(optionId);
+    return selKeyFrom(l, o);
+  };
+  const parlaySelKey = pid => {
+    const legs = db.prepare('SELECT line_id, option_id FROM parlay_legs WHERE parlay_id=?').all(pid);
+    return 'p:' + legs.map(g => betSelKey(g.line_id, g.option_id)).sort().join('&');
+  };
+  const resolvedSelKey = (kind, row) => row.sel_key || (kind === 'bet' ? betSelKey(row.line_id, row.option_id) : parlaySelKey(row.id));
+  const hasCreditedWin = (uid, key, exceptKind, exceptId) => {
+    for (const b of db.prepare("SELECT id, sel_key, line_id, option_id FROM bets WHERE user_id=? AND status='won' AND (rank_credit IS NULL OR rank_credit=1)").all(uid)) {
+      if (exceptKind === 'bet' && b.id === exceptId) continue;
+      if (resolvedSelKey('bet', b) === key) return true;
+    }
+    for (const p of db.prepare("SELECT id, sel_key FROM parlays WHERE user_id=? AND status='won' AND (rank_credit IS NULL OR rank_credit=1)").all(uid)) {
+      if (exceptKind === 'parlay' && p.id === exceptId) continue;
+      if (resolvedSelKey('parlay', p) === key) return true;
+    }
+    return false;
+  };
+  const assignRankCredit = (kind, row) => {
+    const key = kind === 'bet' ? betSelKey(row.line_id, row.option_id) : parlaySelKey(row.id);
+    const credit = hasCreditedWin(row.user_id, key, kind, row.id) ? 0 : 1;
+    db.prepare(`UPDATE ${kind === 'bet' ? 'bets' : 'parlays'} SET sel_key=?, rank_credit=? WHERE id=?`).run(key, credit, row.id);
+    return credit;
+  };
+  const isRepeatNoPoints = (uid, kind, row, key) => {
+    if (row.status === 'won' && row.rank_credit === 0) return true;
+    if (!['open', 'won'].includes(row.status)) return false;
+    const earlierOpen = (table, knd, extra) => db.prepare(`SELECT id, sel_key${extra} FROM ${table} WHERE user_id=? AND id<? AND status='open'`).all(uid, row.id)
+      .some(o => resolvedSelKey(knd, o) === key);
+    if (earlierOpen('bets', 'bet', ', line_id, option_id') || earlierOpen('parlays', 'parlay', '')) return true;
+    return hasCreditedWin(uid, key, kind, row.id);
+  };
+
   const api = {
     ...bankApi,
     // Capas del avatar: solo se equipa lo que el usuario posee; color = el del artículo comprado.
@@ -581,7 +632,8 @@ function open(file = 'data.db') {
         else { const live = legs.filter(g => g.status === 'won');
           [st, pay] = live.length ? ['won', Math.floor(p.stake * live.reduce((m, g) => m * dec(g.odds), 1))] : ['refunded', p.stake]; }
         if (db.prepare("UPDATE parlays SET status=?, payout=?, ts=? WHERE id=? AND status='open'").run(st, pay, now(), pid).changes === 1) {
-          if (st === 'won') winCredit(p.user_id, pay, p.stake, `parlay#${pid}`); else db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(pay, p.user_id); }
+          if (st === 'won') { assignRankCredit('parlay', p); winCredit(p.user_id, pay, p.stake, `parlay#${pid}`); }
+          else db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(pay, p.user_id); }
       }
     },
     myParlays: (uid, t = Date.now()) => db.prepare('SELECT * FROM parlays WHERE user_id=? ORDER BY id DESC').all(uid).map(p => {
@@ -589,7 +641,8 @@ function open(file = 'data.db') {
       const d = p.pricing ? modeledFactor(p, legs).d : legs.filter(g => g.status !== 'cancelled').reduce((m, g) => m * dec(g.odds), 1);
       const { pricing, ...pp } = p;
       const cancellable = p.status === 'open' && legs.every(g => ['open','closed'].includes(g.line_status) && !hasStarted(g, t));
-      return { ...pp, legs, cancellable, ...(p.pricing ? { pricing_note: Sgp.NOTE, model: JSON.parse(p.pricing).version } : p.same_event ? { pricing_note: Markets.SAME_EVENT_NOTE } : {}), odds: d > 1 ? toAmerican(d) : null, potential: Math.floor(p.stake * d) };
+      const repeatNoPoints = isRepeatNoPoints(uid, 'parlay', p, p.sel_key || parlaySelKey(p.id));
+      return { ...pp, legs, cancellable, repeatNoPoints, ...(p.pricing ? { pricing_note: Sgp.NOTE, model: JSON.parse(p.pricing).version } : p.same_event ? { pricing_note: Markets.SAME_EVENT_NOTE } : {}), odds: d > 1 ? toAmerican(d) : null, potential: Math.floor(p.stake * d) };
     }),
     // User cancel before scheduled start: full stake back to coins (no credit wallet yet). Idempotent; owner-only.
     cancelBet(userId, betId, t = Date.now()) {
@@ -626,10 +679,11 @@ function open(file = 'data.db') {
         if (!l) err('Línea no existe'); if (!['open', 'closed'].includes(l.status)) err('Esta línea ya fue liquidada o cancelada');
         if (!db.prepare('SELECT 1 FROM options WHERE id=? AND line_id=?').get(Number(winnerOptionId), l.id)) err('Opción ganadora inválida');
         db.prepare("UPDATE lines SET status='settled', winner=? WHERE id=?").run(Number(winnerOptionId), l.id);
-        for (const b of db.prepare("SELECT * FROM bets WHERE line_id=? AND status='open'").all(l.id)) {
+        for (const b of db.prepare("SELECT * FROM bets WHERE line_id=? AND status='open' ORDER BY id").all(l.id)) {
           if (b.option_id === Number(winnerOptionId)) {
             const pay = b.stake + profit(b.stake, b.odds);
             db.prepare("UPDATE bets SET status='won', payout=?, ts=? WHERE id=?").run(pay, now(), b.id);
+            assignRankCredit('bet', b);
             winCredit(b.user_id, pay, b.stake, `bet#${b.id}`);
           } else db.prepare("UPDATE bets SET status='lost', ts=? WHERE id=?").run(now(), b.id);
         }
@@ -648,7 +702,10 @@ function open(file = 'data.db') {
         api._parlayLegs(l.id, null); api.refreshRanks();
       });
     },
-    myBets: (uid, t = Date.now()) => db.prepare('SELECT b.*, l.title, l.kind, l.home, l.away, l.starts, l.status AS line_status, o.label FROM bets b JOIN lines l ON l.id=b.line_id JOIN options o ON o.id=b.option_id WHERE b.user_id=? ORDER BY b.id DESC').all(uid).map(b => ({ ...b, cancellable: b.status === 'open' && ['open','closed'].includes(b.line_status) && !hasStarted(b, t) })),
+    myBets: (uid, t = Date.now()) => {
+      const rows = db.prepare('SELECT b.*, l.title, l.kind, l.home, l.away, l.starts, l.status AS line_status, o.label FROM bets b JOIN lines l ON l.id=b.line_id JOIN options o ON o.id=b.option_id WHERE b.user_id=? ORDER BY b.id DESC').all(uid);
+      return rows.map(b => ({ ...b, cancellable: b.status === 'open' && ['open','closed'].includes(b.line_status) && !hasStarted(b, t), repeatNoPoints: isRepeatNoPoints(uid, 'bet', b, b.sel_key || betSelKey(b.line_id, b.option_id)) }));
+    },
     setProfile(uid, avatar, displayName, facialHair, cosmetics, avatarCfg) {
       let cos, acfg;
       if (avatarCfg !== undefined && avatarCfg !== null) { const v = AV.validate(avatarCfg); if (v.error) err(v.error); acfg = v.cfg; }
@@ -701,9 +758,9 @@ function open(file = 'data.db') {
       const ts = "COALESCE(ts, CAST(strftime('%s', created) AS INTEGER) * 1000000)";
       const f = cutoff == null ? '' : ` AND ${ts}>=?`;
       const args = cutoff == null ? [uid] : [uid, cutoff];
-      const wonB = db.prepare(`SELECT COUNT(*) c FROM bets WHERE user_id=? AND status='won'${f}`).get(...args).c;
+      const wonB = db.prepare(`SELECT COUNT(*) c FROM bets WHERE user_id=? AND status='won' AND (rank_credit IS NULL OR rank_credit=1)${f}`).get(...args).c;
       const lostB = db.prepare(`SELECT COUNT(*) c FROM bets WHERE user_id=? AND status='lost'${f}`).get(...args).c;
-      const wonP = db.prepare(`SELECT COUNT(*) c FROM parlays WHERE user_id=? AND status='won'${f}`).get(...args).c;
+      const wonP = db.prepare(`SELECT COUNT(*) c FROM parlays WHERE user_id=? AND status='won' AND (rank_credit IS NULL OR rank_credit=1)${f}`).get(...args).c;
       const lostP = db.prepare(`SELECT COUNT(*) c FROM parlays WHERE user_id=? AND status='lost'${f}`).get(...args).c;
       return { wins: wonB + wonP, losses: lostB + lostP };
     },
@@ -738,8 +795,9 @@ function open(file = 'data.db') {
       const podium = rows.slice(0, 3);
       return { period: ['hoy', 'semana', 'temporada'].includes(period) ? period : 'temporada', rows, podium, activity: api.activity(8) };
     },
-    ranks() { const m = new Map(); db.prepare("SELECT id, username, coins, (SELECT COUNT(*) FROM bets b WHERE b.user_id=users.id AND b.status='won') + (SELECT COUNT(*) FROM parlays p WHERE p.user_id=users.id AND p.status='won') wins, (SELECT COUNT(*) FROM bets b WHERE b.user_id=users.id AND b.status='lost') + (SELECT COUNT(*) FROM parlays p WHERE p.user_id=users.id AND p.status='lost') losses FROM users WHERE is_admin=0").all()
-      .map(u => ({ ...u, points: 3 * u.wins - bankPenalty(u.id), winPct: winPct(u.wins, u.losses) })).sort(rankCmp).slice(0, 3).forEach((u, i) => m.set(u.id, i + 1)); return m; },
+    ranks() { const m = new Map(); db.prepare('SELECT id, username, coins FROM users WHERE is_admin=0').all()
+      .map(u => { const { wins, losses } = api._settledCounts(u.id, null); return { ...u, wins, losses, points: 3 * wins - bankPenalty(u.id), winPct: winPct(wins, losses) }; })
+      .sort(rankCmp).slice(0, 3).forEach((u, i) => m.set(u.id, i + 1)); return m; },
     refreshRanks() { const m = api.ranks(); const ins = db.prepare('INSERT OR IGNORE INTO unlocks(user_id,item_id,rank) VALUES(?,?,?)');
       for (const [uid, rank] of m) for (const it of REWARDS) if (rank <= it.minRank) ins.run(uid, it.id, rank); return m; },
     unlocksOf: uid => db.prepare('SELECT item_id, rank, created FROM unlocks WHERE user_id=? ORDER BY created').all(uid),
