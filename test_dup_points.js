@@ -104,8 +104,23 @@ t('same parlay selections in any order count once; money still paid twice', () =
   assert.ok(rows[0].payout > 100 && rows[1].payout > 100);
 });
 
-t('legacy won bets (rank_credit NULL) still count; new duplicates after deploy do not add points', () => {
-  const { D, u, pts, opt } = mk();
+t('already-settled identical wins with NULL rank_credit also count only once', () => {
+  const { D, u, pts, coins, opt } = mk();
+  const line = twoWay(D);
+  const a = opt(line, 0).id;
+  const before = coins();
+  const ids = [];
+  for (let i = 0; i < 10; i++) ids.push(D.placeBet(u, a, 100));
+  D.settleLine(line, a);
+  D.db.prepare("UPDATE bets SET rank_credit=NULL, sel_key=NULL WHERE user_id=?").run(u);
+  assert.equal(pts(), 3);
+  assert.equal(D.leaderboard('temporada').find(r => r.id === u).wins, 1);
+  const pay = 100 + Math.floor(100 * 100 / 110);
+  assert.equal(coins(), before - 1000 + pay * 10); // money untouched
+});
+
+t('a unique legacy win (rank_credit NULL) still counts; a later duplicate does not add points', () => {
+  const { D, u, pts } = mk();
   const line = twoWay(D);
   const line2 = twoWay(D, 'L2');
   D.db.prepare("UPDATE lines SET market='h2h', event_id='g', kind='custom' WHERE id IN (?,?)").run(line, line2);
@@ -113,7 +128,7 @@ t('legacy won bets (rank_credit NULL) still count; new duplicates after deploy d
   const a = D.lines().find(l => l.id === line).options[0].id;
   const id = D.placeBet(u, a, 100);
   D.settleLine(line, a);
-  D.db.prepare('UPDATE bets SET rank_credit=NULL WHERE id=?').run(id); // as if settled before this rule
+  D.db.prepare('UPDATE bets SET rank_credit=NULL, sel_key=NULL WHERE id=?').run(id);
   assert.equal(pts(), 3);
   const a2 = D.lines().find(l => l.id === line2).options[0].id;
   D.placeBet(u, a2, 100);
@@ -144,4 +159,28 @@ t('UI shows the discreet repeat note', () => {
   assert.ok(css.includes('.hrb-dup{'));
 });
 
+
+t('audit lists historical duplicate points before and after without changing money', () => {
+  const { D, u, coins, opt } = mk();
+  const line = twoWay(D);
+  const a = opt(line, 0).id;
+  const before = coins();
+  for (let i = 0; i < 5; i++) D.placeBet(u, a, 100);
+  D.settleLine(line, a);
+  D.db.prepare("UPDATE bets SET rank_credit=NULL, sel_key=NULL WHERE user_id=?").run(u);
+  const money = coins();
+  const audit = D.auditDupPoints();
+  const row = audit.find(r => r.userId === u);
+  assert.equal(row.wonBefore, 5);
+  assert.equal(row.wonAfter, 1);
+  assert.equal(row.pointsBefore, 15);
+  assert.equal(row.pointsAfter, 3);
+  assert.equal(row.pointsDelta, -12);
+  assert.equal(row.groups.length, 1);
+  assert.equal(row.groups[0].wonCount, 5);
+  assert.equal(row.groups[0].creditedId, row.groups[0].tickets[0].id);
+  assert.equal(coins(), money);
+});
+
 console.log(n, 'dup-points tests passed');
+

@@ -754,15 +754,30 @@ function open(file = 'data.db') {
       if (period === 'semana') { const day = d.getDay(); d.setDate(d.getDate() - ((day + 6) % 7)); return d.getTime() * 1000; }
       return null; // temporada = all time
     },
+    _creditedWins(uid) {
+      const tsExpr = "COALESCE(ts, CAST(strftime('%s', created) AS INTEGER) * 1000000)";
+      const firstOf = (kind, rows) => {
+        const seen = new Set(), out = [];
+        for (const r of rows) {
+          const key = resolvedSelKey(kind, r);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          out.push({ kind, id: r.id, key, ts: r.ots });
+        }
+        return out;
+      };
+      const bets = db.prepare(`SELECT id, sel_key, line_id, option_id, ${tsExpr} AS ots FROM bets WHERE user_id=? AND status='won' ORDER BY id`).all(uid);
+      const parlays = db.prepare(`SELECT id, sel_key, ${tsExpr} AS ots FROM parlays WHERE user_id=? AND status='won' ORDER BY id`).all(uid);
+      return firstOf('bet', bets).concat(firstOf('parlay', parlays));
+    },
     _settledCounts(uid, cutoff) {
       const ts = "COALESCE(ts, CAST(strftime('%s', created) AS INTEGER) * 1000000)";
       const f = cutoff == null ? '' : ` AND ${ts}>=?`;
       const args = cutoff == null ? [uid] : [uid, cutoff];
-      const wonB = db.prepare(`SELECT COUNT(*) c FROM bets WHERE user_id=? AND status='won' AND (rank_credit IS NULL OR rank_credit=1)${f}`).get(...args).c;
       const lostB = db.prepare(`SELECT COUNT(*) c FROM bets WHERE user_id=? AND status='lost'${f}`).get(...args).c;
-      const wonP = db.prepare(`SELECT COUNT(*) c FROM parlays WHERE user_id=? AND status='won' AND (rank_credit IS NULL OR rank_credit=1)${f}`).get(...args).c;
       const lostP = db.prepare(`SELECT COUNT(*) c FROM parlays WHERE user_id=? AND status='lost'${f}`).get(...args).c;
-      return { wins: wonB + wonP, losses: lostB + lostP };
+      const wins = api._creditedWins(uid).filter(w => cutoff == null || w.ts >= cutoff).length;
+      return { wins, losses: lostB + lostP };
     },
     leaderboard(period = 'temporada') {
       const rk = api.refreshRanks();
@@ -930,6 +945,38 @@ function open(file = 'data.db') {
     };
   };
 
+  api.auditDupPoints = () => {
+    const users = db.prepare('SELECT id, username FROM users ORDER BY id').all();
+    const affected = [];
+    for (const u of users) {
+      const rawWins = db.prepare("SELECT COUNT(*) c FROM bets WHERE user_id=? AND status='won'").get(u.id).c
+        + db.prepare("SELECT COUNT(*) c FROM parlays WHERE user_id=? AND status='won'").get(u.id).c;
+      const credited = api._creditedWins(u.id);
+      const uniqueWins = credited.length;
+      const penalty = api.bankPenalty(u.id);
+      const pointsBefore = 3 * rawWins - penalty;
+      const pointsAfter = 3 * uniqueWins - penalty;
+      const groupMap = (kind, rows) => {
+        const m = new Map();
+        for (const r of rows) {
+          const key = resolvedSelKey(kind, r);
+          if (!m.has(key)) m.set(key, []);
+          m.get(key).push({ kind, id: r.id, status: r.status, stake: r.stake, payout: r.payout });
+        }
+        return [...m.values()].filter(g => g.length > 1).map(g => {
+          const won = g.filter(x => x.status === 'won').sort((a, b) => a.id - b.id);
+          const open = g.filter(x => x.status === 'open').sort((a, b) => a.id - b.id);
+          return { key: resolvedSelKey(kind, rows.find(r => r.id === g[0].id)), tickets: g, creditedId: won[0] ? won[0].id : (open[0] && open[0].id), wonCount: won.length, openCount: open.length };
+        }).filter(g => g.wonCount > 1 || g.openCount > 1 || (g.wonCount && g.openCount));
+      };
+      const wonB = db.prepare("SELECT id, sel_key, line_id, option_id, status, stake, payout FROM bets WHERE user_id=? AND status IN ('won','open') ORDER BY id").all(u.id);
+      const wonP = db.prepare("SELECT id, sel_key, status, stake, payout FROM parlays WHERE user_id=? AND status IN ('won','open') ORDER BY id").all(u.id);
+      const groups = groupMap('bet', wonB).concat(groupMap('parlay', wonP));
+      if (rawWins === uniqueWins && !groups.length) continue;
+      affected.push({ userId: u.id, username: u.username, wonBefore: rawWins, wonAfter: uniqueWins, pointsBefore, pointsAfter, pointsDelta: pointsAfter - pointsBefore, groups });
+    }
+    return affected;
+  };
   api.db = db;
   api.PODIUM_MIN_SETTLED = PODIUM_MIN_SETTLED;
   api.DISABLED_NEW_MINIGAMES = DISABLED_NEW_MINIGAMES;

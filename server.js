@@ -84,4 +84,12 @@ app.get('/api/admin/topups', h(r => { admin(r); return C.topups(); }));
 app.post('/api/admin/topup', h(r => { const a = admin(r); return C.topup(a.id, r.body.userId, r.body.amount); }));
 app.post('/api/admin/invites', h(r => { admin(r); return { code: C.newInvite() }; }));
 app.get('/api/admin/invites', h(r => { admin(r); return C.listInvites(); }));
-const port = process.env.PORT || 3000; app.listen(port, () => console.log('LosTankesBets en http://localhost:' + port));
+const port = process.env.PORT || 3000; app.listen(port, () => {
+  try {
+    const audit = C.auditDupPoints();
+    console.log('DUP_POINTS_AUDIT ' + JSON.stringify(audit));
+    const dest = require('node:path').join(require('node:path').dirname(process.env.DB_FILE || 'data.db'), 'dup-points-audit.json');
+    fs.writeFileSync(dest, JSON.stringify({ ts: Date.now(), report: audit }, null, 2));
+  } catch (e) { console.error('DUP_POINTS_AUDIT_ERROR', e && e.message); }
+  console.log('LosTankesBets en http://localhost:' + port);
+});
