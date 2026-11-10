@@ -231,4 +231,63 @@ button.odds.on{background:#38bdf855;border-color:#7dd3fc;color:#e0f2fe;box-shado
 .prop-row-x{grid-template-columns:minmax(0,1.2fr) minmax(0,2fr)}
 .prop-x{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
 .prop-x .odds,.prop-x button.odds{width:auto!important;min-width:76px!important;max-width:120px!important;flex:1 1 76px}
-</style></head><body><main id="app"></main><script src="intro.js"></script><script src="avatar.js"></script><script src="store.js"></script><script src="markets.js"></script><script src="sgp.js"></script><script src="app.js"></script><script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{}));</script></body></html>
+
+/* European roulette (Retos) */
+.rl-page{padding-bottom:8px}
+.rl-marquee{background:#0b1220;border:1px solid #334155;border-radius:10px;padding:8px;margin:8px 0}
+.rl-board-lab,.rl-hc span{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8}
+.rl-pips{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 6px}
+.rl-pip{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:800;color:#fff}
+.rl-pip.rl-red{background:#b91c1c}.rl-pip.rl-black{background:#171717;border:1px solid #64748b}.rl-pip.rl-green{background:#15803d}
+.rl-hc{display:flex;align-items:center;gap:8px}.rl-hc .rl-pips{margin:0}
+.rl-stage{text-align:center;margin:10px 0}
+.rl-call{font-family:Oswald,Impact,sans-serif;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:16px;color:#fde68a;margin-bottom:6px}
+.rl-call.lock{color:#fecaca}.rl-call.win{color:#86efac}.rl-call.lose{color:#fda4af}
+.rl-wheel-wrap{position:relative;width:min(280px,86vw);margin:0 auto 8px;aspect-ratio:1}
+.rl-wheel{position:absolute;inset:0;transform-origin:50% 50%;will-change:transform}
+.rl-wheel-svg{width:100%;height:100%;filter:drop-shadow(0 6px 14px #000a)}
+.rl-pointer{position:absolute;left:50%;top:-4px;z-index:3;width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:16px solid #f8fafc;transform:translateX(-50%);filter:drop-shadow(0 1px 2px #000)}
+.rl-ball-track{position:absolute;inset:0;transform-origin:50% 50%;pointer-events:none;z-index:2;will-change:transform}
+.rl-ball{position:absolute;left:50%;top:5.5%;width:9px;height:9px;margin-left:-4.5px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#d1d5db 55%,#9ca3af);box-shadow:0 0 3px #fff8,0 1px 2px #0008}
+.rl-ball-track.in-pocket .rl-ball{top:8%}
+.rl-mute{width:auto!important;padding:4px 10px!important;font-size:12px;margin-top:4px}
+.rl-felt{display:grid;grid-template-columns:52px 1fr;grid-template-areas:"zero nums" "zero cols" ". doz" ". outs";gap:3px;background:#0a5a36;background-image:radial-gradient(ellipse at 50% 0,#0f7a4a 0%,#0a5a36 55%,#064028 100%);border:3px solid #d4af37;box-shadow:inset 0 0 0 1px #f3e2a788,0 8px 18px #0007;border-radius:12px;padding:6px;margin:10px 0}
+.rl-zero-col{grid-area:zero;display:flex;flex-direction:column;gap:3px}
+.rl-zero{flex:1;background:#0f7a3b;color:#fff;font-weight:900;font-size:18px;border:1px solid #e8d48b!important;border-radius:6px;position:relative;min-height:80px}
+.rl-trio,.rl-ff{font-size:8px;line-height:1.1;padding:4px 2px!important;background:#14532d;color:#fde68a;border:1px solid #e8d48b88!important;min-height:28px}
+.rl-nums{grid-area:nums;display:flex;flex-direction:column}
+.rl-row,.rl-gap{display:grid;grid-template-columns:12px 1fr 9px 1fr 9px 1fr;align-items:stretch}
+.rl-num{position:relative;min-height:28px;margin:0;padding:0!important;border-radius:0;border:1px solid #e8d48bcc!important;font-weight:800;font-size:13px;color:#fff}
+.rl-num.rl-red{background:#b91c1c}.rl-num.rl-black{background:#171717}.rl-num.rl-green{background:#15803d}
+.rl-num.dolly{box-shadow:inset 0 0 0 2px #fef08a,0 0 0 2px #facc15;z-index:1}
+.rl-hit{margin:0;padding:0!important;min-height:8px;background:#0a5a3600;border:0!important;position:relative}
+.rl-street,.rl-six{background:#0f172a55;border:1px solid #e8d48b44!important}
+.rl-cols{grid-area:cols;display:grid;grid-template-columns:12px 1fr 9px 1fr 9px 1fr}
+.rl-col{grid-column:span 1;min-height:28px;background:#14532d;color:#fde68a;border:1px solid #e8d48b!important;font-weight:800;font-size:11px;position:relative}
+.rl-cols .rl-col:nth-child(1){grid-column:2}.rl-cols .rl-col:nth-child(2){grid-column:4}.rl-cols .rl-col:nth-child(3){grid-column:6}
+.rl-doz{grid-area:doz;display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px}
+.rl-outs{grid-area:outs;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px}
+.rl-out{position:relative;min-height:36px;margin:0;padding:4px 2px!important;background:#14532d;color:#f8fafc;border:1px solid #e8d48b!important;font-size:10px;font-weight:800;letter-spacing:.02em;border-radius:4px}
+.rl-dia-red{background:linear-gradient(#14532d,#14532d) padding-box,linear-gradient(135deg,#b91c1c 50%,#14532d 50%) border-box;color:#fecaca}
+.rl-dia-red::after{content:'◆';color:#ef4444;display:block;font-size:12px;line-height:1}
+.rl-dia-black{background:linear-gradient(#14532d,#14532d) padding-box,linear-gradient(135deg,#111 50%,#14532d 50%) border-box}
+.rl-dia-black::after{content:'◆';color:#111;display:block;font-size:12px;line-height:1;text-shadow:0 0 0 1px #fff}
+.rl-felt.locked{pointer-events:none;opacity:.92}
+.rl-stack{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:2;display:none}
+.rl-stack.on{display:block}
+.rl-stack.lose{animation:rlClear .5s ease forwards}
+.rl-stack.win .rl-chip{box-shadow:0 0 0 2px #fde68a,0 0 8px #facc15;transform:scale(1.08)}
+@keyframes rlClear{to{opacity:0;transform:translate(-50%,-120%) scale(.6)}}
+.rl-chip{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:22px;padding:0 5px;border-radius:999px;font-size:10px;font-weight:800;border:2px solid #fff;box-shadow:0 1px 3px #0008;color:#111}
+.rl-chip.c100{background:#f8fafc}.rl-chip.c500{background:#dc2626;color:#fff}.rl-chip.c1k{background:#2563eb;color:#fff}.rl-chip.c5k{background:#16a34a;color:#fff}.rl-chip.c10k{background:#111;color:#fde68a;border-color:#fde68a}
+.rl-chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:8px 0}
+button.rl-chip{cursor:pointer;width:auto!important;min-width:44px;height:32px;font-size:12px}
+button.rl-chip.sel{outline:2px solid #fde68a;outline-offset:2px}
+.rl-actions{display:flex;gap:6px}.rl-actions button{flex:1;font-size:12px;padding:8px 6px}
+.rl-sum{margin:8px 0;font-weight:600}
+.rl-result{margin-top:8px;padding:10px;border-radius:10px;font-weight:800;text-align:center}
+.rl-result.win{background:#14532d;border:1px solid #22c55e}.rl-result.lose{background:#7f1d1d;border:1px solid #ef4444}
+.rl-hrow{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1e293b;font-size:13px}
+@media(max-width:380px){.rl-num{font-size:11px;min-height:26px}.rl-out{font-size:9px;min-height:32px}.rl-zero-col{width:46px}}
+@media(prefers-reduced-motion:reduce){.rl-wheel,.rl-ball-track{transition:none!important}.rl-stack.lose{animation:none;opacity:.35}}
+</style></head><body><main id="app"></main><script src="intro.js"></script><script src="avatar.js"></script><script src="store.js"></script><script src="markets.js"></script><script src="sgp.js"></script><script src="roulette-ui.js"></script><script src="app.js"></script><script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{}));</script></body></html>

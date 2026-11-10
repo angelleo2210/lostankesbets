@@ -51,6 +51,8 @@ app.get('/api/rps', h(r => { const u = auth(r); return { games: C.rpsList(u.id),
 app.post('/api/rps', h(r => C.rpsChallenge(auth(r).id, r.body.opponentId, r.body.stake)));
 app.post('/api/rps/respond', h(r => C.rpsRespond(auth(r).id, r.body.id, !!r.body.accept)));
 app.post('/api/rps/pick', h(r => C.rpsPick(auth(r).id, r.body.id, r.body.pick)));
+app.get('/api/roulette', h(r => { const u = auth(r); return { history: C.rouletteHistory(u.id), board: C.rouletteBoard(), coins: u.coins, limits: C.ROULETTE }; }));
+app.post('/api/roulette/spin', h(r => { const u = auth(r); return C.rouletteSpin(u.id, r.body.bets, r.body.idem); }));
 app.get('/api/bonus', h(r => C.bonusStatus(auth(r).id)));
 app.get('/api/bank', h(r => C.bankStatus(auth(r).id)));
 app.post('/api/bank/loan', h(r => C.takeLoan(auth(r).id, r.body.amount)));

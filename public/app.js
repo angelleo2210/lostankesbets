@@ -216,7 +216,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
     B.querySelectorAll('[data-cos]').forEach(b => b.onclick = () => { const [k, v] = b.dataset.cos.split(':'); if (v) cos[k] = v; else delete cos[k]; B.querySelectorAll(`[data-cos^="${k}:"]`).forEach(x => x.className = x.dataset.cos === `${k}:${v}` && v ? '' : 'alt'); pv(); });
     B.querySelectorAll('[data-em]').forEach(b => b.onclick = () => { av = b.dataset.em; B.querySelectorAll('[data-em]').forEach(x => x.className = x.dataset.em === av && av ? '' : 'alt'); pv(); });
     const sv = $('#sv'); if (sv) sv.onclick = async () => { try { const dn = $('#dn'); await api('/profile', { avatar: av, display_name: dn ? dn.value : '', facialHair: 'ninguno', cosmetics: cos, avatarCfg: acfg }); render(); } catch (e) { flash(e.message); } }; }
-  if (tab === 'juegos') await (gameSel === 'rps' ? gamesView(B) : gameSel === 'pen' ? penView(B) : gameSel === 'bb' ? bbView(B) : gameSel === 'tc' ? tcView(B) : retosMenu(B));
+  if (tab === 'juegos') await (gameSel === 'rps' ? gamesView(B) : gameSel === 'pen' ? penView(B) : gameSel === 'bb' ? bbView(B) : gameSel === 'tc' ? tcView(B) : gameSel === 'roulette' ? RouletteUI.view(B, { api, esc, fmt, flash, me, onBack: () => { gameSel = null; render(); } }) : retosMenu(B));
   if (tab === 'admin') await adminView(B);
   } catch (e) { flash(e.message); }
 }
@@ -718,8 +718,9 @@ async function retosMenu(B) {
   const tile = (k, ic, n, d, legacy) => `<button class="alt retot${legacy ? ' legacy' : ''}" data-gm="${k}">${ic}<b>${n}</b><span class="small">${pend(d) ? `📩 ${pend(d)} reto(s) recibido(s)` : ''}${turn(d) ? ` · 🎯 te toca en ${turn(d)}` : (!pend(d) && live(d).length ? ` · ${live(d).length} en curso` : '')}</span></button>`;
   const legacyTiles = [['pen', 'Tanda de penaltis (antiguo)', p], ['bb', 'Béisbol (antiguo)', q], ['tc', 'Three Contest (antiguo)', z]]
     .filter(([, , d]) => live(d).length).map(([k, n, d]) => tile(k, '<span class="legacy-dot">⏳</span>', n, d, true)).join('');
-  B.innerHTML = `<div class="card"><h2>⚔️ Retos</h2><p class="small">Por ahora el reto disponible es Piedra, papel o tijera.</p>
-    <div class="retos retos-solo">${tile('rps', `<img class="rps-game-icon" src="/img/rps/tile.webp" width="148" height="148" alt="Piedra papel o tijera" decoding="async">`, 'Piedra, papel o tijera', r, false)}</div>
+  const ruTile = `<button class="alt retot" data-gm="roulette"><span style="font-size:42px;line-height:1">🎡</span><b>Ruleta</b><span class="small">Europea · un solo cero</span></button>`;
+  B.innerHTML = `<div class="card"><h2>⚔️ Retos</h2><p class="small">Juega piedra, papel o tijera, o prueba la ruleta europea de un cero (monedas de juego).</p>
+    <div class="retos">${tile('rps', `<img class="rps-game-icon" src="/img/rps/tile.webp" width="148" height="148" alt="Piedra papel o tijera" decoding="async">`, 'Piedra, papel o tijera', r, false)}${ruTile}</div>
     ${legacyTiles ? `<div class="small" style="margin-top:10px">Retos antiguos aún abiertos (solo para terminar o responder; ya no se pueden crear nuevos):</div><div class="retos">${legacyTiles}</div>` : ''}
   </div>`;
   B.querySelectorAll('[data-gm]').forEach(b => b.onclick = () => { gameSel = b.dataset.gm; render(); });

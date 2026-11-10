@@ -31,7 +31,7 @@ t('Mis apuestas estilo Hard Rock (banner + Apostado/Cobrado)', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/app.js'), 'utf8');
   const i = src.indexOf("tab === 'mias'"), j = src.indexOf("tab === 'tabla'");
   const m = src.slice(i, j);
-  assert.ok(m.includes('hrb-banner') && m.includes('GANASTE') && m.includes('hrb-money'));
+  assert.ok(m.includes('hrb-banner') && m.includes('GANADOR') && m.includes('hrb-money'));
   assert.ok(m.includes('Apostado') && m.includes('Cobrado') && m.includes('Ver selecciones'));
   assert.ok(!m.includes('head(me'));
   const css = fs.readFileSync(path.join(__dirname, 'public/index.html'), 'utf8');
@@ -94,7 +94,7 @@ t('avatar1: fotos de racha W3/W5/L2/L3 sin marco', () => {
   assert.ok(src.includes('tablaAvatar') && src.includes('tb-aura-photo'));
 });
 
-t('retos: solo RPS en menú; personajes suministrados; sin tiles pen/bb/tc nuevos', () => {
+t('retos: RPS + ruleta en menú; personajes suministrados; sin tiles pen/bb/tc nuevos', () => {
   const src = fs.readFileSync(path.join(__dirname, 'public/app.js'), 'utf8');
   const i = src.indexOf('async function retosMenu'), j = src.indexOf('const HAND =');
   const menu = src.slice(i, j === -1 ? i + 1200 : j);
@@ -102,7 +102,8 @@ t('retos: solo RPS en menú; personajes suministrados; sin tiles pen/bb/tc nuevo
   assert.ok(menu.includes('legacyTiles') || menu.includes('antiguo'));
   assert.ok(!menu.includes("tile('pen'") || menu.includes('antiguo'));
   // no advertising new pen/bb/tc as primary tiles without legacy filter
-  assert.ok(menu.includes('Por ahora el reto disponible'));
+  assert.ok(menu.includes('data-gm="roulette"') && menu.includes('Ruleta') && (menu.includes('Piedra, papel o tijera') || menu.includes("tile('rps'")));
+  assert.ok(!menu.includes("tile('bb'") || menu.includes('antiguo'));
   assert.ok(menu.includes('img/rps/tile.webp') || menu.includes('/img/rps/tile.webp'));
   assert.ok(fs.existsSync(path.join(__dirname, 'public/img/rps/tile.webp')));
   assert.ok(src.includes('DISABLED') || src.includes('ya no se pueden crear') || src.includes('Ya no se pueden crear'));

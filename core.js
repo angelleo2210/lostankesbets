@@ -3,6 +3,7 @@ const crypto = require('node:crypto');
 const Markets = require('./public/markets');
 const Sgp = require('./public/sgp');
 const AV = require('./public/avatar'); const ST = require('./public/store');
+const Roulette = require('./roulette');
 const START_COINS = 50000; const BONUS = 5000, BONUS_MS = 24 * 3600 * 1000; const MAX_TOPUP = 10000000;
 const PODIUM_MIN_SETTLED = 0; // owner t628: sin mínimo de apuestas para el top 3
 
@@ -136,6 +137,13 @@ function open(file = 'data.db') {
   // Per-loan records: outstanding balance + whether its -7 ranking penalty is still active. Loan COUNT (max 5) stays in bank.loans.
   db.exec(`CREATE TABLE IF NOT EXISTS bank_loans(id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, amount INTEGER NOT NULL, remaining INTEGER NOT NULL, penalty_active INTEGER NOT NULL DEFAULT 1, status TEXT NOT NULL DEFAULT 'open', ledger_id INTEGER UNIQUE, ts INTEGER, closed_ts INTEGER, closed_by TEXT);
     CREATE TABLE IF NOT EXISTS bank_meta(key TEXT PRIMARY KEY, value TEXT, ts INTEGER);`);
+  db.exec(`CREATE TABLE IF NOT EXISTS roulette_spins(
+    id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, idem TEXT NOT NULL,
+    number INTEGER NOT NULL, color TEXT NOT NULL, stake INTEGER NOT NULL,
+    payout INTEGER NOT NULL, profit INTEGER NOT NULL, bets TEXT NOT NULL, ts INTEGER NOT NULL,
+    UNIQUE(user_id, idem));`);
+  db.exec('CREATE INDEX IF NOT EXISTS roulette_spins_ts ON roulette_spins(id DESC);');
+
   // Unprovable pre-migration debt/penalty kept as one older "legacy" bucket (paid first, refunded only when fully paid).
   for (const c of ['legacy_debt', 'legacy_penalty']) { try { db.exec(`ALTER TABLE bank ADD COLUMN ${c} INTEGER NOT NULL DEFAULT 0`); } catch {} }
   // Match key: linked markets share kind:event_id; legacy unlinked lines pause individually.
@@ -827,6 +835,44 @@ function open(file = 'data.db') {
     const u = db.prepare('SELECT username, display_name FROM users WHERE id=?').get(uid); L.push({ uid, name: u.display_name || u.username, text: escH(text), at: now }); chats.set(k, L); return { ok: true }; };
   api.chatList = (uid, kind, id) => { const k = chatCheck(uid, kind, id); return (chats.get(k) || []).map(m => ({ name: escH(m.name), text: m.text, at: m.at, mine: m.uid === uid })); };
   for (const f of ['rpsRespond', 'rpsPick', 'rpsExpire', 'penRespond', 'penPlay', 'penExpire', 'bbRespond', 'bbPlan', 'bbExpire', 'tcRespond', 'tcExpire', 'tcStart', 'tcShoot', 'tcNext', 'tcAim']) { const o = api[f]; api[f] = (...a) => { try { return o(...a); } finally { if (chats.size) api.chatPurge(); } }; }
+
+  const packSpin = (row, coins) => {
+    const bets = typeof row.bets === 'string' ? JSON.parse(row.bets) : row.bets;
+    return { id: row.id, number: row.number, color: row.color, stake: row.stake, payout: row.payout, profit: row.profit, bets, ts: row.ts, coins, replay: true };
+  };
+  api.ROULETTE = { minBet: Roulette.MIN_BET, maxBet: Roulette.MAX_BET, maxSpin: Roulette.MAX_SPIN, maxBets: Roulette.MAX_BETS };
+  api.rouletteSpin = (uid, bets, idem, now = Date.now()) => {
+    idem = String(idem || '').trim();
+    if (!/^[A-Za-z0-9._-]{8,80}$/.test(idem)) err('Clave de giro inválida');
+    const packed = Roulette.normalizeBets(bets);
+    return tx(() => {
+      const prev = db.prepare('SELECT * FROM roulette_spins WHERE user_id=? AND idem=?').get(uid, idem);
+      if (prev) return packSpin(prev, db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins);
+      const r = Roulette.settle(packed.bets, Roulette.spinNumber());
+      if (!db.prepare('UPDATE users SET coins=coins-? WHERE id=? AND coins>=?').run(r.stake, uid, r.stake).changes) err('No tienes suficientes monedas');
+      if (r.payout) db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(r.payout, uid);
+      const coins = db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins;
+      const info = db.prepare('INSERT INTO roulette_spins(user_id,idem,number,color,stake,payout,profit,bets,ts) VALUES(?,?,?,?,?,?,?,?,?)')
+        .run(uid, idem, r.number, r.color, r.stake, r.payout, r.profit, JSON.stringify(r.settled), now);
+      return { id: Number(info.lastInsertRowid), ...r, coins, ts: now, replay: false };
+    });
+  };
+  api.rouletteHistory = uid => db.prepare('SELECT id,number,color,stake,payout,profit,bets,ts FROM roulette_spins WHERE user_id=? ORDER BY id DESC LIMIT 20').all(uid)
+    .map(r => ({ ...r, bets: JSON.parse(r.bets) }));
+  api.rouletteBoard = () => {
+    const rows = db.prepare('SELECT number,color,ts FROM roulette_spins ORDER BY id DESC LIMIT 50').all();
+    const freq = Array.from({ length: 37 }, (_, n) => ({ n, c: 0, color: Roulette.colorOf(n) }));
+    for (const r of rows) freq[r.number].c++;
+    const withHits = freq.filter(x => x.c > 0);
+    return {
+      recent: rows.slice(0, 20),
+      hot: [...withHits].sort((a, b) => b.c - a.c || a.n - b.n).slice(0, 5),
+      cold: [...freq].sort((a, b) => a.c - b.c || a.n - b.n).slice(0, 5),
+      limits: api.ROULETTE
+    };
+  };
+
+  api.db = db;
   api.PODIUM_MIN_SETTLED = PODIUM_MIN_SETTLED;
   api.DISABLED_NEW_MINIGAMES = DISABLED_NEW_MINIGAMES;
   api._testAllowDisabled = false;
