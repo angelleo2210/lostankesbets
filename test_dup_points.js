@@ -8,15 +8,19 @@ const mk = () => {
   D.setupAdmin('admin', '1234');
   const u = D.register(D.newInvite(), 'ana', '1234');
   const coins = () => D.bankStatus(u).coins;
-  const pts = () => D.leaderboard('temporada').find(r => r.id === u).points;
-  const wins = () => D.leaderboard('temporada').find(r => r.id === u).wins;
+  const row = () => D.leaderboard('temporada').find(r => r.id === u);
+  const pts = () => row().points;
+  const wins = () => row().wins;
+  const losses = () => row().losses;
+  const pct = () => row().winPct;
+  const streak = () => row().streak;
   const opt = (lineId, i = 0) => D.lines().find(l => l.id === lineId).options[i];
-  return { D, u, coins, pts, wins, opt };
+  return { D, u, coins, pts, wins, losses, pct, streak, row, opt };
 };
 const twoWay = (D, title = 'L') => D.createLine(title, [{ label: 'A', odds: -110 }, { label: 'B', odds: 100 }]);
 
 t('10 identical singles that all win: +3 points, all stakes paid', () => {
-  const { D, u, coins, pts, wins, opt } = mk();
+  const { D, u, coins, pts, wins, losses, pct, streak, opt } = mk();
   const line = twoWay(D);
   const a = opt(line, 0).id, before = coins();
   const ids = [];
@@ -27,6 +31,9 @@ t('10 identical singles that all win: +3 points, all stakes paid', () => {
   assert.equal(coins(), before - 10000 + pay * 10);
   assert.equal(pts(), 3);
   assert.equal(wins(), 1);
+  assert.equal(losses(), 0);
+  assert.equal(pct(), 100);
+  assert.equal(streak(), null); // one unique win is not a 3-win cup/streak
   const rows = D.db.prepare("SELECT id, rank_credit, status, payout FROM bets WHERE user_id=? ORDER BY id").all(u);
   assert.equal(rows.filter(r => r.status === 'won').length, 10);
   assert.equal(rows.filter(r => r.rank_credit === 1).length, 1);
@@ -182,5 +189,90 @@ t('audit lists historical duplicate points before and after without changing mon
   assert.equal(coins(), money);
 });
 
+
+t('identical losses count as one loss, 0% hit rate, no ice streak', () => {
+  const { D, u, wins, losses, pct, streak, opt } = mk();
+  const line = twoWay(D);
+  const a = opt(line, 0).id, b = opt(line, 1).id;
+  for (let i = 0; i < 10; i++) D.placeBet(u, a, 100);
+  D.settleLine(line, b);
+  assert.equal(wins(), 0);
+  assert.equal(losses(), 1);
+  assert.equal(pct(), 0);
+  assert.equal(streak(), null);
+});
+
+t('1 unique win + 9 duplicate losses of another pick: 50% not 10%, one cup', () => {
+  const { D, u, wins, losses, pct, pts, opt } = mk();
+  const l1 = twoWay(D, 'W'), l2 = twoWay(D, 'L');
+  D.placeBet(u, opt(l1, 0).id, 50);
+  for (let i = 0; i < 9; i++) D.placeBet(u, opt(l2, 0).id, 50);
+  D.settleLine(l1, opt(l1, 0).id);
+  D.settleLine(l2, opt(l2, 1).id);
+  assert.equal(wins(), 1);
+  assert.equal(losses(), 1);
+  assert.equal(pct(), 50);
+  assert.equal(pts(), 3);
+});
+
+t('5 copies of the same win do not make a fire streak; 3 different wins do', () => {
+  const { D, u, streak, wins, opt } = mk();
+  const line = twoWay(D);
+  for (let i = 0; i < 5; i++) D.placeBet(u, opt(line, 0).id, 50);
+  D.settleLine(line, opt(line, 0).id);
+  assert.equal(wins(), 1);
+  assert.equal(streak(), null);
+  const ids = [];
+  for (let i = 0; i < 3; i++) {
+    const l = twoWay(D, 'U' + i);
+    ids.push([l, opt(l, 0).id]);
+    D.placeBet(u, opt(l, 0).id, 50);
+  }
+  for (const [l, a] of ids) D.settleLine(l, a);
+  assert.equal(wins(), 4);
+  const st = streak();
+  assert.equal(st.kind, 'fuego');
+  assert.equal(st.n, 4);
+  assert.equal(st.intense, false);
+});
+
+t('same parlay five times winning: one cup, 100%, paid five times, no farmed streak', () => {
+  const { D, u, coins, wins, losses, pct, streak, pts, opt } = mk();
+  const l1 = twoWay(D, 'P1'), l2 = twoWay(D, 'P2');
+  const a = opt(l1, 0).id, b = opt(l2, 0).id;
+  const before = coins();
+  for (let i = 0; i < 5; i++) D.placeParlay(u, [a, b], 100);
+  D.settleLine(l1, a); D.settleLine(l2, b);
+  assert.equal(wins(), 1);
+  assert.equal(losses(), 0);
+  assert.equal(pct(), 100);
+  assert.equal(pts(), 3);
+  assert.equal(streak(), null);
+  assert.ok(coins() > before); // all five paid
+  assert.equal(D.db.prepare("SELECT COUNT(*) c FROM parlays WHERE user_id=? AND status='won'").get(u).c, 5);
+});
+
+t('auditDupStats reports cups, %, and streak before/after without touching money', () => {
+  const { D, u, coins, opt } = mk();
+  const line = twoWay(D);
+  const a = opt(line, 0).id, b = opt(line, 1).id;
+  for (let i = 0; i < 5; i++) D.placeBet(u, a, 100);
+  D.settleLine(line, b); // 5 identical losses
+  const money = coins();
+  const row = D.auditDupStats().find(r => r.userId === u);
+  assert.equal(row.beforeRaw.wins, 0);
+  assert.equal(row.beforeRaw.losses, 5);
+  assert.equal(row.beforeRaw.winPct, 0);
+  assert.equal(row.beforeRaw.streak, 'hielo x5 intense');
+  assert.equal(row.beforeThisDeploy.losses, 5);
+  assert.equal(row.after.wins, 0);
+  assert.equal(row.after.losses, 1);
+  assert.equal(row.after.winPct, 0);
+  assert.equal(row.after.streak, null);
+  assert.equal(row.groups[0].lostCount, 5);
+  assert.equal(coins(), money);
+});
+
 console.log(n, 'dup-points tests passed');
+
 

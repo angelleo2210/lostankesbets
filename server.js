@@ -86,10 +86,13 @@ app.post('/api/admin/invites', h(r => { admin(r); return { code: C.newInvite() }
 app.get('/api/admin/invites', h(r => { admin(r); return C.listInvites(); }));
 const port = process.env.PORT || 3000; app.listen(port, () => {
   try {
-    const audit = C.auditDupPoints();
-    console.log('DUP_POINTS_AUDIT ' + JSON.stringify(audit));
-    const dest = require('node:path').join(require('node:path').dirname(process.env.DB_FILE || 'data.db'), 'dup-points-audit.json');
-    fs.writeFileSync(dest, JSON.stringify({ ts: Date.now(), report: audit }, null, 2));
+    const points = C.auditDupPoints();
+    const stats = C.auditDupStats();
+    console.log('DUP_POINTS_AUDIT ' + JSON.stringify(points));
+    console.log('DUP_STATS_AUDIT ' + JSON.stringify(stats));
+    const dir = require('node:path').dirname(process.env.DB_FILE || 'data.db');
+    fs.writeFileSync(require('node:path').join(dir, 'dup-points-audit.json'), JSON.stringify({ ts: Date.now(), report: points }, null, 2));
+    fs.writeFileSync(require('node:path').join(dir, 'dup-stats-audit.json'), JSON.stringify({ ts: Date.now(), report: stats }, null, 2));
   } catch (e) { console.error('DUP_POINTS_AUDIT_ERROR', e && e.message); }
   console.log('LosTankesBets en http://localhost:' + port);
 });

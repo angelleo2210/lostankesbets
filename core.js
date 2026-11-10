@@ -356,8 +356,8 @@ function open(file = 'data.db') {
       return { amount: BONUS, available: now >= next, nextAt: next > now ? next : null, msLeft: Math.max(0, next - now) }; },
     claimBonus: (uid, now = Date.now()) => tx(() => { const r = db.prepare('UPDATE users SET coins=coins+?, last_bonus=? WHERE id=? AND (last_bonus IS NULL OR last_bonus<=?)').run(BONUS, now, uid, now - BONUS_MS);
       const coins = db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins; return { claimed: !!r.changes, coins, ...api.bonusStatus(uid, now) }; }),
-    // Racha: apuestas resueltas (ganada/perdida) en orden cronológico; parlay = 1; pendientes/devueltas no cuentan.
-    streak: uid => { const rs = db.prepare("SELECT status, COALESCE(ts, CAST(strftime('%s', created) AS INTEGER) * 1000000) o, id FROM bets WHERE user_id=? AND status IN ('won','lost') UNION ALL SELECT status, COALESCE(ts, CAST(strftime('%s', created) AS INTEGER) * 1000000) o, id FROM parlays WHERE user_id=? AND status IN ('won','lost') ORDER BY o, id").all(uid, uid);
+    // Racha: un representante por grupo de apuestas idénticas (ganada/perdida), en orden cronológico; parlay = 1; pendientes/devueltas no cuentan.
+    streak: uid => { const rs = api._settledRepresentatives(uid);
       if (!rs.length) return null; const last = rs[rs.length - 1].status; let n = 0; for (let i = rs.length - 1; i >= 0 && rs[i].status === last; i--) n++;
       // 🔥 3+, 🔥🔥 5+; 🧊 2+, 🧊🧊 3+
       return last === 'won' && n >= 3 ? { kind: 'fuego', n, intense: n >= 5 } : last === 'lost' && n >= 2 ? { kind: 'hielo', n, intense: n >= 3 } : null; },
@@ -754,30 +754,32 @@ function open(file = 'data.db') {
       if (period === 'semana') { const day = d.getDay(); d.setDate(d.getDate() - ((day + 6) % 7)); return d.getTime() * 1000; }
       return null; // temporada = all time
     },
-    _creditedWins(uid) {
+    _settledRepresentatives(uid) {
+      // One ticket per user+selection: a win if the group has any win (earliest won), else the earliest loss. Cancelled/refunded are ignored so the next active duplicate can take over.
       const tsExpr = "COALESCE(ts, CAST(strftime('%s', created) AS INTEGER) * 1000000)";
-      const firstOf = (kind, rows) => {
-        const seen = new Set(), out = [];
+      const pick = (kind, rows) => {
+        const byKey = new Map();
         for (const r of rows) {
           const key = resolvedSelKey(kind, r);
-          if (seen.has(key)) continue;
-          seen.add(key);
-          out.push({ kind, id: r.id, key, ts: r.ots });
+          if (!byKey.has(key)) byKey.set(key, []);
+          byKey.get(key).push(r);
+        }
+        const out = [];
+        for (const [key, g] of byKey) {
+          const r = g.find(x => x.status === 'won') || g.find(x => x.status === 'lost');
+          if (!r) continue;
+          out.push({ kind, id: r.id, key, ts: r.ots, status: r.status });
         }
         return out;
       };
-      const bets = db.prepare(`SELECT id, sel_key, line_id, option_id, ${tsExpr} AS ots FROM bets WHERE user_id=? AND status='won' ORDER BY id`).all(uid);
-      const parlays = db.prepare(`SELECT id, sel_key, ${tsExpr} AS ots FROM parlays WHERE user_id=? AND status='won' ORDER BY id`).all(uid);
-      return firstOf('bet', bets).concat(firstOf('parlay', parlays));
+      const bets = db.prepare(`SELECT id, sel_key, line_id, option_id, status, ${tsExpr} AS ots FROM bets WHERE user_id=? AND status IN ('won','lost') ORDER BY id`).all(uid);
+      const parlays = db.prepare(`SELECT id, sel_key, status, ${tsExpr} AS ots FROM parlays WHERE user_id=? AND status IN ('won','lost') ORDER BY id`).all(uid);
+      return pick('bet', bets).concat(pick('parlay', parlays)).sort((a, b) => a.ts - b.ts || a.id - b.id);
     },
+    _creditedWins(uid) { return api._settledRepresentatives(uid).filter(r => r.status === 'won'); },
     _settledCounts(uid, cutoff) {
-      const ts = "COALESCE(ts, CAST(strftime('%s', created) AS INTEGER) * 1000000)";
-      const f = cutoff == null ? '' : ` AND ${ts}>=?`;
-      const args = cutoff == null ? [uid] : [uid, cutoff];
-      const lostB = db.prepare(`SELECT COUNT(*) c FROM bets WHERE user_id=? AND status='lost'${f}`).get(...args).c;
-      const lostP = db.prepare(`SELECT COUNT(*) c FROM parlays WHERE user_id=? AND status='lost'${f}`).get(...args).c;
-      const wins = api._creditedWins(uid).filter(w => cutoff == null || w.ts >= cutoff).length;
-      return { wins, losses: lostB + lostP };
+      const reps = api._settledRepresentatives(uid).filter(w => cutoff == null || w.ts >= cutoff);
+      return { wins: reps.filter(r => r.status === 'won').length, losses: reps.filter(r => r.status === 'lost').length };
     },
     leaderboard(period = 'temporada') {
       const rk = api.refreshRanks();
@@ -974,6 +976,51 @@ function open(file = 'data.db') {
       const groups = groupMap('bet', wonB).concat(groupMap('parlay', wonP));
       if (rawWins === uniqueWins && !groups.length) continue;
       affected.push({ userId: u.id, username: u.username, wonBefore: rawWins, wonAfter: uniqueWins, pointsBefore, pointsAfter, pointsDelta: pointsAfter - pointsBefore, groups });
+    }
+    return affected;
+  };
+  api.auditDupStats = () => {
+    const rawStreak = uid => {
+      const rs = db.prepare("SELECT status, COALESCE(ts, CAST(strftime('%s', created) AS INTEGER) * 1000000) o, id FROM bets WHERE user_id=? AND status IN ('won','lost') UNION ALL SELECT status, COALESCE(ts, CAST(strftime('%s', created) AS INTEGER) * 1000000) o, id FROM parlays WHERE user_id=? AND status IN ('won','lost') ORDER BY o, id").all(uid, uid);
+      if (!rs.length) return null; const last = rs[rs.length - 1].status; let n = 0; for (let i = rs.length - 1; i >= 0 && rs[i].status === last; i--) n++;
+      return last === 'won' && n >= 3 ? { kind: 'fuego', n, intense: n >= 5 } : last === 'lost' && n >= 2 ? { kind: 'hielo', n, intense: n >= 3 } : null;
+    };
+    const packStreak = s => s ? `${s.kind} x${s.n}${s.intense ? ' intense' : ''}` : null;
+    const users = db.prepare('SELECT id, username FROM users ORDER BY id').all();
+    const affected = [];
+    for (const u of users) {
+      const rawWins = db.prepare("SELECT COUNT(*) c FROM bets WHERE user_id=? AND status='won'").get(u.id).c
+        + db.prepare("SELECT COUNT(*) c FROM parlays WHERE user_id=? AND status='won'").get(u.id).c;
+      const rawLosses = db.prepare("SELECT COUNT(*) c FROM bets WHERE user_id=? AND status='lost'").get(u.id).c
+        + db.prepare("SELECT COUNT(*) c FROM parlays WHERE user_id=? AND status='lost'").get(u.id).c;
+      const reps = api._settledRepresentatives(u.id);
+      const winsAfter = reps.filter(r => r.status === 'won').length;
+      const lossesAfter = reps.filter(r => r.status === 'lost').length;
+      const penalty = api.bankPenalty(u.id);
+      const before = { wins: rawWins, losses: rawLosses, points: 3 * rawWins - penalty, winPct: winPct(rawWins, rawLosses), streak: packStreak(rawStreak(u.id)) };
+      const mid = { wins: winsAfter, losses: rawLosses, points: 3 * winsAfter - penalty, winPct: winPct(winsAfter, rawLosses), streak: packStreak(rawStreak(u.id)) }; // a72b894: unique wins, raw losses/streak
+      const after = { wins: winsAfter, losses: lossesAfter, points: 3 * winsAfter - penalty, winPct: winPct(winsAfter, lossesAfter), streak: packStreak(api.streak(u.id)) };
+      const groupMap = (kind, rows) => {
+        const m = new Map();
+        for (const r of rows) {
+          const key = resolvedSelKey(kind, r);
+          if (!m.has(key)) m.set(key, []);
+          m.get(key).push({ kind, id: r.id, status: r.status, stake: r.stake, payout: r.payout });
+        }
+        return [...m.values()].map(g => {
+          const won = g.filter(x => x.status === 'won');
+          const lost = g.filter(x => x.status === 'lost');
+          const open = g.filter(x => x.status === 'open');
+          const rep = won[0] || lost[0] || open[0];
+          return { key: resolvedSelKey(kind, rows.find(r => r.id === g[0].id)), tickets: g, creditedId: rep && rep.id, wonCount: won.length, lostCount: lost.length, openCount: open.length };
+        }).filter(g => g.wonCount + g.lostCount + g.openCount > 1);
+      };
+      const rowsB = db.prepare("SELECT id, sel_key, line_id, option_id, status, stake, payout FROM bets WHERE user_id=? AND status IN ('won','lost','open') ORDER BY id").all(u.id);
+      const rowsP = db.prepare("SELECT id, sel_key, status, stake, payout FROM parlays WHERE user_id=? AND status IN ('won','lost','open') ORDER BY id").all(u.id);
+      const groups = groupMap('bet', rowsB).concat(groupMap('parlay', rowsP));
+      const changed = JSON.stringify(mid) !== JSON.stringify(after) || JSON.stringify(before) !== JSON.stringify(after) || groups.length;
+      if (!changed) continue;
+      affected.push({ userId: u.id, username: u.username, beforeRaw: before, beforeThisDeploy: mid, after, groups });
     }
     return affected;
   };
