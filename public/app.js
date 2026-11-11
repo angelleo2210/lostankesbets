@@ -1,5 +1,5 @@
 const $ = s => document.querySelector(s); const A = $('#app');
-let token = localStorage.token, me = null, tab = 'lineas', boleto = [], boletoStake = '';
+let token = localStorage.token, me = null, tab = 'lineas', boleto = [], boletoStake = '', oddsSearch = null, oddsPicked = [];
 let marketTarget = null;
 const dec = o => o > 0 ? 1 + o / 100 : 1 + 100 / -o; const toAm = d => d >= 2 ? Math.round((d - 1) * 100) : Math.round(-100 / (d - 1));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -300,7 +300,7 @@ function marketCards(ls) {
         return `<details class="event-props"><summary>Más mercados (${props.length})</summary><div class="prop-board">${hasOu ? '<div class="prop-board-hd"><span></span><span>OVER</span><span>UNDER</span></div>' : ''}${rows}</div></details>`;
       })() : ''}
       <div class="market-note small">— No disponible</div>
-      ${me?.is_admin ? `<details class="market-admin"><summary>Configurar mercados</summary><button type="button" class="alt" data-market-config="${(winner || base).id}">Agregar hándicap / total / prop</button>${group.some(l => ['open','closed'].includes(l.status)) ? `<button type="button" class="alt" data-pause="${(winner || base).id}" data-paused="${group.some(l => l.paused) ? 1 : 0}"${started && group.some(l => l.paused) ? ' disabled title="El partido ya empezó: cambia la hora de inicio para reabrir"' : ''}>${group.some(l => l.paused) ? '▶ Reactivar apuestas' : '⏸ Pausar apuestas'}</button>` : ''}<label class="small">Inicio (hora de tu dispositivo): <input type="datetime-local" data-start-in="${(winner || base).id}" value="${base.starts ? toLocalInput(base.starts) : ''}"></label><button type="button" class="alt" data-start="${(winner || base).id}">Guardar inicio</button>${started ? '<div class="small">El partido ya empezó: solo se reabre si guardas una hora de inicio futura. Puedes liquidar normalmente.</div>' : ''}<label class="small">Deporte: <select data-sport="${(winner || base).id}">${[['','Sin especificar'],['soccer','Fútbol'],['hockey','Hockey'],['baseball','Béisbol'],['other','Otro']].map(([k,n]) => `<option value="${k}"${(base.sport || '') === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label><div class="small">${group.filter(l => l.bookmaker).map(l => `${Markets.NAMES[l.market]}: ${esc(l.bookmaker)}`).join(' · ')}</div></details>` : ''}</div>`;
+      ${me?.is_admin ? `<details class="market-admin"><summary>Configurar mercados</summary><button type="button" class="alt" data-market-config="${(winner || base).id}">Agregar hándicap / total / prop</button>${group.some(l => ['open','closed'].includes(l.status)) ? `<button type="button" class="alt" data-pause="${(winner || base).id}" data-paused="${group.some(l => l.paused) ? 1 : 0}"${started && group.some(l => l.paused) ? ' disabled title="El partido ya empezó: cambia la hora de inicio para reabrir"' : ''}>${group.some(l => l.paused) ? '▶ Reactivar apuestas' : '⏸ Pausar apuestas'}</button>` : ''}<label class="small">Inicio (hora de tu dispositivo): <input type="datetime-local" data-start-in="${(winner || base).id}" value="${base.starts ? toLocalInput(base.starts) : ''}"></label><button type="button" class="alt" data-start="${(winner || base).id}">Guardar inicio</button>${started ? '<div class="small">El partido ya empezó: solo se reabre si guardas una hora de inicio futura. Puedes liquidar normalmente.</div>' : ''}<label class="small">Deporte: <select data-sport="${(winner || base).id}">${[['','Sin especificar'],['soccer','Fútbol'],['hockey','Hockey'],['baseball','Béisbol'],['basketball','Baloncesto'],['other','Otro']].map(([k,n]) => `<option value="${k}"${(base.sport || '') === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label><div class="small">${group.filter(l => l.bookmaker).map(l => `${Markets.NAMES[l.market]}: ${esc(l.bookmaker)}`).join(' · ')}</div></details>` : ''}</div>`;
   }).join('');
 }
 function lineCard(l) {
@@ -380,12 +380,13 @@ function bindBets(ls = []) {
 async function adminView(B) {
   const ls = await api('/lines');
   const inv = await api('/admin/invites').catch(() => []); const us = await api('/admin/users').catch(() => []); const tps = await api('/admin/topups').catch(() => []); const bankCard = await adminBankCard().catch(() => '');
-  B.innerHTML = bankCard + `<div class="card"><h2>Nueva línea ficticia</h2><input id="t" placeholder="Ej: Hoy Ángel come espaguetis">
+  const oddsKey = await api('/admin/odds-key').catch(() => ({ configured: false }));
+  B.innerHTML = bankCard + oddsAdminCard(oddsKey) + `<div class="card"><h2>Nueva línea ficticia</h2><input id="t" placeholder="Ej: Hoy Ángel come espaguetis">
   <div id="opts"></div><button class="alt" id="add">+ Opción</button><button id="create">Crear línea</button></div>
   <div class="card"><h2>Nuevo evento con mercados</h2><p class="small">Opciones independientes; no se generan cuotas. Solo umbrales enteros o medios (sin líneas asiáticas divididas). Liquidación manual por mercado.</p>
     <input id="et" placeholder="Título del evento"><input id="eh" placeholder="Equipo local (arriba)"><input id="ea" placeholder="Equipo visitante (abajo)">
     <label class="small">Inicio del partido (hora de tu dispositivo; las apuestas se cierran a esa hora): <input id="estart" type="datetime-local"></label>
-    <select id="esport"><option value="">Deporte sin especificar</option><option value="soccer">Fútbol</option><option value="hockey">Hockey</option><option value="baseball">Béisbol</option><option value="other">Otro</option></select><select id="eu"><option value="">Unidad sin especificar</option><option value="goles">Goles</option><option value="puntos">Puntos</option><option value="carreras">Carreras</option></select>
+    <select id="esport"><option value="">Deporte sin especificar</option><option value="soccer">Fútbol</option><option value="hockey">Hockey</option><option value="baseball">Béisbol</option><option value="basketball">Baloncesto</option><option value="other">Otro</option></select><select id="eu"><option value="">Unidad sin especificar</option><option value="goles">Goles</option><option value="puntos">Puntos</option><option value="carreras">Carreras</option></select>
     <label><input type="checkbox" id="emh"> Ganador</label><div class="row"><input id="eho" placeholder="Cuota local"><input id="eao" placeholder="Cuota visitante"><input id="edo" placeholder="Cuota empate (opcional)"></div>
     <label><input type="checkbox" id="ems"> Hándicap</label><div class="row"><input id="eso" placeholder="Cuota local"><input id="esp" placeholder="Umbral local (ej. -0.5)"><input id="esao" placeholder="Cuota visitante"></div><p class="small">Visitante: umbral opuesto al local.</p>
     <label><input type="checkbox" id="emt"> Total</label><div class="row"><input id="etp" placeholder="Umbral total"><input id="eto" placeholder="Cuota Over"><input id="etuo" placeholder="Cuota Under"></div><button id="eventCreate">Crear evento</button></div>
@@ -460,6 +461,83 @@ async function adminView(B) {
   act('[data-remove-prop]', b => confirm('¿Quitar este prop? Solo funciona si nadie apostó.') && api(`/admin/lines/${b.dataset.removeProp}/remove-prop`, {}));
   act('#tgo', () => { const n = Number($('#ta').value); return confirm(`¿Recargar ${fmt(n)} monedas?`) && api('/admin/topup', { userId: Number($('#tu').value), amount: n }); });
   act('#inv', () => api('/admin/invites', {}));
+  bindOddsAdmin();
+}
+
+const ODDS_LEAGUES = [['soccer_epl','Premier League'],['soccer_spain_la_liga','LaLiga'],['soccer_italy_serie_a','Serie A'],['soccer_germany_bundesliga','Bundesliga'],['soccer_uefa_champs_league','Champions League'],['basketball_nba','NBA'],['baseball_mlb','MLB']];
+const etWhen = iso => {
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  return d.toLocaleString('es-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + ' ET';
+};
+function oddsAdminCard(st) {
+  const last = st && st.configured && st.last4 ? `Clave guardada ••••${esc(st.last4)}` : 'No hay una clave guardada.';
+  const src = st && st.source === 'env' ? ' Se está usando la clave del servidor. Puedes guardar otra aquí; eliminar solo quita la que está en la app.' : (st && st.source === 'stored' ? ' Puedes reemplazarla o eliminarla.' : ' Si el servidor ya tiene una, se usará como respaldo.');
+  const cred = oddsSearch && oddsSearch.creditsRemaining != null ? `Te quedan ${fmt(oddsSearch.creditsRemaining)} créditos` : '';
+  const skipped = ((oddsSearch && oddsSearch.skipped) || []).map(x => `<div class="small">${esc(x.name)} está inactiva o fuera de temporada (sin costo extra).</div>`).join('');
+  const evs = (oddsSearch && oddsSearch.events) || [];
+  const rows = evs.map(e => {
+    const markets = (e.markets || []).map(m => `${esc(Markets.NAMES[m.key] || m.key)}: ${(m.options || []).map(o => `${esc(o.label)}${o.point != null ? ' ' + o.point : ''} ${od(o.odds)}`).join(' · ')}`).join('<br>');
+    const dis = e.imported ? ' disabled' : '';
+    const already = e.imported ? ' <span class="small">Ya está en la app</span>' : '';
+    return `<label class="opt odds-ev"><input type="checkbox" data-odds-ev="${esc(e.id)}"${dis}${e.imported ? '' : ' checked'}> <span><b>${esc(e.home)}</b> vs ${esc(e.away)} · ${esc(e.league || e.sport || '')}<div class="small">${esc(etWhen(e.starts))} · ${esc(e.bookmaker || '')}${already}</div><div class="small">${markets}</div></span></label>`;
+  }).join('') || (oddsSearch ? '<div class="small">No hay partidos futuros en las ligas elegidas.</div>' : '');
+  const err = oddsSearch && oddsSearch.error ? `<p class="err">${esc(oddsSearch.error)}</p>` : '';
+  const picked = new Set(oddsPicked || []);
+  return `<div class="card" id="oddsAdmin"><h2>Clave de The Odds API</h2><p class="small">${last}${src} La clave no se muestra completa ni se envía a otros jugadores.</p>
+    <input id="oddsKey" type="password" autocomplete="new-password" placeholder="Pega la clave y pulsa Guardar">
+    <div class="row"><button type="button" id="oddsKeySave">Guardar</button>${st && st.source === 'stored' ? '<button type="button" class="alt" id="oddsKeyDel">Eliminar clave guardada</button>' : ''}</div>
+    <h2>Buscar partidos nuevos</h2>
+    <p class="small">Marca las ligas y pulsa buscar. Cada liga cuesta unos 3 créditos. Nada se agrega solo: luego eliges los partidos.</p>
+    ${cred ? `<p><b>${esc(cred)}</b></p>` : ''}
+    <div class="chips">${ODDS_LEAGUES.map(([k,n]) => `<label class="chip"><input type="checkbox" data-odds-lg="${k}"${picked.has(k) ? ' checked' : ''}> ${esc(n)}</label>`).join('')}</div>
+    <button type="button" id="oddsSearch">Buscar partidos nuevos</button>
+    ${err}${skipped}
+    ${rows ? `<div id="oddsResults" style="margin-top:8px">${rows}</div><button type="button" id="oddsAdd">Agregar a la app</button>` : ''}</div>`;
+}
+function bindOddsAdmin() {
+  const save = $('#oddsKeySave');
+  if (save) save.onclick = async () => {
+    try { const r = await api('/admin/odds-key', { key: $('#oddsKey').value }); if (r.error) throw new Error(r.error); flash('Clave guardada'); render(); }
+    catch (e) { flash(e.message); }
+  };
+  const del = $('#oddsKeyDel');
+  if (del) del.onclick = async () => {
+    if (!confirm('¿Eliminar la clave guardada en la app?')) return;
+    try { const r = await api('/admin/odds-key/delete', {}); if (r.error) throw new Error(r.error); flash('Clave eliminada'); render(); }
+    catch (e) { flash(e.message); }
+  };
+  const search = $('#oddsSearch');
+  if (search) search.onclick = async () => {
+    const sports = [...document.querySelectorAll('[data-odds-lg]:checked')].map(x => x.dataset.oddsLg);
+    if (!sports.length) { flash('Elige al menos una liga'); return; }
+    oddsPicked = sports;
+    search.disabled = true;
+    try {
+      const r = await api('/admin/odds-search', { sports });
+      oddsSearch = r;
+      if (r.error) flash(r.error);
+      render();
+    } catch (e) { flash(e.message); search.disabled = false; }
+  };
+  const add = $('#oddsAdd');
+  if (add) add.onclick = async () => {
+    const eventIds = [...document.querySelectorAll('[data-odds-ev]:checked')].map(x => x.dataset.oddsEv);
+    if (!eventIds.length) { flash('Elige al menos un partido'); return; }
+    if (!confirm('¿Agregar los partidos elegidos a la app?')) return;
+    add.disabled = true;
+    try {
+      const r = await api('/admin/odds-add', { eventIds });
+      if (r.error) throw new Error(r.error);
+      const n = (r.added || []).length, sk = (r.skipped || []).length;
+      flash((n ? `Se agregaron ${n} partido${n === 1 ? '' : 's'}` : 'Ningún partido nuevo') + (sk ? ` · ${sk} ya estaban` : ''));
+      if (oddsSearch && oddsSearch.events) {
+        const done = new Set((r.added || []).map(x => x.id).concat(r.skipped || []));
+        oddsSearch.events = oddsSearch.events.map(e => done.has(e.id) ? { ...e, imported: true } : e);
+      }
+      render();
+    } catch (e) { flash(e.message); add.disabled = false; }
+  };
 }
 start();
 let sq = 0;

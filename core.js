@@ -164,6 +164,7 @@ function open(file = 'data.db') {
     payout INTEGER NOT NULL, profit INTEGER NOT NULL, bets TEXT NOT NULL, ts INTEGER NOT NULL,
     UNIQUE(user_id, idem));`);
   db.exec('CREATE INDEX IF NOT EXISTS roulette_spins_ts ON roulette_spins(id DESC);');
+  db.exec('CREATE TABLE IF NOT EXISTS app_settings(key TEXT PRIMARY KEY, value TEXT, ts INTEGER)');
 
   // Unprovable pre-migration debt/penalty kept as one older "legacy" bucket (paid first, refunded only when fully paid).
   for (const c of ['legacy_debt', 'legacy_penalty']) { try { db.exec(`ALTER TABLE bank ADD COLUMN ${c} INTEGER NOT NULL DEFAULT 0`); } catch {} }
@@ -176,8 +177,8 @@ function open(file = 'data.db') {
   const STARTED_MSG = 'El partido ya empezó; no se aceptan apuestas nuevas.';
   const startMs = l => { if (!l || !l.starts) return null; const t = Date.parse(l.starts); return Number.isFinite(t) ? t : null; };
   const hasStarted = (l, t = Date.now()) => { const s = startMs(l); return s != null && t >= s; };
-  const SPORTS = ['soccer', 'hockey', 'baseball', 'other'];
-  const sportOf = e => { const k = String(e.sport_key || ''); if (/^soccer_/.test(k)) return 'soccer'; if (/^icehockey_/.test(k)) return 'hockey'; if (/^baseball_/.test(k)) return 'baseball'; return SPORTS.includes(e.sport) ? e.sport : null; };
+  const SPORTS = ['soccer', 'hockey', 'baseball', 'basketball', 'other'];
+  const sportOf = e => { const k = String(e.sport_key || ''); if (/^soccer_/.test(k)) return 'soccer'; if (/^icehockey_/.test(k)) return 'hockey'; if (/^baseball_/.test(k)) return 'baseball'; if (/^basketball_/.test(k)) return 'basketball'; return SPORTS.includes(e.sport) ? e.sport : null; };
   const bankRow = uid => { db.prepare('INSERT OR IGNORE INTO bank(user_id) VALUES(?)').run(uid); return db.prepare('SELECT * FROM bank WHERE user_id=?').get(uid); };
   const ledger = (uid, kind, amount, debtAfter, ref, adminId = null) => Number(db.prepare('INSERT INTO bank_ledger(user_id,kind,amount,debt_after,ref,admin_id,ts) VALUES(?,?,?,?,?,?,?)').run(uid, kind, amount, debtAfter, ref, adminId, Date.now()).lastInsertRowid);
   // Winning credit (bets, parlays, challenges): full payout to the player. No automatic bank collection
@@ -1092,6 +1093,33 @@ function open(file = 'data.db') {
     }
     return out;
   };
+
+  api.getOddsApiKey = () => {
+    const row = db.prepare('SELECT value FROM app_settings WHERE key=?').get('odds_api_key');
+    const stored = row && String(row.value || '').trim();
+    if (stored) return stored;
+    return String(process.env.ODDS_API_KEY || '').trim();
+  };
+  api.oddsKeyStatus = () => {
+    const row = db.prepare('SELECT value FROM app_settings WHERE key=?').get('odds_api_key');
+    const stored = row && String(row.value || '').trim();
+    const env = String(process.env.ODDS_API_KEY || '').trim();
+    const key = stored || env;
+    if (!key) return { configured: false, source: null, last4: null };
+    return { configured: true, source: stored ? 'stored' : 'env', last4: key.slice(-4) };
+  };
+  api.setOddsApiKey = (key) => {
+    key = String(key ?? '').trim();
+    if (!key) err('Escribe la clave de The Odds API');
+    if (key.length < 8 || key.length > 256 || /[\u0000-\u001f\u007f]/.test(key)) err('La clave no tiene un formato válido');
+    db.prepare('INSERT INTO app_settings(key,value,ts) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, ts=excluded.ts').run('odds_api_key', key, Date.now());
+    return api.oddsKeyStatus();
+  };
+  api.deleteOddsApiKey = () => {
+    db.prepare('DELETE FROM app_settings WHERE key=?').run('odds_api_key');
+    return api.oddsKeyStatus();
+  };
+  api.hasImportedEvent = eventId => !!db.prepare('SELECT 1 FROM lines WHERE event_id=?').get(String(eventId));
   api.db = db;
   api.PODIUM_MIN_SETTLED = PODIUM_MIN_SETTLED;
   api.DISABLED_NEW_MINIGAMES = DISABLED_NEW_MINIGAMES;

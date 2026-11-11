@@ -2,6 +2,7 @@ const express = require('express');
 const { open } = require('./core');
 const odds = require('./odds-api');
 const app = express(); const C = open(process.env.DB_FILE || 'data.db');
+odds.setKeyProvider(() => C.getOddsApiKey());
 if (process.env.ADMIN_PIN && !C.hasAdmin()) C.setupAdmin(process.env.ADMIN_USER || 'angel', process.env.ADMIN_PIN);
 app.use(express.json());
 // Cache-bust: index.html references each script with ?v=<content hash>; html itself always revalidated.
@@ -68,6 +69,28 @@ app.get('/api/real/sports', h(r => { auth(r); return { default: odds.DEFAULT_SPO
 app.post('/api/admin/import', h(async r => { admin(r); const d = await odds.upcoming(r.body.sport); if (d.error) return d;
   const e = d.events.find(x => x.id === r.body.eventId); if (!e) return { error: 'Evento no encontrado' };
   return { ids: C.createEvent({ ...e, title: `${e.sport}: ${e.title}` }, 'real') }; }));
+app.get('/api/admin/odds-key', h(r => { admin(r); return C.oddsKeyStatus(); }));
+app.post('/api/admin/odds-key', h(r => { admin(r); return C.setOddsApiKey(r.body && r.body.key); }));
+app.post('/api/admin/odds-key/delete', h(r => { admin(r); return C.deleteOddsApiKey(); }));
+app.post('/api/admin/odds-search', h(async r => { admin(r);
+  const d = await odds.searchNew(r.body && r.body.sports);
+  if (d.events) d.events = d.events.map(e => ({ ...e, imported: C.hasImportedEvent(e.id) }));
+  return d;
+}));
+app.post('/api/admin/odds-add', h(r => { admin(r);
+  const ids = Array.isArray(r.body && r.body.eventIds) ? r.body.eventIds : [];
+  if (!ids.length) return { error: 'Elige al menos un partido' };
+  const added = [], skipped = [], missing = [];
+  for (const id of ids) {
+    const evId = String(id);
+    if (C.hasImportedEvent(evId)) { skipped.push(evId); continue; }
+    const e = odds.cachedEvent(evId);
+    if (!e) { missing.push(evId); continue; }
+    added.push({ id: evId, ids: C.createEvent({ ...e, title: `${e.sport}: ${e.title}` }, 'real') });
+  }
+  if (missing.length && !added.length && !skipped.length) return { error: 'Vuelve a buscar los partidos antes de agregarlos' };
+  return { added, skipped, missing };
+}));
 app.post('/api/admin/lines/:id/sport', h(r => C.setEventSport(admin(r).id, r.params.id, r.body.sport || null)));
 app.post('/api/admin/lines/:id/start', h(r => C.setEventStart(admin(r).id, r.params.id, r.body.starts ?? null)));
 app.post('/api/admin/lines/:id/pause', h(r => C.setEventPaused(admin(r).id, r.params.id, !!r.body.paused)));
