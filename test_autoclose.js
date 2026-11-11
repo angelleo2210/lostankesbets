@@ -56,9 +56,9 @@ t('start does not void/refund accepted tickets; admin settles normally after sta
 });
 t('bank header summary is read-only and reports last-loan / closed states', () => {
   const { D, u } = mk(); const before = D.db.prepare('SELECT COUNT(*) c FROM bank').get().c;
-  assert.deepEqual(D.bankBrief(u), { debt: 0, loans: 0, loansLeft: 5, state: 'open' }); assert.equal(D.db.prepare('SELECT COUNT(*) c FROM bank').get().c, before);
-  for (let i = 0; i < 4; i++) D.takeLoan(u, 1000); assert.equal(D.bankBrief(u).loansLeft, 1); assert.equal(D.bankBrief(u).debt, 4000);
-  D.takeLoan(u, 1000); assert.equal(D.bankBrief(u).state, 'closed_until_bankruptcy'); assert.throws(() => D.takeLoan(u, 1), /5 préstamos/);
+  assert.deepEqual(D.bankBrief(u), { debt: 0, loans: 0, loansLeft: 10, maxLoan: 100000, state: 'open' }); assert.equal(D.db.prepare('SELECT COUNT(*) c FROM bank').get().c, before);
+  for (let i = 0; i < 4; i++) D.takeLoan(u, 1000); assert.equal(D.bankBrief(u).loansLeft, 6); assert.equal(D.bankBrief(u).debt, 4000);
+  D.takeLoan(u, 1000); assert.equal(D.bankBrief(u).state, 'open'); assert.equal(D.bankBrief(u).loans, 5); D.takeLoan(u, 1);
   assert.throws(() => D.takeLoan(u, 100001));
 });
 console.log(n, 'auto-close/bank-header tests passed');

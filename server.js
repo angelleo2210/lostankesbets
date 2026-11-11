@@ -93,6 +93,9 @@ const port = process.env.PORT || 3000; app.listen(port, () => {
     const dir = require('node:path').dirname(process.env.DB_FILE || 'data.db');
     fs.writeFileSync(require('node:path').join(dir, 'dup-points-audit.json'), JSON.stringify({ ts: Date.now(), report: points }, null, 2));
     fs.writeFileSync(require('node:path').join(dir, 'dup-stats-audit.json'), JSON.stringify({ ts: Date.now(), report: stats }, null, 2));
+    const loans = C.auditLoanCycles();
+    console.log('LOAN_LIMIT_AUDIT ' + JSON.stringify(loans));
+    fs.writeFileSync(require('node:path').join(dir, 'loan-limit-audit.json'), JSON.stringify({ ts: Date.now(), report: loans }, null, 2));
   } catch (e) { console.error('DUP_POINTS_AUDIT_ERROR', e && e.message); }
   console.log('LosTankesBets en http://localhost:' + port);
 });

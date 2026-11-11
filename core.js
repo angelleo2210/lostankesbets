@@ -76,7 +76,22 @@ const RPS = ['piedra', 'papel', 'tijera'], BEATS = { piedra: 'tijera', tijera: '
 // Nuevos retos bloqueados (pen/bb/tc); respond/play/expire siguen por monedas legacy.
 const DISABLED_NEW_MINIGAMES = new Set(['pen', 'bb', 'tc']);
 // Banco (monedas de juego). Owner-confirmed: -7 ranking points per loan, -20 while a bankruptcy mark is active (1 calendar month, New York).
-const BANK = { MAX_LOAN: 100000, MAX_LOANS: 5, MAX_BANKRUPTCIES: 5, LOAN_PENALTY: 7, MARK_PENALTY: 20, MAX_ADMIN_RESETS: 1, TZ: 'America/New_York' };
+// Credit line: max = LOAN_BASE * 2^(on-time repayments), no per-loan cap other than overflow safety. Lifetime loan cap = MAX_LOANS (existing records). Late repayment does not advance. Due term = LOAN_DUE_MONTHS calendar months in America/New_York.
+const BANK = { LOAN_BASE: 100000, MAX_LOANS: 10, LOAN_DUE_MONTHS: 1, MAX_BANKRUPTCIES: 5, LOAN_PENALTY: 7, MARK_PENALTY: 20, MAX_ADMIN_RESETS: 1, TZ: 'America/New_York' };
+BANK.MAX_LOAN = BANK.LOAN_BASE * 2 ** (BANK.MAX_LOANS - 1); // 10th loan, all prior on time: 51.200.000
+const esInt = n => {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return '0';
+  const s = Math.abs(Math.round(x)).toString();
+  if (s.length > 16) return (x < 0 ? '-' : '') + s; // avoid risky grouping on overflow-sized strings
+  return (x < 0 ? '-' : '') + s.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+};
+const loanMaxFromOnTime = n => {
+  const k = Math.max(0, Math.min(60, Math.floor(Number(n) || 0)));
+  if (k >= 46) return Number.MAX_SAFE_INTEGER;
+  const v = BANK.LOAN_BASE * (2 ** k);
+  return v > Number.MAX_SAFE_INTEGER ? Number.MAX_SAFE_INTEGER : v;
+};
 // Same wall-clock time one calendar month later in America/New_York (day clamped to month end).
 function addMonthNY(ms) {
   const f = new Intl.DateTimeFormat('en-US', { timeZone: BANK.TZ, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' });
@@ -217,17 +232,53 @@ function open(file = 'data.db') {
     for (const b of db.prepare('SELECT * FROM bank WHERE debt>0 AND legacy_debt=0 AND loan_penalty>0').all())
       if (!db.prepare('SELECT 1 FROM bank_loans WHERE user_id=?').get(b.user_id)) { db.prepare('UPDATE bank SET legacy_debt=debt, legacy_penalty=loan_penalty WHERE user_id=?').run(b.user_id); done.push(b.user_id); }
     db.prepare("INSERT INTO bank_meta(key,value,ts) VALUES('loans_v2',?,?)").run(JSON.stringify(done), Date.now()); });
-  const bankPenalty = (uid, t = Date.now()) => { const b = db.prepare('SELECT * FROM bank WHERE user_id=?').get(uid); if (!b) return 0; return b.loan_penalty + (b.mark_until && b.mark_until > t ? BANK.MARK_PENALTY : 0); };
+  const loanDueAt = loan => {
+    if (loan == null || loan.ts == null) return null;
+    let t = Number(loan.ts);
+    for (let i = 0; i < BANK.LOAN_DUE_MONTHS; i++) t = addMonthNY(t);
+    return t;
+  };
+  const paidOnTime = (loan) => {
+    if (!loan || loan.status !== 'paid') return false;
+    const due = loanDueAt(loan);
+    if (due == null || loan.closed_ts == null) return true;
+    return Number(loan.closed_ts) <= due;
+  };
+  const lastBankResetTs = uid => {
+    const r = db.prepare("SELECT MAX(ts) t FROM bank_ledger WHERE user_id=? AND kind IN ('bankruptcy','fresh_start')").get(uid);
+    return r && r.t ? Number(r.t) : 0;
+  };
+  const lifetimeLoansOf = uid => db.prepare('SELECT * FROM bank_loans WHERE user_id=? ORDER BY id').all(uid);
+  const loanInfo = (uid, t = Date.now(), b = null) => {
+    b = b || db.prepare('SELECT * FROM bank WHERE user_id=?').get(uid) || { debt: 0, loans: 0, closed: 0 };
+    const coinsRow = db.prepare('SELECT coins FROM users WHERE id=?').get(uid);
+    const coins = coinsRow ? coinsRow.coins : 0;
+    if (b.closed) return { loans: 0, loansLeft: 0, onTime: 0, maxLoan: 0, state: 'closed_permanent', canLoan: false, canBankrupt: false, dueAt: null };
+    const rows = lifetimeLoansOf(uid);
+    let loans = Math.max(rows.length, Math.max(0, Number(b.loans) || 0));
+    const onTime = rows.filter(paidOnTime).length;
+    const maxLoan = loanMaxFromOnTime(onTime);
+    const atLimit = loans >= BANK.MAX_LOANS;
+    const open = rows.filter(x => x.status === 'open');
+    const dueAt = open.length ? loanDueAt(open[open.length - 1]) : null;
+    return {
+      loans, loansLeft: Math.max(0, BANK.MAX_LOANS - loans), onTime, maxLoan,
+      state: atLimit ? 'loan_limit' : 'open', canLoan: !atLimit, canBankrupt: b.debt > 0 && coins < b.debt, dueAt
+    };
+  };
+
+    const bankPenalty = (uid, t = Date.now()) => { const b = db.prepare('SELECT * FROM bank WHERE user_id=?').get(uid); if (!b) return 0; return b.loan_penalty + (b.mark_until && b.mark_until > t ? BANK.MARK_PENALTY : 0); };
   const bankApi = {
     bankStatus(uid, t = Date.now()) { const b = bankRow(uid), coins = db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins;
-      const state = b.closed ? 'closed_permanent' : b.loans >= BANK.MAX_LOANS ? 'closed_until_bankruptcy' : 'open';
-      return { coins, debt: b.debt, loans: b.loans, loansLeft: Math.max(0, BANK.MAX_LOANS - b.loans), bankruptcies: b.bankruptcies, bankruptciesLeft: Math.max(0, BANK.MAX_BANKRUPTCIES - b.bankruptcies), markUntil: b.mark_until && b.mark_until > t ? b.mark_until : null, penalty: bankPenalty(uid, t), state, canLoan: state === 'open', canPayFull: b.debt > 0 && coins >= b.debt, canBankrupt: !b.closed && (b.debt > 0 || b.loans > 0), maxLoan: BANK.MAX_LOAN, adminResetsLeft: Math.max(0, BANK.MAX_ADMIN_RESETS - b.admin_resets), loanPenalty: BANK.LOAN_PENALTY, markPenalty: BANK.MARK_PENALTY,
+      const info = loanInfo(uid, t, b);
+      return { coins, debt: b.debt, loans: info.loans, loansLeft: info.loansLeft, onTime: info.onTime, bankruptcies: b.bankruptcies, bankruptciesLeft: Math.max(0, BANK.MAX_BANKRUPTCIES - b.bankruptcies), markUntil: b.mark_until && b.mark_until > t ? b.mark_until : null, penalty: bankPenalty(uid, t), state: b.closed ? 'closed_permanent' : info.state, canLoan: !b.closed && info.canLoan, canPayFull: b.debt > 0 && coins >= b.debt, canBankrupt: !b.closed && info.canBankrupt, maxLoan: info.maxLoan, dueAt: info.dueAt, adminResetsLeft: Math.max(0, BANK.MAX_ADMIN_RESETS - b.admin_resets), loanPenalty: BANK.LOAN_PENALTY, markPenalty: BANK.MARK_PENALTY, loanDueMonths: BANK.LOAN_DUE_MONTHS, loanBase: BANK.LOAN_BASE, maxLoans: BANK.MAX_LOANS,
         ledger: db.prepare('SELECT kind,amount,debt_after,ref,ts FROM bank_ledger WHERE user_id=? ORDER BY id DESC LIMIT 30').all(uid) }; },
     takeLoan(uid, amount) { amount = Number(amount);
-      if (!Number.isInteger(amount) || amount < 1 || amount > BANK.MAX_LOAN) err('El préstamo debe ser un número entero entre 1 y 100.000');
       return tx(() => { const b = bankRow(uid);
         if (b.closed) err(b.admin_resets >= BANK.MAX_ADMIN_RESETS ? 'El banco está cerrado permanentemente para ti (5 bancarrotas y ya usaste tu único nuevo comienzo).' : 'El banco está cerrado por 5 bancarrotas. Solo el administrador puede aprobar tu único nuevo comienzo.');
-        if (b.loans >= BANK.MAX_LOANS) err('Ya usaste tus 5 préstamos. El banco está cerrado hasta que declares bancarrota.');
+        const info = loanInfo(uid, Date.now(), b);
+        if (!info.canLoan) err(`Ya usaste tus ${BANK.MAX_LOANS} préstamos. No puedes pedir más.`);
+        if (!Number.isSafeInteger(amount) || amount < 1 || amount > info.maxLoan) err(`El préstamo debe ser un número entero entre 1 y ${esInt(info.maxLoan)}`);
         db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(amount, uid);
         db.prepare('UPDATE bank SET debt=debt+?, loans=loans+1, loan_penalty=loan_penalty+? WHERE user_id=?').run(amount, BANK.LOAN_PENALTY, uid);
         const lid = ledger(uid, 'loan', amount, b.debt + amount, null); db.prepare('INSERT INTO bank_loans(user_id,amount,remaining,ledger_id,ts) VALUES(?,?,?,?,?)').run(uid, amount, amount, lid, Date.now()); return bankApi.bankStatus(uid); }); },
@@ -243,7 +294,9 @@ function open(file = 'data.db') {
     declareBankruptcy(uid, t = Date.now()) {
       return tx(() => { const b = bankRow(uid);
         if (b.closed) err('El banco está cerrado permanentemente; ya no puedes declarar bancarrota.');
-        if (!(b.debt > 0 || b.loans > 0)) err('No tienes deuda ni préstamos que borrar');
+        if (!(b.debt > 0)) err('No tienes deuda pendiente');
+        const coins = db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins;
+        if (coins >= b.debt) err('Puedes pagar tu deuda; la bancarrota solo está disponible si no tienes saldo suficiente.');
         const n = b.bankruptcies + 1, mark = Math.max(b.mark_until || 0, addMonthNY(t));
         db.prepare('UPDATE bank SET debt=0, loans=0, loan_penalty=0, bankruptcies=?, mark_until=?, closed=? WHERE user_id=?').run(n, mark, n >= BANK.MAX_BANKRUPTCIES ? 1 : 0, uid);
         ledger(uid, 'bankruptcy', b.debt, 0, `#${n}`); forgiveLoans(uid, `bankruptcy#${n}`); return bankApi.bankStatus(uid, t); }); },
@@ -260,8 +313,9 @@ function open(file = 'data.db') {
         db.prepare('UPDATE bank SET debt=0, loans=0, loan_penalty=0, bankruptcies=0, mark_until=NULL, closed=0, admin_resets=admin_resets+1 WHERE user_id=?').run(b.user_id);
         forgiveLoans(b.user_id, 'fresh_start'); ledger(b.user_id, 'fresh_start', coins, 0, `debt ${b.debt}; bankruptcies ${b.bankruptcies}`, adminId); return { ok: true }; }); },
     // Read-only header summary (no row insert).
-    bankBrief(uid) { const b = db.prepare('SELECT debt, loans, closed FROM bank WHERE user_id=?').get(uid) || { debt: 0, loans: 0, closed: 0 };
-      return { debt: b.debt, loans: b.loans, loansLeft: Math.max(0, BANK.MAX_LOANS - b.loans), state: b.closed ? 'closed_permanent' : b.loans >= BANK.MAX_LOANS ? 'closed_until_bankruptcy' : 'open' }; },
+    bankBrief(uid) { const b = db.prepare('SELECT * FROM bank WHERE user_id=?').get(uid) || { debt: 0, loans: 0, closed: 0 };
+      const info = loanInfo(uid, Date.now(), b);
+      return { debt: b.debt, loans: info.loans, loansLeft: info.loansLeft, maxLoan: info.maxLoan, state: b.closed ? 'closed_permanent' : info.state }; },
     bankPenalty,
     // Admin metadata for future same-match quotes only (saved tickets keep their frozen price).
     setEventSport(adminId, lineId, sport) {
@@ -1023,6 +1077,20 @@ function open(file = 'data.db') {
       affected.push({ userId: u.id, username: u.username, beforeRaw: before, beforeThisDeploy: mid, after, groups });
     }
     return affected;
+  };
+  api.auditLoanCycles = () => {
+    const users = db.prepare('SELECT id, username FROM users ORDER BY id').all();
+    const out = [];
+    for (const u of users) {
+      const b = db.prepare('SELECT * FROM bank WHERE user_id=?').get(u.id);
+      if (!b) continue;
+      const info = loanInfo(u.id, Date.now(), b);
+      const wasBlocked = !b.closed && b.loans >= 5 && b.debt === 0; // previous 5-loan cap, including fully repaid
+      const unblocked = wasBlocked && info.canLoan;
+      if (!wasBlocked && !b.debt && !b.loans && !info.loans) continue;
+      out.push({ userId: u.id, username: u.username, debt: b.debt, storedLoans: b.loans, lifetimeLoans: info.loans, loansLeft: info.loansLeft, onTime: info.onTime, maxLoan: info.maxLoan, state: b.closed ? 'closed_permanent' : info.state, canLoan: !b.closed && info.canLoan, canBankrupt: !b.closed && info.canBankrupt, wasBlocked, unblocked });
+    }
+    return out;
   };
   api.db = db;
   api.PODIUM_MIN_SETTLED = PODIUM_MIN_SETTLED;

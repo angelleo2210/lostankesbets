@@ -14,12 +14,14 @@ t('2 loans: manual full pay returns 14 once, count stays 2; second pay rejected 
   assert.throws(() => D.payDebtFull(u), /No tienes deuda/); assert.equal(coins(), c - 200);
   assert.equal(D.db.prepare("SELECT COUNT(*) c FROM bank_ledger WHERE kind='penalty_refund'").get().c, 2);
 });
-t('full pay with 5 loans: bank closed for new loans but repayment allowed; 6th loan still blocked', () => {
+t('full pay with 5 loans: penalty cleared, can borrow again under the lifetime cap', () => {
   const { D, u, bank } = mk(); for (let i = 0; i < 5; i++) D.takeLoan(u, 10); D.payDebtFull(u);
-  assert.deepEqual([bank().debt, bank().loan_penalty, bank().loans], [0, 0, 5]); assert.throws(() => D.takeLoan(u, 1), /5 préstamos/);
+  assert.deepEqual([bank().debt, bank().loan_penalty, bank().loans], [0, 0, 5]);
+  assert.equal(D.bankStatus(u).state, 'open'); assert.equal(D.bankStatus(u).canLoan, true);
+  D.takeLoan(u, 1); assert.equal(D.bankStatus(u).loans, 6);
 });
 t('bankruptcy forgives without +7 refunds; later loans start fresh; no double credit', () => {
-  const { D, u, bank } = mk(); D.takeLoan(u, 100); D.takeLoan(u, 100); D.declareBankruptcy(u);
+  const { D, u, bank } = mk(); D.takeLoan(u, 100); D.takeLoan(u, 100); D.db.prepare('UPDATE users SET coins=0 WHERE id=?').run(u); D.declareBankruptcy(u);
   assert.equal(bank().loan_penalty, 0); assert.equal(D.db.prepare("SELECT COUNT(*) c FROM bank_ledger WHERE kind='penalty_refund'").get().c, 0);
   assert.equal(D.db.prepare("SELECT COUNT(*) c FROM bank_loans WHERE status='forgiven'").get().c, 2);
   D.takeLoan(u, 10); D.payDebtFull(u); assert.equal(bank().loan_penalty, 0); assert.equal(D.bankPenalty(u), BANK.MARK_PENALTY);
@@ -54,13 +56,14 @@ t('screenshot fixture: saldo 680000, deuda 225000, 5/5 loans, -21 (legacy) -> 45
   D.db.prepare('INSERT OR REPLACE INTO bank(user_id,debt,loans,loan_penalty,legacy_debt,legacy_penalty,mark_until) VALUES(?,?,?,?,?,?,?)').run(u, 225000, 5, 21, 225000, 21, mark);
   const l = D.createLine('P', [{ label: 'A', odds: 100 }, { label: 'B', odds: -110 }]); D.placeBet(u, D.lines().find(x => x.id === l).options[0].id, 1000);
   D.db.prepare('UPDATE users SET coins=680000 WHERE id=?').run(u);
-  assert.equal(D.bankStatus(u).canPayFull, true); assert.equal(D.bankStatus(u).state, 'closed_until_bankruptcy');
+  assert.equal(D.bankStatus(u).canPayFull, true); assert.equal(D.bankStatus(u).state, 'open');
   assert.throws(() => D.payDebtFull(u, 224999), /cambió/); assert.equal(coins(), 680000);
   const s = D.payDebtFull(u, 225000); assert.equal(coins(), 455000); assert.deepEqual([bank().debt, bank().loan_penalty, bank().loans, bank().mark_until], [0, 0, 5, mark]);
-  assert.equal(s.state, 'closed_until_bankruptcy'); assert.throws(() => D.takeLoan(u, 1), /5 préstamos/);
+  assert.equal(s.state, 'open'); assert.equal(s.canLoan, true);
   assert.equal(D.db.prepare("SELECT SUM(amount) s FROM bank_ledger WHERE kind='penalty_refund'").get().s, 21);
   assert.equal(D.db.prepare("SELECT status FROM bets WHERE user_id=?").get(u).status, 'open');
   assert.throws(() => D.payDebtFull(u, 225000), /No tienes deuda/); assert.equal(coins(), 455000); // double tap
+  D.takeLoan(u, 1); assert.equal(D.bankStatus(u).loans, 6);
 });
 t('insufficient balance rejected with nothing changed; bad expectedDebt rejected', () => {
   const { D, u, bank, coins } = mk(); D.takeLoan(u, 1000); D.db.prepare('UPDATE users SET coins=999 WHERE id=?').run(u);
