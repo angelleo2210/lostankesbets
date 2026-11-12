@@ -55,7 +55,18 @@ const SEARCH_SPORTS = [
   ['soccer_uefa_champs_league', 'Champions League'],
   ['basketball_nba', 'NBA'],
   ['baseball_mlb', 'MLB'],
+  ['mma_mixed_martial_arts', 'UFC (MMA)'],
+  ['icehockey_nhl', 'NHL'],
+  ['soccer_uefa_nations_league', 'UEFA Nations League'],
+  ['soccer_fifa_world_cup_qualifiers_europe', 'Eliminatorias Mundial (Europa)'],
+  ['soccer_fifa_world_cup_qualifiers_south_america', 'Eliminatorias Mundial (Sudamérica)'],
 ];
+function marketsForSport(key) {
+  const k = String(key || '');
+  if (/^mma_/.test(k) || /^boxing_/.test(k)) return 'h2h';
+  return 'h2h,spreads,totals';
+}
+function creditsForSport(key) { return marketsForSport(key).split(',').length; }
 const PREFERRED_BOOKS = ['draftkings', 'fanduel'];
 let searchCache = new Map();
 
@@ -166,7 +177,7 @@ async function searchNew(sportKeys, now = Date.now()) {
   }
   const events = [];
   for (const [k, name] of toFetch) {
-    const r = await oddsFetch(`/sports/${encodeURIComponent(k)}/odds`, key, { regions: 'us', markets: 'h2h,spreads,totals', oddsFormat: 'american' });
+    const r = await oddsFetch(`/sports/${encodeURIComponent(k)}/odds`, key, { regions: 'us', markets: marketsForSport(k), oddsFormat: 'american' });
     usage = { ...usage, ...(r.usage || {}) };
     if (r.error) {
       return { error: r.error, events, skipped, creditsRemaining: usage.remaining, creditsUsed: usage.used };
@@ -179,4 +190,4 @@ async function searchNew(sportKeys, now = Date.now()) {
 function cachedEvent(id) { return searchCache.get(String(id)) || null; }
 function resetSearchCache() { searchCache = new Map(); }
 
-module.exports = { upcoming, SOCCER, DEFAULT_SPORT, sportKey, parseEvents, MISSING, BOOKMAKER, SOURCE, NO_COVERAGE, SEARCH_SPORTS, parseRegionEvents, searchNew, cachedEvent, resetSearchCache, setKeyProvider, getKey, explainOddsError };
+module.exports = { upcoming, SOCCER, DEFAULT_SPORT, sportKey, parseEvents, MISSING, BOOKMAKER, SOURCE, NO_COVERAGE, SEARCH_SPORTS, parseRegionEvents, searchNew, cachedEvent, resetSearchCache, setKeyProvider, getKey, explainOddsError, marketsForSport, creditsForSport };

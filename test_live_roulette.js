@@ -38,9 +38,13 @@ t('bets accepted only before close; late bets rejected; no debit after close', (
   const ok = D.liveBet(a, [{ type: 'red', amount: 100 }], 'bet_open_01', opens + 39999);
   assert.equal(ok.replay, false);
   assert.equal(ok.stake, 100);
-  assert.equal(coins(a), before - 100);
+  const afterOpen = coins(a);
+  assert.equal(afterOpen, before - 100);
   assert.throws(() => D.liveBet(a, [{ type: 'black', amount: 100 }], 'bet_late_01', opens + 40000), /cerradas|siguiente ronda/);
-  assert.equal(coins(a), before - 100);
+  // A late call at close may draw and settle the earlier bet (rojo even-money), but must not debit the rejected one.
+  assert.equal(D.db.prepare("SELECT COUNT(*) c FROM live_bets WHERE idem='bet_late_01'").get().c, 0);
+  const afterLate = coins(a);
+  assert.ok(afterLate === afterOpen || afterLate === afterOpen + 200, 'late bet must not debit; settlement of the earlier bet is ok');
   const st = D.livePublicState(a, opens + 20000);
   assert.equal(st.phase, 'open');
   assert.equal(st.number, null);

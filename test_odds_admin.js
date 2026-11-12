@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { open } = require('./core');
 const odds = require('./odds-api');
+const { SEARCH_SPORTS, marketsForSport, creditsForSport, parseRegionEvents } = odds;
 
 let n = 0;
 const t = (name, fn) => { fn(); console.log('OK', name); n++; };
@@ -26,6 +27,54 @@ const ev = (id, extra = {}) => ({
   commence_time: extra.starts || future(),
   bookmakers: extra.bookmakers || [book('betmgm', 'BetMGM'), book('draftkings', 'DraftKings'), book('fanduel', 'FanDuel')],
 });
+
+
+t('search sports include UFC, NHL, Nations League and official World Cup qualifier keys; MMA costs 1 credit', () => {
+  const keys = SEARCH_SPORTS.map(([k]) => k);
+  assert.deepEqual(SEARCH_SPORTS.slice(0, 7).map(([k]) => k), ['soccer_epl','soccer_spain_la_liga','soccer_italy_serie_a','soccer_germany_bundesliga','soccer_uefa_champs_league','basketball_nba','baseball_mlb']);
+  for (const k of ['mma_mixed_martial_arts','icehockey_nhl','soccer_uefa_nations_league','soccer_fifa_world_cup_qualifiers_europe','soccer_fifa_world_cup_qualifiers_south_america']) assert.ok(keys.includes(k), k);
+  assert.equal(marketsForSport('mma_mixed_martial_arts'), 'h2h');
+  assert.equal(creditsForSport('mma_mixed_martial_arts'), 1);
+  assert.equal(marketsForSport('icehockey_nhl'), 'h2h,spreads,totals');
+  assert.equal(creditsForSport('soccer_uefa_nations_league'), 3);
+  assert.equal(marketsForSport('soccer_epl'), 'h2h,spreads,totals');
+  const app = fs.readFileSync(__dirname + '/public/app.js', 'utf8');
+  const m = app.match(/const ODDS_LEAGUES = (\[[^;]+\])/);
+  assert.ok(m);
+  const ui = Function('return ' + m[1])();
+  assert.deepEqual(ui, SEARCH_SPORTS);
+  assert.ok(app.includes('Cada liga cuesta unos 3 créditos (UFC/MMA: 1 crédito, solo ganador)'));
+});
+
+t('parse: MMA is two-way h2h; NHL keeps puck-line and totals; soccer keeps the draw', () => {
+  const now = Date.now();
+  const start = new Date(now + 3600e3).toISOString();
+  const mmaBm = { key: 'draftkings', title: 'DraftKings', markets: [{ key: 'h2h', outcomes: [{ name: 'A Fighter', price: -150 }, { name: 'B Fighter', price: 130 }] }] };
+  const [mma] = parseRegionEvents([{ id: 'mma-1', sport_key: 'mma_mixed_martial_arts', sport_title: 'MMA', home_team: 'A Fighter', away_team: 'B Fighter', commence_time: start, bookmakers: [mmaBm] }], now);
+  assert.equal(mma.home, 'A Fighter'); assert.equal(mma.away, 'B Fighter');
+  assert.deepEqual(mma.markets.map(x => x.key), ['h2h']);
+  assert.equal(mma.markets[0].options.length, 2);
+  assert.ok(!mma.markets[0].options.some(o => o.label === 'Draw'));
+  const nhlBm = { key: 'fanduel', title: 'FanDuel', markets: [
+    { key: 'h2h', outcomes: [{ name: 'Rangers', price: -110 }, { name: 'Bruins', price: -110 }] },
+    { key: 'spreads', outcomes: [{ name: 'Rangers', price: -120, point: -1.5 }, { name: 'Bruins', price: 100, point: 1.5 }] },
+    { key: 'totals', outcomes: [{ name: 'Over', price: -110, point: 5.5 }, { name: 'Under', price: -110, point: 5.5 }] }
+  ]};
+  const [nhl] = parseRegionEvents([{ id: 'nhl-1', sport_key: 'icehockey_nhl', sport_title: 'NHL', home_team: 'Rangers', away_team: 'Bruins', commence_time: start, bookmakers: [nhlBm] }], now);
+  assert.equal(nhl.unit, 'goles');
+  assert.deepEqual(nhl.markets.map(x => x.key), ['h2h', 'spreads', 'totals']);
+  const socBm = { key: 'draftkings', title: 'DraftKings', markets: [{ key: 'h2h', outcomes: [{ name: 'Spain', price: -140 }, { name: 'Portugal', price: 320 }, { name: 'Draw', price: 250 }] }] };
+  const [soc] = parseRegionEvents([{ id: 'nl-1', sport_key: 'soccer_uefa_nations_league', sport_title: 'UEFA Nations League', home_team: 'Spain', away_team: 'Portugal', commence_time: start, bookmakers: [socBm] }], now);
+  assert.ok(soc.markets[0].options.some(o => o.label === 'Draw'));
+  const { D } = mk();
+  const ids = D.createEvent({ ...mma, title: `${mma.sport}: ${mma.title}` }, 'real');
+  assert.equal(D.lines().find(l => l.id === ids[0]).sport, 'mma');
+  const nhlIds = D.createEvent({ ...nhl, title: `${nhl.sport}: ${nhl.title}` }, 'real');
+  assert.equal(D.lines().find(l => l.id === nhlIds[0]).sport, 'hockey');
+  assert.equal(D.lines().find(l => l.id === nhlIds[0]).home, 'Rangers');
+  assert.equal(D.lines().find(l => l.id === nhlIds[0]).away, 'Bruins');
+});
+
 
 t('key: stored last-4 only, env fallback, stored wins, delete does not touch env', () => {
   const { D } = mk();

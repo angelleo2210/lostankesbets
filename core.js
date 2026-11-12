@@ -185,8 +185,8 @@ function open(file = 'data.db') {
   const STARTED_MSG = 'El partido ya empezó; no se aceptan apuestas nuevas.';
   const startMs = l => { if (!l || !l.starts) return null; const t = Date.parse(l.starts); return Number.isFinite(t) ? t : null; };
   const hasStarted = (l, t = Date.now()) => { const s = startMs(l); return s != null && t >= s; };
-  const SPORTS = ['soccer', 'hockey', 'baseball', 'basketball', 'other'];
-  const sportOf = e => { const k = String(e.sport_key || ''); if (/^soccer_/.test(k)) return 'soccer'; if (/^icehockey_/.test(k)) return 'hockey'; if (/^baseball_/.test(k)) return 'baseball'; if (/^basketball_/.test(k)) return 'basketball'; return SPORTS.includes(e.sport) ? e.sport : null; };
+  const SPORTS = ['soccer', 'hockey', 'baseball', 'basketball', 'mma', 'other'];
+  const sportOf = e => { const k = String(e.sport_key || ''); if (/^soccer_/.test(k)) return 'soccer'; if (/^icehockey_/.test(k)) return 'hockey'; if (/^baseball_/.test(k)) return 'baseball'; if (/^basketball_/.test(k)) return 'basketball'; if (/^mma_/.test(k)) return 'mma'; return SPORTS.includes(e.sport) ? e.sport : null; };
   const bankRow = uid => { db.prepare('INSERT OR IGNORE INTO bank(user_id) VALUES(?)').run(uid); return db.prepare('SELECT * FROM bank WHERE user_id=?').get(uid); };
   const ledger = (uid, kind, amount, debtAfter, ref, adminId = null) => Number(db.prepare('INSERT INTO bank_ledger(user_id,kind,amount,debt_after,ref,admin_id,ts) VALUES(?,?,?,?,?,?,?)').run(uid, kind, amount, debtAfter, ref, adminId, Date.now()).lastInsertRowid);
   // Winning credit (bets, parlays, challenges): full payout to the player. No automatic bank collection
