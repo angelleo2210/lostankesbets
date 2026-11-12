@@ -66,8 +66,17 @@ function marketsForSport(key) {
   if (/^mma_/.test(k) || /^boxing_/.test(k)) return 'h2h';
   return 'h2h,spreads,totals';
 }
-function creditsForSport(key) { return marketsForSport(key).split(',').length; }
-const PREFERRED_BOOKS = ['draftkings', 'fanduel'];
+// Soccer spreads/totals are often missing from US books (h2h only). UK+EU keeps the
+// featured markets (not alternate_spreads/totals) and costs 2 regions × 3 markets = 6 credits.
+function regionsForSport(key) {
+  const k = String(key || '');
+  if (/^soccer_/.test(k)) return 'uk,eu';
+  return 'us';
+}
+function creditsForSport(key) {
+  return marketsForSport(key).split(',').filter(Boolean).length * regionsForSport(key).split(',').filter(Boolean).length;
+}
+const PREFERRED_BOOKS = ['draftkings', 'fanduel', 'pinnacle', 'paddypower', 'williamhill', 'betfair_sb_uk'];
 let searchCache = new Map();
 
 function headerVal(res, name) {
@@ -108,29 +117,41 @@ async function oddsFetch(path, key, params) {
     return { error: 'The Odds API no está disponible en este momento.' };
   }
 }
-function marketsFromBook(bm, event) {
+function marketFromBook(bm, key, event) {
+  const m = (bm.markets || []).find(x => x.key === key);
+  if (!m) return null;
+  const options = (m.outcomes || []).map(o => ({ label: o.name, odds: o.price, ...(key !== 'h2h' ? { point: o.point } : {}) }));
+  try { M.validate(key, options, event.home_team, event.away_team); } catch { return null; }
+  return { key, options, bookmaker: bm.title || bm.key, updated: m.last_update };
+}
+function orderedBooks(event) {
+  const bms = event.bookmakers || [];
+  const out = [], seen = new Set();
+  for (const k of PREFERRED_BOOKS) {
+    const bm = bms.find(b => b.key === k);
+    if (bm && !seen.has(bm)) { out.push(bm); seen.add(bm); }
+  }
+  for (const bm of bms) if (!seen.has(bm)) { out.push(bm); seen.add(bm); }
+  return out;
+}
+// Fill each featured market from the first preferred book that has a valid line.
+// A book with only h2h no longer hides spreads/totals offered by another book.
+function pickMarkets(event) {
   const markets = [];
+  const books = orderedBooks(event);
   for (const key of Object.keys(M.NAMES)) {
-    const m = (bm.markets || []).find(x => x.key === key); if (!m) continue;
-    const options = (m.outcomes || []).map(o => ({ label: o.name, odds: o.price, ...(key !== 'h2h' ? { point: o.point } : {}) }));
-    try { M.validate(key, options, event.home_team, event.away_team); } catch { continue; }
-    markets.push({ key, options, bookmaker: bm.title || bm.key, updated: m.last_update });
+    if (key === 'props') continue;
+    for (const bm of books) {
+      const m = marketFromBook(bm, key, event);
+      if (m) { markets.push(m); break; }
+    }
   }
   return markets;
 }
-function pickBookmaker(event) {
-  const bms = event.bookmakers || [];
-  for (const k of PREFERRED_BOOKS) {
-    const bm = bms.find(b => b.key === k);
-    if (!bm) continue;
-    const markets = marketsFromBook(bm, event);
-    if (markets.length) return { bm, markets };
-  }
-  for (const bm of bms) {
-    const markets = marketsFromBook(bm, event);
-    if (markets.length) return { bm, markets };
-  }
-  return null;
+function bookmakerLabel(markets) {
+  const names = [];
+  for (const m of markets || []) if (m.bookmaker && !names.includes(m.bookmaker)) names.push(m.bookmaker);
+  return names.join(' / ');
 }
 function unitOf(sport_key) {
   if (/^(soccer|icehockey)_/.test(sport_key || '')) return 'goles';
@@ -142,13 +163,12 @@ function parseRegionEvents(data, now = Date.now()) {
   return (Array.isArray(data) ? data : []).map(e => {
     const startMs = Date.parse(e.commence_time);
     if (!Number.isFinite(startMs) || startMs <= now) return null;
-    const picked = pickBookmaker(e);
-    if (!picked) return null;
-    const { bm, markets } = picked;
+    const markets = pickMarkets(e);
+    if (!markets.length) return null;
     return {
       id: e.id, sport: e.sport_title, sport_key: e.sport_key, unit: unitOf(e.sport_key),
       home: e.home_team, away: e.away_team, starts: e.commence_time,
-      title: `${e.home_team} vs ${e.away_team}`, markets, bookmaker: bm.title || bm.key,
+      title: `${e.home_team} vs ${e.away_team}`, markets, bookmaker: bookmakerLabel(markets),
       options: markets.find(m => m.key === 'h2h')?.options || [],
     };
   }).filter(e => e && e.id && e.markets.length);
@@ -177,7 +197,7 @@ async function searchNew(sportKeys, now = Date.now()) {
   }
   const events = [];
   for (const [k, name] of toFetch) {
-    const r = await oddsFetch(`/sports/${encodeURIComponent(k)}/odds`, key, { regions: 'us', markets: marketsForSport(k), oddsFormat: 'american' });
+    const r = await oddsFetch(`/sports/${encodeURIComponent(k)}/odds`, key, { regions: regionsForSport(k), markets: marketsForSport(k), oddsFormat: 'american' });
     usage = { ...usage, ...(r.usage || {}) };
     if (r.error) {
       return { error: r.error, events, skipped, creditsRemaining: usage.remaining, creditsUsed: usage.used };
@@ -190,4 +210,4 @@ async function searchNew(sportKeys, now = Date.now()) {
 function cachedEvent(id) { return searchCache.get(String(id)) || null; }
 function resetSearchCache() { searchCache = new Map(); }
 
-module.exports = { upcoming, SOCCER, DEFAULT_SPORT, sportKey, parseEvents, MISSING, BOOKMAKER, SOURCE, NO_COVERAGE, SEARCH_SPORTS, parseRegionEvents, searchNew, cachedEvent, resetSearchCache, setKeyProvider, getKey, explainOddsError, marketsForSport, creditsForSport };
+module.exports = { upcoming, SOCCER, DEFAULT_SPORT, sportKey, parseEvents, MISSING, BOOKMAKER, SOURCE, NO_COVERAGE, SEARCH_SPORTS, parseRegionEvents, searchNew, cachedEvent, resetSearchCache, setKeyProvider, getKey, explainOddsError, marketsForSport, creditsForSport, regionsForSport, pickMarkets };

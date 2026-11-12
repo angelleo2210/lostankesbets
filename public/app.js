@@ -488,7 +488,7 @@ function oddsAdminCard(st) {
     <input id="oddsKey" type="password" autocomplete="new-password" placeholder="Pega la clave y pulsa Guardar">
     <div class="row"><button type="button" id="oddsKeySave">Guardar</button>${st && st.source === 'stored' ? '<button type="button" class="alt" id="oddsKeyDel">Eliminar clave guardada</button>' : ''}</div>
     <h2>Buscar partidos nuevos</h2>
-    <p class="small">Marca las ligas y pulsa buscar. Cada liga cuesta unos 3 créditos (UFC/MMA: 1 crédito, solo ganador). Nada se agrega solo: luego eliges los partidos. UFC/MMA se liquida a mano: The Odds API no publica marcadores de MMA.</p>
+    <p class="small">Marca las ligas y pulsa buscar. Fútbol: unos 6 créditos (regiones UK y UE, para traer hándicap y totales). NBA, NHL y MLB: unos 3. UFC/MMA: 1 crédito, solo ganador. Nada se agrega solo: luego eliges los partidos. UFC/MMA se liquida a mano: The Odds API no publica marcadores de MMA.</p>
     ${cred ? `<p><b>${esc(cred)}</b></p>` : ''}
     <div class="chips">${ODDS_LEAGUES.map(([k,n]) => `<label class="chip"><input type="checkbox" data-odds-lg="${k}"${picked.has(k) ? ' checked' : ''}> ${esc(n)}</label>`).join('')}</div>
     <button type="button" id="oddsSearch">Buscar partidos nuevos</button>

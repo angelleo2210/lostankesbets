@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { open } = require('./core');
 const odds = require('./odds-api');
-const { SEARCH_SPORTS, marketsForSport, creditsForSport, parseRegionEvents } = odds;
+const { SEARCH_SPORTS, marketsForSport, creditsForSport, regionsForSport, parseRegionEvents } = odds;
 
 let n = 0;
 const t = (name, fn) => { fn(); console.log('OK', name); n++; };
@@ -35,15 +35,21 @@ t('search sports include UFC, NHL, Nations League and official World Cup qualifi
   for (const k of ['mma_mixed_martial_arts','icehockey_nhl','soccer_uefa_nations_league','soccer_fifa_world_cup_qualifiers_europe','soccer_fifa_world_cup_qualifiers_south_america']) assert.ok(keys.includes(k), k);
   assert.equal(marketsForSport('mma_mixed_martial_arts'), 'h2h');
   assert.equal(creditsForSport('mma_mixed_martial_arts'), 1);
+  assert.equal(regionsForSport('mma_mixed_martial_arts'), 'us');
   assert.equal(marketsForSport('icehockey_nhl'), 'h2h,spreads,totals');
-  assert.equal(creditsForSport('soccer_uefa_nations_league'), 3);
+  assert.equal(creditsForSport('icehockey_nhl'), 3);
+  assert.equal(regionsForSport('icehockey_nhl'), 'us');
   assert.equal(marketsForSport('soccer_epl'), 'h2h,spreads,totals');
+  assert.equal(regionsForSport('soccer_uefa_nations_league'), 'uk,eu');
+  assert.equal(creditsForSport('soccer_uefa_nations_league'), 6);
+  assert.equal(creditsForSport('soccer_epl'), 6);
   const app = fs.readFileSync(__dirname + '/public/app.js', 'utf8');
   const m = app.match(/const ODDS_LEAGUES = (\[[^;]+\])/);
   assert.ok(m);
   const ui = Function('return ' + m[1])();
   assert.deepEqual(ui, SEARCH_SPORTS);
-  assert.ok(app.includes('Cada liga cuesta unos 3 créditos (UFC/MMA: 1 crédito, solo ganador)'));
+  assert.ok(app.includes('Fútbol: unos 6 créditos (regiones UK y UE, para traer hándicap y totales)'));
+  assert.ok(app.includes('NBA, NHL y MLB: unos 3'));
 });
 
 t('parse: MMA is two-way h2h; NHL keeps puck-line and totals; soccer keeps the draw', () => {
@@ -74,6 +80,36 @@ t('parse: MMA is two-way h2h; NHL keeps puck-line and totals; soccer keeps the d
   assert.equal(D.lines().find(l => l.id === nhlIds[0]).home, 'Rangers');
   assert.equal(D.lines().find(l => l.id === nhlIds[0]).away, 'Bruins');
 });
+
+
+t('parse: fills spreads and totals from another book if the preferred one only has h2h', () => {
+  const now = Date.now();
+  const start = new Date(now + 3600e3).toISOString();
+  const dk = { key: 'draftkings', title: 'DraftKings', markets: [{ key: 'h2h', outcomes: [{ name: 'Czech Republic', price: 180 }, { name: 'Spain', price: 150 }, { name: 'Draw', price: 220 }] }] };
+  const pin = { key: 'pinnacle', title: 'Pinnacle', markets: [
+    { key: 'h2h', outcomes: [{ name: 'Czech Republic', price: 175 }, { name: 'Spain', price: 155 }, { name: 'Draw', price: 215 }] },
+    { key: 'spreads', outcomes: [{ name: 'Czech Republic', price: -105, point: 0.5 }, { name: 'Spain', price: -115, point: -0.5 }] },
+    { key: 'totals', outcomes: [{ name: 'Over', price: -110, point: 2.5 }, { name: 'Under', price: -110, point: 2.5 }] }
+  ]};
+  const [ev] = parseRegionEvents([{ id: 'nl-cz-es', sport_key: 'soccer_uefa_nations_league', sport_title: 'UEFA Nations League', home_team: 'Czech Republic', away_team: 'Spain', commence_time: start, bookmakers: [dk, pin] }], now);
+  assert.deepEqual(ev.markets.map(x => x.key), ['h2h', 'spreads', 'totals']);
+  assert.equal(ev.markets.find(x => x.key === 'h2h').bookmaker, 'DraftKings');
+  assert.equal(ev.markets.find(x => x.key === 'spreads').bookmaker, 'Pinnacle');
+  assert.equal(ev.markets.find(x => x.key === 'totals').bookmaker, 'Pinnacle');
+  assert.equal(ev.bookmaker, 'DraftKings / Pinnacle');
+  assert.ok(ev.markets.find(x => x.key === 'h2h').options.some(o => o.label === 'Draw'));
+  // same gap can happen in other leagues (e.g. NHL) if the first book is missing a market
+  const nhlDk = { key: 'draftkings', title: 'DraftKings', markets: [{ key: 'h2h', outcomes: [{ name: 'Rangers', price: -110 }, { name: 'Bruins', price: -110 }] }] };
+  const nhlFd = { key: 'fanduel', title: 'FanDuel', markets: [
+    { key: 'spreads', outcomes: [{ name: 'Rangers', price: -120, point: -1.5 }, { name: 'Bruins', price: 100, point: 1.5 }] },
+    { key: 'totals', outcomes: [{ name: 'Over', price: -110, point: 5.5 }, { name: 'Under', price: -110, point: 5.5 }] }
+  ]};
+  const [nhl] = parseRegionEvents([{ id: 'nhl-gap', sport_key: 'icehockey_nhl', sport_title: 'NHL', home_team: 'Rangers', away_team: 'Bruins', commence_time: start, bookmakers: [nhlDk, nhlFd] }], now);
+  assert.deepEqual(nhl.markets.map(x => x.key), ['h2h', 'spreads', 'totals']);
+  assert.equal(nhl.markets.find(x => x.key === 'h2h').bookmaker, 'DraftKings');
+  assert.equal(nhl.markets.find(x => x.key === 'spreads').bookmaker, 'FanDuel');
+});
+
 
 
 t('key: stored last-4 only, env fallback, stored wins, delete does not touch env', () => {
@@ -163,11 +199,11 @@ t('admin UI has the key form and manual search; no auto poll in admin view', () 
           return { ok: true, status: 200, headers: { get: k => ({ 'x-requests-remaining': '80', 'x-requests-used': '20' }[k.toLowerCase()] || null) }, json: async () => sportsBody };
         }
         if (u.pathname.includes('/odds')) {
-          assert.equal(u.searchParams.get('regions'), 'us');
+          const sport = u.pathname.split('/')[3];
+          assert.equal(u.searchParams.get('regions'), sport.startsWith('soccer_') ? 'uk,eu' : 'us');
           assert.equal(u.searchParams.get('markets'), 'h2h,spreads,totals');
           assert.equal(u.searchParams.get('oddsFormat'), 'american');
           assert.equal(u.searchParams.has('bookmakers'), false);
-          const sport = u.pathname.split('/')[3];
           const rows = sport === 'soccer_epl' ? [ev('epl-live', { starts: past() }), ev('epl-1')] : [ev('nba-1', { sport_key: 'basketball_nba', sport_title: 'NBA', home: 'Lakers', away: 'Celtics' })];
           return { ok: true, status: 200, headers: { get: k => ({ 'x-requests-remaining': '74', 'x-requests-used': '26' }[k.toLowerCase()] || null) }, json: async () => rows };
         }
