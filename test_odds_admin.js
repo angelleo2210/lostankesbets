@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { open } = require('./core');
 const odds = require('./odds-api');
-const { SEARCH_SPORTS, marketsForSport, creditsForSport, regionsForSport, parseRegionEvents } = odds;
+const { SEARCH_SPORTS, marketsForSport, creditsForSport, regionsForSport, parseRegionEvents, americanPrice, twoWayJuiceOk } = odds;
 
 let n = 0;
 const t = (name, fn) => { fn(); console.log('OK', name); n++; };
@@ -109,6 +109,51 @@ t('parse: fills spreads and totals from another book if the preferred one only h
   assert.equal(nhl.markets.find(x => x.key === 'h2h').bookmaker, 'DraftKings');
   assert.equal(nhl.markets.find(x => x.key === 'spreads').bookmaker, 'FanDuel');
 });
+
+
+t('americanPrice converts decimal odds and leaves American intact', () => {
+  assert.equal(americanPrice(-110), -110);
+  assert.equal(americanPrice(150), 150);
+  assert.equal(americanPrice(1.91), -110);
+  assert.equal(americanPrice(2.5), 150);
+  assert.equal(americanPrice(1.02), -5000);
+  assert.equal(americanPrice(1.25), -400);
+  assert.equal(twoWayJuiceOk(-110, -110), true);
+  assert.equal(twoWayJuiceOk(-5000, -400), false);
+});
+
+t('parse: totals/spreads stay on one book and same point; reject impossible juice; skip missing spreads', () => {
+  const now = Date.now();
+  const start = new Date(now + 3600e3).toISOString();
+  const bad = { key: 'onexbet', title: '1xBet', markets: [
+    { key: 'h2h', outcomes: [{ name: 'Wales', price: 180 }, { name: 'Portugal', price: 150 }, { name: 'Draw', price: 220 }] },
+    { key: 'totals', outcomes: [{ name: 'Over', price: 1.02, point: 2.5 }, { name: 'Under', price: 1.25, point: 2.5 }] }
+  ]};
+  const good = { key: 'pinnacle', title: 'Pinnacle', markets: [
+    { key: 'h2h', outcomes: [{ name: 'Wales', price: 175 }, { name: 'Portugal', price: 155 }, { name: 'Draw', price: 215 }] },
+    { key: 'spreads', outcomes: [{ name: 'Wales', price: -105, point: 0.5 }, { name: 'Portugal', price: -115, point: -0.5 }] },
+    { key: 'totals', outcomes: [
+      { name: 'Over', price: 1.02, point: 0.5 }, { name: 'Under', price: 2.0, point: 0.5 },
+      { name: 'Over', price: 1.91, point: 2.5 }, { name: 'Under', price: 1.91, point: 2.5 }
+    ] }
+  ]};
+  const [ev] = parseRegionEvents([{ id: 'wal-por', sport_key: 'soccer_uefa_nations_league', sport_title: 'UEFA Nations League', home_team: 'Wales', away_team: 'Portugal', commence_time: start, bookmakers: [bad, good] }], now);
+  const tot = ev.markets.find(x => x.key === 'totals');
+  const sp = ev.markets.find(x => x.key === 'spreads');
+  assert.equal(tot.bookmaker, 'Pinnacle');
+  assert.equal(tot.options[0].point, tot.options[1].point);
+  assert.equal(tot.options[0].point, 2.5);
+  assert.deepEqual(tot.options.map(o => o.odds).sort((a,b)=>a-b), [-110, -110]);
+  assert.ok(tot.options.some(o => o.label === 'Over') && tot.options.some(o => o.label === 'Under'));
+  assert.equal(sp.bookmaker, 'Pinnacle');
+  assert.equal(sp.options[0].point, -sp.options[1].point);
+  // only a junk totals line and no spreads → totals omitted, event still imported on h2h
+  const [onlyBad] = parseRegionEvents([{ id: 'wal-por-2', sport_key: 'soccer_uefa_nations_league', sport_title: 'UEFA Nations League', home_team: 'Wales', away_team: 'Portugal', commence_time: start, bookmakers: [bad] }], now);
+  assert.deepEqual(onlyBad.markets.map(x => x.key), ['h2h']);
+  assert.equal(onlyBad.markets.find(x => x.key === 'totals'), undefined);
+  assert.equal(onlyBad.markets.find(x => x.key === 'spreads'), undefined);
+});
+
 
 t('cancelled imports do not block re-add; open/settled still dedupe', () => {
   const { D } = mk();

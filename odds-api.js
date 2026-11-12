@@ -117,21 +117,109 @@ async function oddsFetch(path, key, params) {
     return { error: 'The Odds API no está disponible en este momento.' };
   }
 }
-function marketFromBook(bm, key, event) {
-  const m = (bm.markets || []).find(x => x.key === key);
-  if (!m) return null;
-  const options = (m.outcomes || []).map(o => ({ label: o.name, odds: o.price, ...(key !== 'h2h' ? { point: o.point } : {}) }));
-  try { M.validate(key, options, event.home_team, event.away_team); } catch { return null; }
-  return { key, options, bookmaker: bm.title || bm.key, updated: m.last_update };
+function americanPrice(price) {
+  const n = Number(price);
+  if (!Number.isFinite(n) || n === 0) return null;
+  if (Number.isInteger(n) && Math.abs(n) >= 100) return n;
+  // Some UK/EU books still send decimal even when oddsFormat=american.
+  if (n > 1) {
+    const a = n >= 2 ? Math.round((n - 1) * 100) : Math.round(-100 / (n - 1));
+    return Number.isInteger(a) && Math.abs(a) >= 100 ? a : null;
+  }
+  return null;
 }
+function impliedProb(a) {
+  return a > 0 ? 100 / (a + 100) : (-a) / ((-a) + 100);
+}
+// Two-way vig sanity: reject impossible both-sides favorites like Over -5000 / Under -400.
+function twoWayJuiceOk(a, b) {
+  const s = impliedProb(a) + impliedProb(b);
+  return Number.isFinite(s) && s >= 0.98 && s <= 1.40;
+}
+function twoWayScore(a, b) {
+  return Math.abs(impliedProb(a) + impliedProb(b) - 1.05) + Math.abs(impliedProb(a) - impliedProb(b));
+}
+function outcomeOf(raw, key) {
+  const odds = americanPrice(raw && raw.price);
+  const label = raw && raw.name != null ? String(raw.name).trim() : '';
+  if (odds == null || !label) return null;
+  const row = { label, odds };
+  if (key !== 'h2h') {
+    const point = Number(raw.point);
+    if (!Number.isFinite(point)) return null;
+    row.point = point;
+  }
+  return row;
+}
+function packaged(key, options, bm, updated) {
+  return { key, options, bookmaker: bm.title || bm.key, updated };
+}
+function bestTotals(bm, event) {
+  const m = (bm.markets || []).find(x => x.key === 'totals');
+  if (!m) return null;
+  const byPoint = new Map();
+  for (const raw of m.outcomes || []) {
+    const o = outcomeOf(raw, 'totals');
+    if (!o || (o.label !== 'Over' && o.label !== 'Under')) continue;
+    const k = String(o.point);
+    if (!byPoint.has(k)) byPoint.set(k, {});
+    const slot = byPoint.get(k);
+    if (!slot[o.label]) slot[o.label] = o;
+  }
+  let best = null, bestScore = Infinity;
+  for (const slot of byPoint.values()) {
+    if (!slot.Over || !slot.Under || slot.Over.point !== slot.Under.point) continue;
+    if (!twoWayJuiceOk(slot.Over.odds, slot.Under.odds)) continue;
+    const options = [slot.Over, slot.Under];
+    try { M.validate('totals', options, event.home_team, event.away_team); } catch { continue; }
+    const score = twoWayScore(slot.Over.odds, slot.Under.odds);
+    if (score < bestScore) { bestScore = score; best = options; }
+  }
+  return best ? packaged('totals', best, bm, m.last_update) : null;
+}
+function bestSpreads(bm, event) {
+  const m = (bm.markets || []).find(x => x.key === 'spreads');
+  if (!m) return null;
+  const home = event.home_team, away = event.away_team;
+  const rows = (m.outcomes || []).map(o => outcomeOf(o, 'spreads')).filter(o => o && (o.label === home || o.label === away));
+  const homes = rows.filter(o => o.label === home);
+  const aways = rows.filter(o => o.label === away);
+  let best = null, bestScore = Infinity;
+  for (const h of homes) {
+    const a = aways.find(x => x.point === -h.point);
+    if (!a || !twoWayJuiceOk(h.odds, a.odds)) continue;
+    const options = [h, a];
+    try { M.validate('spreads', options, home, away); } catch { continue; }
+    const score = twoWayScore(h.odds, a.odds);
+    if (score < bestScore) { bestScore = score; best = options; }
+  }
+  return best ? packaged('spreads', best, bm, m.last_update) : null;
+}
+function bestH2h(bm, event) {
+  const m = (bm.markets || []).find(x => x.key === 'h2h');
+  if (!m) return null;
+  const options = [];
+  for (const raw of m.outcomes || []) {
+    const o = outcomeOf(raw, 'h2h');
+    if (o) options.push(o);
+  }
+  try { M.validate('h2h', options, event.home_team, event.away_team); } catch { return null; }
+  return packaged('h2h', options, bm, m.last_update);
+}
+function marketFromBook(bm, key, event) {
+  if (key === 'totals') return bestTotals(bm, event);
+  if (key === 'spreads') return bestSpreads(bm, event);
+  if (key === 'h2h') return bestH2h(bm, event);
+  return null;
+}
+const EXCHANGE_BOOKS = new Set(['betfair_ex_uk', 'betfair_ex_eu', 'betfair', 'matchbook', 'smarkets']);
 function orderedBooks(event) {
   const bms = event.bookmakers || [];
   const out = [], seen = new Set();
-  for (const k of PREFERRED_BOOKS) {
-    const bm = bms.find(b => b.key === k);
-    if (bm && !seen.has(bm)) { out.push(bm); seen.add(bm); }
-  }
-  for (const bm of bms) if (!seen.has(bm)) { out.push(bm); seen.add(bm); }
+  const push = bm => { if (bm && !seen.has(bm)) { out.push(bm); seen.add(bm); } };
+  for (const k of PREFERRED_BOOKS) push(bms.find(b => b.key === k));
+  for (const bm of bms) if (!EXCHANGE_BOOKS.has(bm.key)) push(bm);
+  for (const bm of bms) push(bm);
   return out;
 }
 // Fill each featured market from the first preferred book that has a valid line.
@@ -210,4 +298,4 @@ async function searchNew(sportKeys, now = Date.now()) {
 function cachedEvent(id) { return searchCache.get(String(id)) || null; }
 function resetSearchCache() { searchCache = new Map(); }
 
-module.exports = { upcoming, SOCCER, DEFAULT_SPORT, sportKey, parseEvents, MISSING, BOOKMAKER, SOURCE, NO_COVERAGE, SEARCH_SPORTS, parseRegionEvents, searchNew, cachedEvent, resetSearchCache, setKeyProvider, getKey, explainOddsError, marketsForSport, creditsForSport, regionsForSport, pickMarkets };
+module.exports = { upcoming, SOCCER, DEFAULT_SPORT, sportKey, parseEvents, MISSING, BOOKMAKER, SOURCE, NO_COVERAGE, SEARCH_SPORTS, parseRegionEvents, searchNew, cachedEvent, resetSearchCache, setKeyProvider, getKey, explainOddsError, marketsForSport, creditsForSport, regionsForSport, pickMarkets, americanPrice, twoWayJuiceOk };

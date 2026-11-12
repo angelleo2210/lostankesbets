@@ -1,5 +1,6 @@
 const $ = s => document.querySelector(s); const A = $('#app');
 let token = localStorage.token, me = null, tab = 'lineas', boleto = [], boletoStake = '', oddsSearch = null, oddsPicked = [];
+let lineFilter = localStorage.ltbLineFilter || 'all';
 let marketTarget = null;
 const dec = o => o > 0 ? 1 + o / 100 : 1 + 100 / -o; const toAm = d => d >= 2 ? Math.round((d - 1) * 100) : Math.round(-100 / (d - 1));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -45,12 +46,13 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
   $('#out').onclick = () => { localStorage.removeItem('token'); token = null; start(); };
   const B = $('#body'); bonusBar();
   try {
-  if (tab === 'lineas') { const ls = await api('/lines');
-    B.innerHTML = boletoCard() + (ls.length ? marketCards(ls) : '<div class="card">No hay líneas abiertas.</div>'); bindBets(ls); }
+  if (tab === 'lineas') { const ls = await api('/lines'); const shown = linesInFilter(ls);
+    B.innerHTML = boletoCard() + (ls.length ? lineSportChips(ls) + (shown.length ? marketCards(shown) : '<div class="card">No hay líneas en esta categoría.</div>') : '<div class="card">No hay líneas abiertas.</div>'); bindBets(ls); bindLineFilter(); }
   if (tab === 'reales') { const sp = await api('/real/sports'); window.realSport = window.realSport || sp.default; const d = await api('/real?sport=' + encodeURIComponent(window.realSport)); const ls = (await api('/lines')).filter(l => l.kind === 'real');
-    B.innerHTML = boletoCard() + `<div class="card"><label>Liga de fútbol: <select id="realSport">${sp.sports.map(x => `<option value="${esc(x.key)}"${x.key === window.realSport ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label></div>` + '<div class="card small">Nuevas importaciones: Hard Rock Bet (Florida) vía The Odds API. Solo mercados disponibles; sin sustitución de casa. Las líneas ya importadas conservan su fuente y cuotas originales.</div>' + (d.notice ? `<div class="card">${esc(d.notice)}</div>` : '') + (d.error ? `<div class="card">${esc(d.error)}</div>` : '') + (ls.length ? marketCards(ls) : '<div class="card">El administrador aún no ha agregado líneas reales.</div>') +
+    const shown = linesInFilter(ls);
+    B.innerHTML = boletoCard() + `<div class="card"><label>Liga de fútbol: <select id="realSport">${sp.sports.map(x => `<option value="${esc(x.key)}"${x.key === window.realSport ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label></div>` + '<div class="card small">Nuevas importaciones: Hard Rock Bet (Florida) vía The Odds API. Solo mercados disponibles; sin sustitución de casa. Las líneas ya importadas conservan su fuente y cuotas originales.</div>' + (d.notice ? `<div class="card">${esc(d.notice)}</div>` : '') + (d.error ? `<div class="card">${esc(d.error)}</div>` : '') + (ls.length ? lineSportChips(ls) + (shown.length ? marketCards(shown) : '<div class="card">No hay líneas en esta categoría.</div>') : '<div class="card">El administrador aún no ha agregado líneas reales.</div>') +
       (me.is_admin && d.events ? `<div class="card"><h2>Importar evento real (admin)</h2>${d.events.slice(0, 30).map(e => `<div class="card"><b>${esc(e.sport)}: ${esc(vsTitle(e.title, e.home, e.away))}</b><div class="small">${new Date(e.starts).toLocaleString('es-US')} · ${esc(e.bookmaker)}</div>${(e.markets || []).map(m => `${Markets.NAMES[m.key]}: ${m.options.map(o => `${esc(Markets.label(m.key,o))} ${od(o.odds)}`).join(' / ')}`).join('<br>')}<button class="alt" data-imp="${esc(e.id)}">Agregar</button></div>`).join('')}</div>` : '');
-    bindBets(ls); $('#realSport').onchange = e => { window.realSport = e.target.value; render(); }; B.querySelectorAll('[data-imp]').forEach(b => b.onclick = async () => { try { const r = await api('/admin/import', { eventId: b.dataset.imp, sport: window.realSport }); if (r.error) throw new Error(r.error); render(); } catch (e) { flash(e.message); } }); }
+    bindBets(ls); bindLineFilter(); $('#realSport').onchange = e => { window.realSport = e.target.value; render(); }; B.querySelectorAll('[data-imp]').forEach(b => b.onclick = async () => { try { const r = await api('/admin/import', { eventId: b.dataset.imp, sport: window.realSport }); if (r.error) throw new Error(r.error); render(); } catch (e) { flash(e.message); } }); }
   if (tab === 'mias') {
     const meta = s => ({
       won: { banner: 'GANADOR', cls: 'won', payK: 'Cobrado' },
@@ -242,7 +244,42 @@ function isPropOu(options) {
   return labs.length === 2 && labs.includes('Over') && labs.includes('Under');
 }
 // Group independently settled market lines into one event card; legacy custom lines stay unchanged.
+function linesByEvent(ls) {
+  const groups = new Map();
+  for (const l of ls) {
+    const key = l.event_id ? l.kind + ':' + l.event_id : 'legacy:' + l.id;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(l);
+  }
+  return [...groups.values()];
+}
+function eventGroupBucket(group) {
+  const base = (group || []).find(l => l.home) || (group || [])[0];
+  return Markets.eventBucket(base);
+}
+function lineSportChips(ls) {
+  const groups = linesByEvent(ls);
+  const counts = { all: groups.length };
+  for (const g of groups) { const b = eventGroupBucket(g); counts[b] = (counts[b] || 0) + 1; }
+  if (lineFilter !== 'all' && !counts[lineFilter]) lineFilter = 'all';
+  const chips = [['all', 'Todos']].concat(Markets.BUCKETS.filter(([k]) => counts[k]));
+  return `<div class="chips depts line-sports" role="tablist" aria-label="Filtrar por deporte">${chips.map(([k, lab]) => `<button type="button" class="chip ${lineFilter === k ? 'on' : 'alt'}" data-line-sport="${k}" role="tab" aria-selected="${lineFilter === k}">${esc(lab)} (${counts[k] || 0})</button>`).join('')}</div>`;
+}
+function linesInFilter(ls) {
+  if (lineFilter === 'all') return ls;
+  const keep = new Set();
+  for (const g of linesByEvent(ls)) if (eventGroupBucket(g) === lineFilter) for (const l of g) keep.add(l);
+  return ls.filter(l => keep.has(l));
+}
+function bindLineFilter() {
+  A.querySelectorAll('[data-line-sport]').forEach(b => b.onclick = () => {
+    lineFilter = b.dataset.lineSport;
+    try { localStorage.ltbLineFilter = lineFilter; } catch {}
+    render();
+  });
+}
 function marketCards(ls) {
+
   const groups = new Map();
   for (const l of ls) {
     const key = l.event_id ? l.kind + ':' + l.event_id : 'legacy:' + l.id;

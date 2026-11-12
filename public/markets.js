@@ -51,6 +51,18 @@
   }
   const SAME_EVENT_NOTE = 'Cuota calculada por LosTankesBets multiplicando las cuotas de cada selección (regla de la app). Incluye selecciones del mismo partido: no es una cuota oficial de Hard Rock ni está ajustada por correlación.';
   const hasSameEvent = legs => { const ev = legs.map(g => g.event).filter(Boolean); return new Set(ev).size !== ev.length; };
-  const api = { SAME_EVENT_NOTE, hasSameEvent, NAMES, validate, threshold, label, sameEventError, legOk };
+  const BUCKETS = [['soccer', 'Fútbol'], ['mma', 'UFC'], ['hockey', 'NHL'], ['basketball', 'NBA'], ['baseball', 'MLB'], ['locales', 'Locales'], ['other', 'Otros']];
+  function eventBucket(l) {
+    if (!l || l.kind !== 'real') return 'locales';
+    const s = String(l.sport || ''), k = String(l.sport_key || '');
+    if (s === 'soccer' || /^soccer_/.test(k)) return 'soccer';
+    if (s === 'mma' || /^mma_/.test(k) || /^boxing_/.test(k)) return 'mma';
+    if (s === 'hockey' || /^icehockey_/.test(k)) return 'hockey';
+    if (s === 'basketball' || /^basketball_/.test(k)) return 'basketball';
+    if (s === 'baseball' || /^baseball_/.test(k)) return 'baseball';
+    return 'other';
+  }
+  function eventBucketLabel(id) { return (BUCKETS.find(([k]) => k === id) || [id, 'Otros'])[1]; }
+  const api = { SAME_EVENT_NOTE, hasSameEvent, NAMES, validate, threshold, label, sameEventError, legOk, BUCKETS, eventBucket, eventBucketLabel };
   if (typeof module !== 'undefined') module.exports = api; else root.Markets = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

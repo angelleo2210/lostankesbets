@@ -128,3 +128,18 @@ t('legacy cards retain three equal market columns with compact nonoverflowing mo
  ok([L(2,'spreads','PSG',8.5),L(5,'props','Under',null),L(6,'props','Over',null)]);
  assert.match(M.sameEventError([L(1,'h2h','PSG'),L(1,'h2h','Troyes')])||'',/una selección/);
  assert.equal(M.sameEventError([{...L(1,'h2h','PSG'),event:'a'},{...L(2,'h2h','Troyes'),event:'b'}]),null);console.log('OK same-event parlay feasibility');}
+
+t('eventBucket: real sports, Locales for manual, never Ficticias', () => {
+  assert.equal(M.eventBucket({ kind: 'real', sport: 'soccer' }), 'soccer');
+  assert.equal(M.eventBucket({ kind: 'real', sport_key: 'soccer_uefa_nations_league' }), 'soccer');
+  assert.equal(M.eventBucket({ kind: 'real', sport: 'mma' }), 'mma');
+  assert.equal(M.eventBucket({ kind: 'real', sport_key: 'icehockey_nhl' }), 'hockey');
+  assert.equal(M.eventBucket({ kind: 'real', sport: 'basketball' }), 'basketball');
+  assert.equal(M.eventBucket({ kind: 'real', sport_key: 'baseball_mlb' }), 'baseball');
+  assert.equal(M.eventBucket({ kind: 'custom', sport: 'soccer' }), 'locales');
+  assert.equal(M.eventBucket({ kind: 'real', sport: 'other' }), 'other');
+  assert.equal(M.eventBucketLabel('locales'), 'Locales');
+  assert.equal(M.eventBucketLabel('mma'), 'UFC');
+  assert.ok(!M.BUCKETS.some(([, lab]) => /ficticia/i.test(lab)));
+  assert.equal(JSON.stringify(M.BUCKETS).includes('Ficticias'), false);
+});
