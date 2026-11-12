@@ -298,4 +298,14 @@ async function searchNew(sportKeys, now = Date.now()) {
 function cachedEvent(id) { return searchCache.get(String(id)) || null; }
 function resetSearchCache() { searchCache = new Map(); }
 
-module.exports = { upcoming, SOCCER, DEFAULT_SPORT, sportKey, parseEvents, MISSING, BOOKMAKER, SOURCE, NO_COVERAGE, SEARCH_SPORTS, parseRegionEvents, searchNew, cachedEvent, resetSearchCache, setKeyProvider, getKey, explainOddsError, marketsForSport, creditsForSport, regionsForSport, pickMarkets, americanPrice, twoWayJuiceOk };
+
+async function fetchScores(sportKey, daysFrom = 3) {
+  const key = getKey();
+  if (!key) return { error: 'Falta configurar la clave de The Odds API' };
+  const params = {};
+  if (daysFrom) params.daysFrom = String(daysFrom);
+  const r = await oddsFetch(`/sports/${encodeURIComponent(sportKey)}/scores`, key, params);
+  if (r.error) return { error: r.error, usage: r.usage, status: r.status };
+  return { events: Array.isArray(r.data) ? r.data : [], usage: r.usage };
+}
+module.exports = { upcoming, SOCCER, DEFAULT_SPORT, sportKey, parseEvents, MISSING, BOOKMAKER, SOURCE, NO_COVERAGE, SEARCH_SPORTS, parseRegionEvents, searchNew, cachedEvent, resetSearchCache, setKeyProvider, getKey, explainOddsError, marketsForSport, creditsForSport, regionsForSport, pickMarkets, americanPrice, twoWayJuiceOk, fetchScores };

@@ -99,6 +99,9 @@ app.post('/api/admin/import', h(async r => { admin(r); const d = await odds.upco
 app.get('/api/admin/odds-key', h(r => { admin(r); return C.oddsKeyStatus(); }));
 app.post('/api/admin/odds-key', h(r => { admin(r); return C.setOddsApiKey(r.body && r.body.key); }));
 app.post('/api/admin/odds-key/delete', h(r => { admin(r); return C.deleteOddsApiKey(); }));
+app.get('/api/admin/odds-settle', h(r => { admin(r); return C.autoSettleStatus(); }));
+app.post('/api/admin/odds-settle', h(r => { admin(r); return C.setAutoSettleEnabled(!!(r.body && r.body.enabled)); }));
+
 app.post('/api/admin/odds-search', h(async r => { admin(r);
   const d = await odds.searchNew(r.body && r.body.sports);
   if (d.events) d.events = d.events.map(e => ({ ...e, imported: C.hasImportedEvent(e.id) }));
@@ -137,6 +140,9 @@ app.get('/api/admin/invites', h(r => { admin(r); return C.listInvites(); }));
 const port = process.env.PORT || 3000; app.listen(port, () => {
   try { C.liveRecover(); } catch (e) { console.error('LIVE_ROULETTE_RECOVER', e && e.message); }
   setInterval(() => { try { C.liveTick(); liveBroadcast(); } catch (e) { if (e && !e.user) console.error('LIVE_ROULETTE_TICK', e && e.message); } }, 1000);
+  const settleTick = () => { C.autoSettleTick().catch(e => { if (e && !e.user) console.error('AUTO_SETTLE', e && e.message); }); };
+  setTimeout(settleTick, 10 * 1000);
+  setInterval(settleTick, 60 * 1000);
   try {
     const points = C.auditDupPoints();
     const stats = C.auditDupStats();

@@ -411,7 +411,8 @@ async function adminView(B) {
   const ls = await api('/lines');
   const inv = await api('/admin/invites').catch(() => []); const us = await api('/admin/users').catch(() => []); const tps = await api('/admin/topups').catch(() => []); const bankCard = await adminBankCard().catch(() => '');
   const oddsKey = await api('/admin/odds-key').catch(() => ({ configured: false }));
-  B.innerHTML = bankCard + oddsAdminCard(oddsKey) + `<div class="card"><h2>Nueva línea ficticia</h2><input id="t" placeholder="Ej: Hoy Ángel come espaguetis">
+  const oddsSettle = await api('/admin/odds-settle').catch(() => ({ enabled: true }));
+  B.innerHTML = bankCard + oddsAdminCard(oddsKey, oddsSettle) + `<div class="card"><h2>Nueva línea ficticia</h2><input id="t" placeholder="Ej: Hoy Ángel come espaguetis">
   <div id="opts"></div><button class="alt" id="add">+ Opción</button><button id="create">Crear línea</button></div>
   <div class="card"><h2>Nuevo evento con mercados</h2><p class="small">Opciones independientes; no se generan cuotas. Solo umbrales enteros o medios (sin líneas asiáticas divididas). Liquidación manual por mercado.</p>
     <input id="et" placeholder="Título del evento"><input id="eh" placeholder="Equipo local (arriba)"><input id="ea" placeholder="Equipo visitante (abajo)">
@@ -500,7 +501,7 @@ const etWhen = iso => {
   if (isNaN(d)) return '';
   return d.toLocaleString('es-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + ' ET';
 };
-function oddsAdminCard(st) {
+function oddsAdminCard(st, settle) {
   const last = st && st.configured && st.last4 ? `Clave guardada ••••${esc(st.last4)}` : 'No hay una clave guardada.';
   const src = st && st.source === 'env' ? ' Se está usando la clave del servidor. Puedes guardar otra aquí; eliminar solo quita la que está en la app.' : (st && st.source === 'stored' ? ' Puedes reemplazarla o eliminarla.' : ' Si el servidor ya tiene una, se usará como respaldo.');
   const cred = oddsSearch && oddsSearch.creditsRemaining != null ? `Te quedan ${fmt(oddsSearch.creditsRemaining)} créditos` : '';
@@ -517,6 +518,10 @@ function oddsAdminCard(st) {
   return `<div class="card" id="oddsAdmin"><h2>Clave de The Odds API</h2><p class="small">${last}${src} La clave no se muestra completa ni se envía a otros jugadores.</p>
     <input id="oddsKey" type="password" autocomplete="new-password" placeholder="Pega la clave y pulsa Guardar">
     <div class="row"><button type="button" id="oddsKeySave">Guardar</button>${st && st.source === 'stored' ? '<button type="button" class="alt" id="oddsKeyDel">Eliminar clave guardada</button>' : ''}</div>
+    <h2>Liquidación automática</h2>
+    <p class="small">Para partidos importados de The Odds API (fútbol, NBA, NHL y MLB) se consulta el marcador cuando ya deberían haber terminado y se liquidan Ganador, Hándicap y Total igual que a mano. UFC/MMA sigue a mano. En fútbol las casas suelen pagar a 90 minutos; la API da un solo marcador final, así que un partido de copa que vaya a prórroga conviene revisarlo. NBA/NHL/MLB usan el marcador final, con prórroga si la hay.</p>
+    <p class="small">${settle && settle.enabled === false ? 'La liquidación automática está <b>desactivada</b>.' : 'La liquidación automática está <b>activada</b>.'}${settle && settle.lastCheckAt ? ' Última revisión: ' + esc(new Date(settle.lastCheckAt).toLocaleString('es-US')) + '.' : ''}${settle && settle.creditsRemaining != null ? ' Créditos restantes: ' + fmt(settle.creditsRemaining) + '.' : ''}${settle && settle.lastSettled ? ' Última pasada liquidó ' + fmt(settle.lastSettled) + ' mercado(s).' : ''}${settle && settle.pending ? ' Pendientes de marcador: ' + fmt(settle.pending) + '.' : ''}${settle && settle.lastError ? ' Último aviso: ' + esc(settle.lastError) : ''}</p>
+    <button type="button" class="alt" id="oddsSettleToggle">${settle && settle.enabled === false ? 'Activar liquidación automática' : 'Desactivar liquidación automática'}</button>
     <h2>Buscar partidos nuevos</h2>
     <p class="small">Marca las ligas y pulsa buscar. Fútbol: unos 6 créditos (regiones UK y UE, para traer hándicap y totales). NBA, NHL y MLB: unos 3. UFC/MMA: 1 crédito, solo ganador. Nada se agrega solo: luego eliges los partidos. UFC/MMA se liquida a mano: The Odds API no publica marcadores de MMA.</p>
     ${cred ? `<p><b>${esc(cred)}</b></p>` : ''}
@@ -535,6 +540,13 @@ function bindOddsAdmin() {
   if (del) del.onclick = async () => {
     if (!confirm('¿Eliminar la clave guardada en la app?')) return;
     try { const r = await api('/admin/odds-key/delete', {}); if (r.error) throw new Error(r.error); flash('Clave eliminada'); render(); }
+    catch (e) { flash(e.message); }
+  };
+  const tog = $('#oddsSettleToggle');
+  if (tog) tog.onclick = async () => {
+    const on = !/Desactivar/.test(tog.textContent || '');
+    if (!on && !confirm('¿Desactivar la liquidación automática de marcadores? Los partidos se podrán seguir liquidando a mano.')) return;
+    try { const r = await api('/admin/odds-settle', { enabled: on }); if (r.error) throw new Error(r.error); flash(on ? 'Liquidación automática activada' : 'Liquidación automática desactivada'); render(); }
     catch (e) { flash(e.message); }
   };
   const search = $('#oddsSearch');

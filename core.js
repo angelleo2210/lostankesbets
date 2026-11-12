@@ -4,6 +4,7 @@ const Markets = require('./public/markets');
 const Sgp = require('./public/sgp');
 const AV = require('./public/avatar'); const ST = require('./public/store');
 const Roulette = require('./roulette');
+const AutoSettle = require('./auto-settle');
 const START_COINS = 50000; const BONUS = 5000, BONUS_MS = 24 * 3600 * 1000; const MAX_TOPUP = 10000000;
 const PODIUM_MIN_SETTLED = 0; // owner t628: sin mínimo de apuestas para el top 3
 
@@ -140,11 +141,17 @@ function open(file = 'data.db') {
   db.exec('CREATE TABLE IF NOT EXISTS purchases(user_id INTEGER, item_id TEXT, price INTEGER, color TEXT, created TEXT DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(user_id, item_id))');
   if (!db.prepare('PRAGMA table_info(purchases)').all().some(c => c.name === 'color')) db.exec('ALTER TABLE purchases ADD COLUMN color TEXT');
   // Additive migration: legacy lines remain market=NULL.
-  for (const [table, cols] of Object.entries({ lines: { market: 'TEXT', home: 'TEXT', away: 'TEXT', unit: 'TEXT', bookmaker: 'TEXT', sport: 'TEXT', prop_title: 'TEXT' }, options: { point: 'REAL', outcome: 'TEXT' } })) {
+  for (const [table, cols] of Object.entries({ lines: { market: 'TEXT', home: 'TEXT', away: 'TEXT', unit: 'TEXT', bookmaker: 'TEXT', sport: 'TEXT', prop_title: 'TEXT', sport_key: 'TEXT' }, options: { point: 'REAL', outcome: 'TEXT' } })) {
     const existing = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
     for (const [col, type] of Object.entries(cols)) if (!existing.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
   }
   let txN = 0; const tx = fn => { const sp = 'tx' + (++txN); db.exec(`SAVEPOINT ${sp}`); try { const r = fn(); db.exec(`RELEASE ${sp}`); return r; } catch (e) { db.exec(`ROLLBACK TO ${sp}; RELEASE ${sp}`); throw e; } };
+  tx(() => {
+    for (const l of db.prepare("SELECT id, title, sport_key FROM lines WHERE kind='real' AND event_id IS NOT NULL AND (sport_key IS NULL OR sport_key='')").all()) {
+      const k = AutoSettle.titleSportKey(l.title);
+      if (k) db.prepare('UPDATE lines SET sport_key=? WHERE id=?').run(k, l.id);
+    }
+  });
   const err = m => { const e = new Error(m); e.user = true; throw e; };
   const getCfg = uid => { try { return AV.norm(JSON.parse(db.prepare('SELECT avatar_cfg FROM users WHERE id=?').get(uid)?.avatar_cfg || 'null')); } catch { return AV.norm(null); } };
   const editWear = () => {}; // avatar estático: ya no hay wear por capas
@@ -570,7 +577,7 @@ function open(file = 'data.db') {
       return tx(() => {
         const id = Number(db.prepare('INSERT INTO lines(title,kind,event_id,starts) VALUES(?,?,?,?)').run(title, extra.kind || 'custom', extra.event_id || null, extra.starts || null).lastInsertRowid);
         const propTitle = extra.market === 'props' ? String(extra.prop_title || '').trim() : null;
-        db.prepare('UPDATE lines SET market=?,home=?,away=?,unit=?,bookmaker=?,sport=?,prop_title=? WHERE id=?').run(extra.market || null, extra.home || null, extra.away || null, extra.unit || '', extra.bookmaker || null, extra.sport || null, propTitle, id);
+        db.prepare('UPDATE lines SET market=?,home=?,away=?,unit=?,bookmaker=?,sport=?,prop_title=?,sport_key=? WHERE id=?').run(extra.market || null, extra.home || null, extra.away || null, extra.unit || '', extra.bookmaker || null, extra.sport || null, propTitle, extra.sport_key || null, id);
         for (const o of opts) db.prepare('INSERT INTO options(line_id,label,odds,point,outcome) VALUES(?,?,?,?,?)').run(id, extra.market ? Markets.label(extra.market, o, propTitle) : String(o.label).trim(), Math.trunc(Number(o.odds)), extra.market && !['h2h','props'].includes(extra.market) ? o.point : null, extra.market ? String(o.label).trim() : null);
         return id;
       });
@@ -586,11 +593,11 @@ function open(file = 'data.db') {
           const pt = String(m.prop_title || '').trim();
           const prior = db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND market='props' AND prop_title=? AND status!='cancelled'").get(String(event.id), kind, pt);
           if (prior) return prior.id;
-          return api.createLine(event.title, m.options, { kind, event_id: String(event.id), starts: event.starts, market: 'props', prop_title: pt, home: event.home, away: event.away, unit: event.unit, bookmaker: m.bookmaker, sport: sportOf(event) });
+          return api.createLine(event.title, m.options, { kind, event_id: String(event.id), starts: event.starts, market: 'props', prop_title: pt, home: event.home, away: event.away, unit: event.unit, bookmaker: m.bookmaker, sport: sportOf(event), sport_key: event.sport_key || null });
         }
         const prior = db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND COALESCE(market,'h2h')=? AND status!='cancelled'").get(String(event.id), kind, m.key);
         if (prior) return prior.id;
-        return api.createLine(event.title, m.options, { kind, event_id: String(event.id), starts: event.starts, market: m.key, home: event.home, away: event.away, unit: event.unit, bookmaker: m.bookmaker, sport: sportOf(event) });
+        return api.createLine(event.title, m.options, { kind, event_id: String(event.id), starts: event.starts, market: m.key, home: event.home, away: event.away, unit: event.unit, bookmaker: m.bookmaker, sport: sportOf(event), sport_key: event.sport_key || null });
       }));
     },
     addEventMarket(lineId, market, options, home, away, unit = '', propTitle = '') {
@@ -614,7 +621,7 @@ function open(file = 'data.db') {
         } else if (db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND market=?").get(eventId, source.kind, market)) err('Este mercado ya existe; no se sobrescriben cuotas ni apuestas');
         // Explicit admin action upgrades grouping metadata only. Original options/bets/odds untouched.
         db.prepare("UPDATE lines SET event_id=?,home=?,away=?,unit=?,market=COALESCE(market,'h2h') WHERE id=?").run(eventId, home || source.home, away || source.away, source.unit || String(unit || ''), source.id);
-        return api.createLine(source.title, options, { kind: source.kind, event_id: eventId, starts: source.starts, market, prop_title: propTitle, home: home || source.home, away: away || source.away, unit: source.unit || String(unit || ''), sport: source.sport });
+        return api.createLine(source.title, options, { kind: source.kind, event_id: eventId, starts: source.starts, market, prop_title: propTitle, home: home || source.home, away: away || source.away, unit: source.unit || String(unit || ''), sport: source.sport, sport_key: source.sport_key || null });
       });
     },
     // Remove a prop only when it has no bets/parlay legs. Otherwise close or void it.
@@ -1281,7 +1288,118 @@ function open(file = 'data.db') {
     db.prepare('DELETE FROM app_settings WHERE key=?').run('odds_api_key');
     return api.oddsKeyStatus();
   };
+
+  const settleSetting = (k, v) => {
+    if (v === undefined) {
+      const row = db.prepare('SELECT value FROM app_settings WHERE key=?').get(k);
+      return row ? row.value : null;
+    }
+    db.prepare('INSERT INTO app_settings(key,value,ts) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, ts=excluded.ts').run(k, String(v), Date.now());
+  };
+  api.autoSettleEnabled = () => settleSetting('odds_auto_settle') !== '0';
+  api.setAutoSettleEnabled = on => { settleSetting('odds_auto_settle', on ? '1' : '0'); return api.autoSettleStatus(); };
+  const readSettleState = () => {
+    try { return JSON.parse(settleSetting('odds_auto_settle_state') || '{}') || {}; } catch { return {}; }
+  };
+  const writeSettleState = st => settleSetting('odds_auto_settle_state', JSON.stringify(st));
+  api.autoSettleStatus = () => {
+    const st = readSettleState();
+    const credits = st.credits || {};
+    return {
+      enabled: api.autoSettleEnabled(),
+      lastCheckAt: st.lastCheckAt || null,
+      lastSettled: st.lastSettled || 0,
+      lastError: st.lastError || null,
+      creditsRemaining: credits.remaining != null ? credits.remaining : null,
+      creditsUsed: credits.used != null ? credits.used : null,
+      creditsLast: credits.last != null ? credits.last : null,
+      pending: api.pendingAutoSettle(Date.now()).length,
+    };
+  };
+  api.pendingAutoSettle = (now = Date.now()) => {
+    const rows = db.prepare("SELECT * FROM lines WHERE kind='real' AND event_id IS NOT NULL AND starts IS NOT NULL AND status IN ('open','closed') AND market IN ('h2h','spreads','totals')").all();
+    return rows.filter(l => AutoSettle.autoSportOk(l.sport_key) && Date.parse(l.starts) <= now);
+  };
+  const applyScoreToEvent = (eventId, homeScore, awayScore, sportKey) => {
+    const lines = db.prepare("SELECT * FROM lines WHERE event_id=? AND kind='real' AND status IN ('open','closed') AND market IN ('h2h','spreads','totals')").all(String(eventId));
+    let settled = 0, pushed = 0, skipped = 0;
+    for (const l of lines) {
+      l.options = db.prepare('SELECT * FROM options WHERE line_id=?').all(l.id);
+      const d = AutoSettle.decideLine(l, homeScore, awayScore, sportKey || l.sport_key);
+      try {
+        if (d.action === 'settle') { api.settleLine(l.id, d.optionId); settled++; }
+        else if (d.action === 'push') { api.pushLine(l.id); pushed++; }
+        else skipped++;
+      } catch (e) {
+        if (e && e.user) { skipped++; continue; }
+        throw e;
+      }
+    }
+    return { settled, pushed, skipped };
+  };
+  let settleBusy = false;
+  api.autoSettleTick = async (now = Date.now(), fetchFn) => {
+    if (settleBusy) return readSettleState();
+    settleBusy = true;
+    const st = readSettleState();
+    st.lastCheckAt = now;
+    try {
+      if (!api.autoSettleEnabled()) { st.lastError = null; writeSettleState(st); return st; }
+      const key = api.getOddsApiKey();
+      if (!key) { st.lastError = 'Falta la clave de The Odds API'; writeSettleState(st); return st; }
+      const pending = api.pendingAutoSettle(now).filter(l => AutoSettle.eventReady(l, now));
+      const bySport = AutoSettle.groupPending(pending, now);
+      const fetchScores = fetchFn || oddsFetchScores;
+      let settled = 0;
+      st.lastError = null;
+      for (const [sportKey, evs] of bySport) {
+        st.sports = st.sports || {};
+        const rec = st.sports[sportKey] || { lastFetch: 0, cache: null };
+        const stale = !rec.lastFetch || (now - rec.lastFetch >= AutoSettle.FETCH_MS);
+        let events = rec.cache;
+        if (stale || !Array.isArray(events)) {
+          const r = await fetchScores(sportKey, 3);
+          if (r.usage) st.credits = { remaining: r.usage.remaining, used: r.usage.used, last: r.usage.last, at: now };
+          if (r.error) {
+            rec.lastError = r.error;
+            st.sports[sportKey] = rec;
+            st.lastError = r.error;
+            console.log('AUTO_SETTLE ' + JSON.stringify({ sport: sportKey, error: r.error, remaining: st.credits && st.credits.remaining, used: st.credits && st.credits.used, last: st.credits && st.credits.last }));
+            continue;
+          }
+          events = r.events || [];
+          rec.cache = events;
+          rec.lastFetch = now;
+          rec.lastError = null;
+          st.sports[sportKey] = rec;
+          console.log('AUTO_SETTLE ' + JSON.stringify({ sport: sportKey, fetched: events.length, remaining: st.credits && st.credits.remaining, used: st.credits && st.credits.used, last: st.credits && st.credits.last }));
+        }
+        const scored = new Map();
+        for (const ev of events) {
+          const p = AutoSettle.parseScoreEvent(ev);
+          if (p) scored.set(String(p.id), p);
+        }
+        for (const ev of evs) {
+          const p = scored.get(String(ev.event_id));
+          if (!p) continue;
+          const r = applyScoreToEvent(ev.event_id, p.homeScore, p.awayScore, sportKey);
+          settled += r.settled + r.pushed;
+        }
+      }
+      st.lastSettled = settled;
+      writeSettleState(st);
+      return st;
+    } catch (e) {
+      st.lastError = (e && e.message) || 'error';
+      writeSettleState(st);
+      if (!e || !e.user) console.error('AUTO_SETTLE', st.lastError);
+      return st;
+    } finally { settleBusy = false; }
+  };
+  const odds = require('./odds-api');
+  const oddsFetchScores = (sportKey, daysFrom) => odds.fetchScores(sportKey, daysFrom);
   api.hasImportedEvent = eventId => !!db.prepare("SELECT 1 FROM lines WHERE event_id=? AND status!='cancelled'").get(String(eventId));
+
   api.db = db;
   api.PODIUM_MIN_SETTLED = PODIUM_MIN_SETTLED;
   api.DISABLED_NEW_MINIGAMES = DISABLED_NEW_MINIGAMES;
