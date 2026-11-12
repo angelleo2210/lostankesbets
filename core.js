@@ -639,7 +639,8 @@ function open(file = 'data.db') {
     },
     lines(statusFilter) {
       const ls = db.prepare(`SELECT * FROM lines ${statusFilter ? 'WHERE status IN (' + statusFilter.map(() => '?').join(',') + ')' : ''} ORDER BY id DESC`).all(...(statusFilter || []));
-      const t = Date.now(); return ls.map(l => ({ ...l, paused: isPaused(l), started: hasStarted(l, t), options: db.prepare('SELECT * FROM options WHERE line_id=?').all(l.id) }));
+      const t = Date.now();
+      return Markets.sortLinesByStart(ls.map(l => ({ ...l, paused: isPaused(l), started: hasStarted(l, t), options: db.prepare('SELECT * FROM options WHERE line_id=?').all(l.id) })), t);
     },
     placeBet(userId, optionId, stake, t = Date.now()) {
       stake = Number(stake);

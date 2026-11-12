@@ -251,7 +251,7 @@ function linesByEvent(ls) {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(l);
   }
-  return [...groups.values()];
+  return Markets.sortGroupsByStart([...groups.values()]);
 }
 function eventGroupBucket(group) {
   const base = (group || []).find(l => l.home) || (group || [])[0];
@@ -279,14 +279,7 @@ function bindLineFilter() {
   });
 }
 function marketCards(ls) {
-
-  const groups = new Map();
-  for (const l of ls) {
-    const key = l.event_id ? l.kind + ':' + l.event_id : 'legacy:' + l.id;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(l);
-  }
-  return [...groups.values()].map(group => {
+  return linesByEvent(ls).map(group => {
     const base = group.find(l => l.home) || group[0];
     const props = group.filter(l => l.market === 'props');
     const by = Object.fromEntries(group.filter(l => l.market !== 'props').map(l => [l.market || 'h2h', l]));

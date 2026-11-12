@@ -143,3 +143,35 @@ t('eventBucket: real sports, Locales for manual, never Ficticias', () => {
   assert.ok(!M.BUCKETS.some(([, lab]) => /ficticia/i.test(lab)));
   assert.equal(JSON.stringify(M.BUCKETS).includes('Ficticias'), false);
 });
+
+t('events sort by soonest upcoming start; started/closed after; no start last', () => {
+  const now = Date.parse('2026-11-12T19:50:00Z');
+  const later = { id: 3, starts: '2026-11-17T19:45:00Z', status: 'open', started: false };
+  const today = { id: 8, starts: '2026-11-12T20:00:00Z', status: 'open', started: false };
+  const started = { id: 9, starts: '2026-11-12T18:00:00Z', status: 'open', started: true };
+  const closed = { id: 2, starts: '2026-11-12T16:00:00Z', status: 'closed', started: true };
+  const none = { id: 5, starts: null, status: 'open', started: false };
+  const none2 = { id: 1, starts: '', status: 'open' };
+  const ordered = M.sortLinesByStart([later, none, started, today, none2, closed], now);
+  assert.deepEqual(ordered.map(l => l.id), [8, 3, 2, 9, 1, 5]);
+  const { open } = require('./core');
+  const R = open(':memory:');
+  const t0 = Date.now();
+  R.createEvent({ id: 'wal', title: 'Wales vs Portugal', home: 'Wales', away: 'Portugal', starts: new Date(t0 + 5 * 86400e3).toISOString(), markets: [{ key: 'h2h', options: [{ label: 'Wales', odds: 200 }, { label: 'Portugal', odds: -150 }, { label: 'Draw', odds: 230 }] }] }, 'real');
+  R.createEvent({ id: 'cz', title: 'Czech Republic vs Spain', home: 'Czech Republic', away: 'Spain', starts: new Date(t0 + 3600e3).toISOString(), markets: [{ key: 'h2h', options: [{ label: 'Czech Republic', odds: 180 }, { label: 'Spain', odds: 150 }, { label: 'Draw', odds: 220 }] }] }, 'real');
+  R.createEvent({ id: 'done', title: 'Already started', home: 'A', away: 'B', starts: new Date(t0 - 3600e3).toISOString(), markets: [{ key: 'h2h', options: [{ label: 'A', odds: -110 }, { label: 'B', odds: -110 }] }] }, 'real');
+  R.createLine('Sin fecha', [{ label: 'Sí', odds: 100 }, { label: 'No', odds: -120 }]);
+  const titles = R.lines().map(l => l.title);
+  const iToday = titles.findIndex(x => /Czech/.test(x));
+  const iLater = titles.findIndex(x => /Wales/.test(x));
+  const iNone = titles.findIndex(x => x === 'Sin fecha');
+  assert.ok(iToday >= 0 && iLater >= 0 && iNone >= 0);
+  const iStarted = titles.findIndex(x => x === 'Already started' || /Already started/.test(x));
+  assert.ok(iToday < iLater, 'today before later');
+  assert.ok(iLater < iStarted || iStarted < 0, 'upcoming before already started');
+  assert.ok(iLater < iNone, 'dated events before no-start');
+  assert.ok(iStarted < iNone, 'started before no-start');
+  const groups = [['later', later], ['today', today], ['started', started], ['none', none]].map(([, l]) => [l]);
+  const grouped = M.sortGroupsByStart(groups, now);
+  assert.deepEqual(grouped.map(g => g[0].id), [8, 3, 9, 5]);
+});

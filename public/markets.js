@@ -63,6 +63,46 @@
     return 'other';
   }
   function eventBucketLabel(id) { return (BUCKETS.find(([k]) => k === id) || [id, 'Otros'])[1]; }
-  const api = { SAME_EVENT_NOTE, hasSameEvent, NAMES, validate, threshold, label, sameEventError, legOk, BUCKETS, eventBucket, eventBucketLabel };
+  function startMs(l) {
+    if (!l || l.starts == null || l.starts === '') return null;
+    const n = Date.parse(l.starts);
+    return Number.isFinite(n) ? n : null;
+  }
+  function startRank(l, now) {
+    const t = startMs(l);
+    if (t == null) return 2;
+    const started = !!(l && (l.started || t <= now || (l.status && l.status !== 'open')));
+    return started ? 1 : 0;
+  }
+  function compareByStart(a, b, now) {
+    now = now == null ? Date.now() : now;
+    const ra = startRank(a, now), rb = startRank(b, now);
+    if (ra !== rb) return ra - rb;
+    const ta = startMs(a), tb = startMs(b);
+    if (ta == null && tb == null) return (a && a.id || 0) - (b && b.id || 0);
+    return (ta - tb) || ((a && a.id || 0) - (b && b.id || 0));
+  }
+  function groupStartMeta(group, now) {
+    now = now == null ? Date.now() : now;
+    const rows = group || [];
+    const base = rows.find(l => l.home) || rows[0] || {};
+    const timed = rows.find(l => startMs(l) != null) || base;
+    const upcoming = rows.some(l => {
+      const t = startMs(l);
+      return t != null && t > now && !l.started && (!l.status || l.status === 'open');
+    });
+    const started = !upcoming && rows.some(l => l.started || (startMs(l) != null && startMs(l) <= now) || (l.status && l.status !== 'open'));
+    let id = 0;
+    for (const l of rows) { const n = Number(l.id); if (Number.isFinite(n) && (id === 0 || n < id)) id = n; }
+    return { starts: timed.starts || null, started, status: upcoming ? 'open' : (started ? 'closed' : base.status), id };
+  }
+  function sortLinesByStart(ls, now) {
+    return (ls || []).slice().sort((a, b) => compareByStart(a, b, now));
+  }
+  function sortGroupsByStart(groups, now) {
+    now = now == null ? Date.now() : now;
+    return (groups || []).slice().sort((a, b) => compareByStart(groupStartMeta(a, now), groupStartMeta(b, now), now));
+  }
+  const api = { SAME_EVENT_NOTE, hasSameEvent, NAMES, validate, threshold, label, sameEventError, legOk, BUCKETS, eventBucket, eventBucketLabel, startMs, compareByStart, sortLinesByStart, sortGroupsByStart };
   if (typeof module !== 'undefined') module.exports = api; else root.Markets = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
