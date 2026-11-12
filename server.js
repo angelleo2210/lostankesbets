@@ -54,6 +54,33 @@ app.post('/api/rps/respond', h(r => C.rpsRespond(auth(r).id, r.body.id, !!r.body
 app.post('/api/rps/pick', h(r => C.rpsPick(auth(r).id, r.body.id, r.body.pick)));
 app.get('/api/roulette', h(r => { const u = auth(r); return { history: C.rouletteHistory(u.id), board: C.rouletteBoard(), coins: u.coins, limits: C.ROULETTE }; }));
 app.post('/api/roulette/spin', h(r => { const u = auth(r); return C.rouletteSpin(u.id, r.body.bets, r.body.idem); }));
+app.get('/api/roulette/live', h(r => { const u = auth(r); return C.livePublicState(u.id); }));
+app.post('/api/roulette/live/bet', h(r => { const u = auth(r); const out = C.liveBet(u.id, r.body.bets, r.body.idem); try { liveBroadcast(); } catch {} return out; }));
+const liveClients = new Set();
+function liveBroadcast() {
+  if (!liveClients.size) return;
+  for (const res of [...liveClients]) {
+    try { res.write('data: ' + JSON.stringify(C.livePublicState(res.liveUid)) + '\n\n'); }
+    catch (e) { liveClients.delete(res); try { res.end(); } catch {} }
+  }
+}
+app.get('/api/roulette/live/stream', (req, res) => {
+  const token = req.get('x-token') || req.query.token;
+  const u = C.userByToken(token);
+  if (!u) { res.status(401).json({ error: 'Inicia sesión' }); return; }
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no'
+  });
+  if (typeof res.flushHeaders === 'function') res.flushHeaders();
+  res.liveUid = u.id;
+  liveClients.add(res);
+  try { res.write('data: ' + JSON.stringify(C.livePublicState(u.id)) + '\n\n'); } catch {}
+  const ping = setInterval(() => { try { res.write(': ping\n\n'); } catch { clearInterval(ping); } }, 15000);
+  req.on('close', () => { clearInterval(ping); liveClients.delete(res); });
+});
 app.get('/api/bonus', h(r => C.bonusStatus(auth(r).id)));
 app.get('/api/bank', h(r => C.bankStatus(auth(r).id)));
 app.post('/api/bank/loan', h(r => C.takeLoan(auth(r).id, r.body.amount)));
@@ -108,6 +135,8 @@ app.post('/api/admin/topup', h(r => { const a = admin(r); return C.topup(a.id, r
 app.post('/api/admin/invites', h(r => { admin(r); return { code: C.newInvite() }; }));
 app.get('/api/admin/invites', h(r => { admin(r); return C.listInvites(); }));
 const port = process.env.PORT || 3000; app.listen(port, () => {
+  try { C.liveRecover(); } catch (e) { console.error('LIVE_ROULETTE_RECOVER', e && e.message); }
+  setInterval(() => { try { C.liveTick(); liveBroadcast(); } catch (e) { if (e && !e.user) console.error('LIVE_ROULETTE_TICK', e && e.message); } }, 1000);
   try {
     const points = C.auditDupPoints();
     const stats = C.auditDupStats();

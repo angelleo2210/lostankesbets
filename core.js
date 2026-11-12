@@ -164,6 +164,14 @@ function open(file = 'data.db') {
     payout INTEGER NOT NULL, profit INTEGER NOT NULL, bets TEXT NOT NULL, ts INTEGER NOT NULL,
     UNIQUE(user_id, idem));`);
   db.exec('CREATE INDEX IF NOT EXISTS roulette_spins_ts ON roulette_spins(id DESC);');
+  db.exec(`CREATE TABLE IF NOT EXISTS live_rounds(
+    id INTEGER PRIMARY KEY, opens INTEGER NOT NULL, closes INTEGER NOT NULL,
+    number INTEGER, color TEXT, settled_at INTEGER, status TEXT NOT NULL DEFAULT 'open');`);
+  db.exec(`CREATE TABLE IF NOT EXISTS live_bets(
+    id INTEGER PRIMARY KEY, round_id INTEGER NOT NULL, user_id INTEGER NOT NULL, idem TEXT NOT NULL,
+    bets TEXT NOT NULL, stake INTEGER NOT NULL, payout INTEGER, ts INTEGER NOT NULL,
+    UNIQUE(round_id, user_id, idem));`);
+  db.exec('CREATE INDEX IF NOT EXISTS live_bets_round ON live_bets(round_id, id);');
   db.exec('CREATE TABLE IF NOT EXISTS app_settings(key TEXT PRIMARY KEY, value TEXT, ts INTEGER)');
 
   // Unprovable pre-migration debt/penalty kept as one older "legacy" bucket (paid first, refunded only when fully paid).
@@ -972,6 +980,7 @@ function open(file = 'data.db') {
   };
   api.ROULETTE = { minBet: Roulette.MIN_BET, maxBet: Roulette.MAX_BET, maxSpin: Roulette.MAX_SPIN, maxBets: Roulette.MAX_BETS };
   api.rouletteSpin = (uid, bets, idem, now = Date.now()) => {
+    err('La ruleta en solitario ya no está disponible. Juega en la mesa en vivo desde Retos → Ruleta.');
     idem = String(idem || '').trim();
     if (!/^[A-Za-z0-9._-]{8,80}$/.test(idem)) err('Clave de giro inválida');
     const packed = Roulette.normalizeBets(bets);
@@ -1000,6 +1009,158 @@ function open(file = 'data.db') {
       cold: [...freq].sort((a, b) => a.c - b.c || a.n - b.n).slice(0, 5),
       limits: api.ROULETTE
     };
+  };
+
+  const LIVE = Roulette.LIVE;
+  api.LIVE = LIVE;
+  const liveTimes = id => Roulette.roundTimes(id);
+  const livePhase = (now, t) => Roulette.phaseAt(now, t);
+  const liveEnsure = id => {
+    const t = liveTimes(id);
+    db.prepare("INSERT OR IGNORE INTO live_rounds(id,opens,closes,status) VALUES(?,?,?,'open')").run(t.id, t.opens, t.closes);
+    return db.prepare('SELECT * FROM live_rounds WHERE id=?').get(t.id);
+  };
+  const liveRoundBets = id => db.prepare('SELECT * FROM live_bets WHERE round_id=? ORDER BY id').all(id);
+  const liveSettleRound = (id, now) => tx(() => {
+    const row = db.prepare('SELECT * FROM live_rounds WHERE id=?').get(id);
+    if (!row || row.status === 'settled' || row.status === 'refunded') return row;
+    if (row.number == null) return row;
+    const bets = liveRoundBets(id);
+    for (const b of bets) {
+      if (b.payout != null) continue;
+      const list = typeof b.bets === 'string' ? JSON.parse(b.bets) : b.bets;
+      const r = Roulette.settle(list, row.number);
+      if (r.payout) db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(r.payout, b.user_id);
+      db.prepare('UPDATE live_bets SET payout=? WHERE id=?').run(r.payout, b.id);
+    }
+    db.prepare("UPDATE live_rounds SET status='settled', settled_at=? WHERE id=? AND status!='settled' AND status!='refunded'").run(now, id);
+    return db.prepare('SELECT * FROM live_rounds WHERE id=?').get(id);
+  });
+  const liveRefundRound = (id, now) => tx(() => {
+    const row = db.prepare('SELECT * FROM live_rounds WHERE id=?').get(id);
+    if (!row || row.status === 'settled' || row.status === 'refunded') return row;
+    const bets = liveRoundBets(id);
+    for (const b of bets) {
+      if (b.payout != null) continue;
+      db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(b.stake, b.user_id);
+      db.prepare('UPDATE live_bets SET payout=? WHERE id=?').run(b.stake, b.id);
+    }
+    db.prepare("UPDATE live_rounds SET status='refunded', settled_at=? WHERE id=? AND status!='settled' AND status!='refunded'").run(now, id);
+    return db.prepare('SELECT * FROM live_rounds WHERE id=?').get(id);
+  });
+  const liveDraw = (id, now) => tx(() => {
+    const t = liveTimes(id);
+    if (now < t.closes) return db.prepare('SELECT * FROM live_rounds WHERE id=?').get(id) || liveEnsure(id);
+    liveEnsure(id);
+    const row = db.prepare('SELECT * FROM live_rounds WHERE id=?').get(id);
+    if (row.number != null) return row;
+    if (row.status === 'settled' || row.status === 'refunded') return row;
+    const n = Roulette.spinNumber();
+    db.prepare('UPDATE live_rounds SET number=?, color=? WHERE id=? AND number IS NULL').run(n, Roulette.colorOf(n), id);
+    return db.prepare('SELECT * FROM live_rounds WHERE id=?').get(id);
+  });
+  const liveProcessRound = (id, now) => {
+    const t = liveTimes(id);
+    const row = db.prepare('SELECT * FROM live_rounds WHERE id=?').get(id);
+    if (!row) return null;
+    if (row.status === 'settled' || row.status === 'refunded') return row;
+    const bets = liveRoundBets(id);
+    if (now < t.closes) return row;
+    if (now >= t.ends && row.number == null) {
+      // Past the whole round and never drawn (server was down at close): refund, don't draw late.
+      if (bets.length) return liveRefundRound(id, now);
+      db.prepare("UPDATE live_rounds SET status='settled', settled_at=? WHERE id=? AND number IS NULL").run(now, id);
+      return db.prepare('SELECT * FROM live_rounds WHERE id=?').get(id);
+    }
+    const drawn = liveDraw(id, now);
+    if (drawn && drawn.number != null) return liveSettleRound(id, now);
+    return drawn;
+  };
+  api.liveRecover = (now = Date.now()) => {
+    const cur = Roulette.roundIdAt(now);
+    const rows = db.prepare("SELECT * FROM live_rounds WHERE status NOT IN ('settled','refunded')").all();
+    const out = [];
+    for (const row of rows) out.push(liveProcessRound(row.id, now) || row);
+    // Also pick up any current/past implied id with no special case
+    void cur;
+    return out;
+  };
+  api.liveTick = (now = Date.now()) => {
+    api.liveRecover(now);
+    const id = Roulette.roundIdAt(now);
+    const t = liveTimes(id);
+    if (now >= t.closes) {
+      const existing = db.prepare('SELECT * FROM live_rounds WHERE id=?').get(id);
+      const hasBets = existing && liveRoundBets(id).length;
+      if (existing || hasBets) liveProcessRound(id, now);
+    }
+    return api.livePublicState(null, now);
+  };
+  const liveUserName = uid => {
+    const u = db.prepare('SELECT username, display_name FROM users WHERE id=?').get(uid);
+    return (u && (u.display_name || u.username)) || 'Jugador';
+  };
+  const liveHistory = (now, limit = 20) => {
+    const cur = Roulette.roundIdAt(now);
+    return db.prepare("SELECT id,number,color,opens FROM live_rounds WHERE number IS NOT NULL AND id<=? ORDER BY id DESC LIMIT ?").all(cur, limit)
+      .map(r => ({ id: r.id, number: r.number, color: r.color, ts: r.opens }));
+  };
+  const liveFeed = (roundId, viewerId) => liveRoundBets(roundId).map(b => {
+    const list = typeof b.bets === 'string' ? JSON.parse(b.bets) : b.bets;
+    return { id: b.id, user_id: b.user_id, name: liveUserName(b.user_id), amount: b.stake, summary: Roulette.betsSummary(list), ts: b.ts, mine: b.user_id === viewerId };
+  });
+  api.livePublicState = (uid, now = Date.now()) => {
+    api.liveRecover(now);
+    const id = Roulette.roundIdAt(now);
+    const t = liveTimes(id);
+    const phase = livePhase(now, t);
+    if (phase !== 'open') liveEnsure(id);
+    if (phase !== 'open') liveProcessRound(id, now);
+    const row = db.prepare('SELECT * FROM live_rounds WHERE id=?').get(id);
+    const shown = phase === 'spinning' || phase === 'result' || phase === 'ended';
+    const number = shown && row && row.number != null ? row.number : null;
+    const color = number != null ? row.color : null;
+    const mine = uid ? liveRoundBets(id).filter(b => b.user_id === uid).map(b => ({
+      id: b.id, stake: b.stake, payout: b.payout, ts: b.ts,
+      bets: typeof b.bets === 'string' ? JSON.parse(b.bets) : b.bets
+    })) : [];
+    const usedStake = mine.reduce((s, b) => s + b.stake, 0);
+    const usedChips = mine.reduce((s, b) => s + b.bets.length, 0);
+    const coins = uid ? db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins : null;
+    return {
+      id, phase, now, serverNow: now, opens: t.opens, closes: t.closes, spinEnds: t.spinEnds, ends: t.ends,
+      number, color, status: (row && row.status) || 'open',
+      feed: liveFeed(id, uid), history: liveHistory(now),
+      mine, usedStake, usedChips, coins,
+      limits: api.ROULETTE
+    };
+  };
+  api.liveBet = (uid, bets, idem, now = Date.now()) => {
+    idem = String(idem || '').trim();
+    if (!/^[A-Za-z0-9._-]{8,80}$/.test(idem)) err('Clave de apuesta inválida');
+    const packed = Roulette.normalizeBets(bets);
+    api.liveRecover(now);
+    const id = Roulette.roundIdAt(now);
+    const t = liveTimes(id);
+    if (now >= t.closes) err('Las apuestas están cerradas. Espera la siguiente ronda.');
+    liveEnsure(id);
+    return tx(() => {
+      const prev = db.prepare('SELECT * FROM live_bets WHERE round_id=? AND user_id=? AND idem=?').get(id, uid, idem);
+      const coinsOf = () => db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins;
+      if (prev) {
+        const list = typeof prev.bets === 'string' ? JSON.parse(prev.bets) : prev.bets;
+        return { id: prev.id, round_id: id, stake: prev.stake, bets: list, coins: coinsOf(), ts: prev.ts, replay: true };
+      }
+      const priorRows = db.prepare('SELECT stake, bets FROM live_bets WHERE round_id=? AND user_id=?').all(id, uid);
+      const stakeUsed = priorRows.reduce((s, b) => s + b.stake, 0);
+      const chipUsed = priorRows.reduce((s, b) => s + (typeof b.bets === 'string' ? JSON.parse(b.bets) : b.bets).length, 0);
+      if (chipUsed + packed.bets.length > Roulette.MAX_BETS) err(`Máximo ${Roulette.MAX_BETS} apuestas por ronda`);
+      if (stakeUsed + packed.stake > Roulette.MAX_SPIN) err(`El total por ronda no puede superar ${Roulette.MAX_SPIN.toLocaleString('es-US')}`);
+      if (!db.prepare('UPDATE users SET coins=coins-? WHERE id=? AND coins>=?').run(packed.stake, uid, packed.stake).changes) err('No tienes suficientes monedas');
+      const info = db.prepare('INSERT INTO live_bets(round_id,user_id,idem,bets,stake,payout,ts) VALUES(?,?,?,?,?,?,?)')
+        .run(id, uid, idem, JSON.stringify(packed.bets), packed.stake, null, now);
+      return { id: Number(info.lastInsertRowid), round_id: id, stake: packed.stake, bets: packed.bets, coins: coinsOf(), ts: now, replay: false };
+    });
   };
 
   api.auditDupPoints = () => {

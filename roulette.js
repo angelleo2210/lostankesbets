@@ -132,8 +132,41 @@ function settle(bets, n) {
 const spinNumber = () => crypto.randomInt(0, 37);
 const colorName = c => (c === 'red' ? 'rojo' : c === 'black' ? 'negro' : 'verde');
 
+const LIVE = { ROUND_MS: 60_000, BET_MS: 40_000, SPIN_MS: 8_000 };
+LIVE.RESULT_MS = LIVE.ROUND_MS - LIVE.BET_MS - LIVE.SPIN_MS;
+
+const TYPE_NAME = {
+  straight: 'Pleno', split: 'Caballo', street: 'Transversal', trio: 'Trío',
+  corner: 'Cuadro', firstfour: 'Cesta', sixline: 'Línea de seis',
+  dozen: 'Docena', column: 'Columna', red: 'Rojo', black: 'Negro',
+  odd: 'Impar', even: 'Par', low: '1–18', high: '19–36'
+};
+function betSummary(b) {
+  if (!b) return '';
+  if (b.type === 'dozen') return `Docena ${b.dozen || b.n || ''}`.trim();
+  if (b.type === 'column') return `Columna ${b.column || b.n || ''}`.trim();
+  if (OUTSIDE.has(b.type)) return TYPE_NAME[b.type] || b.type;
+  const nums = (b.nums || []).join('-');
+  return `${TYPE_NAME[b.type] || b.type}${nums ? ' ' + nums : ''}`;
+}
+function betsSummary(list) {
+  return (list || []).map(b => `${betSummary(b)} · ${b.amount}`).join(', ');
+}
+function roundIdAt(now) { return Math.floor(Number(now) / LIVE.ROUND_MS); }
+function roundTimes(id) {
+  const opens = Number(id) * LIVE.ROUND_MS;
+  return { id: Number(id), opens, closes: opens + LIVE.BET_MS, spinEnds: opens + LIVE.BET_MS + LIVE.SPIN_MS, ends: opens + LIVE.ROUND_MS };
+}
+function phaseAt(now, t) {
+  if (now < t.closes) return 'open';
+  if (now < t.spinEnds) return 'spinning';
+  if (now < t.ends) return 'result';
+  return 'ended';
+}
+
 module.exports = {
-  RED, WHEEL, MIN_BET, MAX_BET, MAX_SPIN, MAX_BETS, PAYOUT,
+  RED, WHEEL, MIN_BET, MAX_BET, MAX_SPIN, MAX_BETS, PAYOUT, LIVE, TYPE_NAME,
   colorOf, colorName, adjacent, isStreet, isTrio, isCorner, isFirstFour, isSixline,
-  columnOf, dozenOf, normalizeBet, normalizeBets, hits, settle, spinNumber, isNum
+  columnOf, dozenOf, normalizeBet, normalizeBets, hits, settle, spinNumber, isNum,
+  betSummary, betsSummary, roundIdAt, roundTimes, phaseAt
 };

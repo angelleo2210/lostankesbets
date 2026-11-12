@@ -35,7 +35,7 @@ async function start() {
     const d = await api(mode === 'setup' ? '/setup' : mode === 'register' ? '/register' : '/login', b);
     token = localStorage.token = d.token; history.replaceState(null, '', '/'); start(); } catch (e) { flash(e.message); } };
 }
-async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInterval(tcBarT);
+async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInterval(tcBarT); if (window.RouletteUI && RouletteUI.stop) RouletteUI.stop();
   if (tab === 'tienda') tab = 'lineas';
   me = await api('/me'); if (!RW.length) RW = await api('/rewards').catch(() => []);
   const tabs = [['lineas', 'Líneas'], ['reales', 'Reales'], ['mias', 'Mis apuestas'], ['tabla', 'Tabla'], ['juegos', 'Retos' + (me.retosPend ? ` (${me.retosPend})` : '')], ['banco', 'Banco'], ['perfil', 'Mi perfil']].concat(me.is_admin ? [['admin', 'Admin']] : []);
@@ -218,7 +218,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
     B.querySelectorAll('[data-cos]').forEach(b => b.onclick = () => { const [k, v] = b.dataset.cos.split(':'); if (v) cos[k] = v; else delete cos[k]; B.querySelectorAll(`[data-cos^="${k}:"]`).forEach(x => x.className = x.dataset.cos === `${k}:${v}` && v ? '' : 'alt'); pv(); });
     B.querySelectorAll('[data-em]').forEach(b => b.onclick = () => { av = b.dataset.em; B.querySelectorAll('[data-em]').forEach(x => x.className = x.dataset.em === av && av ? '' : 'alt'); pv(); });
     const sv = $('#sv'); if (sv) sv.onclick = async () => { try { const dn = $('#dn'); await api('/profile', { avatar: av, display_name: dn ? dn.value : '', facialHair: 'ninguno', cosmetics: cos, avatarCfg: acfg }); render(); } catch (e) { flash(e.message); } }; }
-  if (tab === 'juegos') await (gameSel === 'rps' ? gamesView(B) : gameSel === 'pen' ? penView(B) : gameSel === 'bb' ? bbView(B) : gameSel === 'tc' ? tcView(B) : gameSel === 'roulette' ? RouletteUI.view(B, { api, esc, fmt, flash, me, onBack: () => { gameSel = null; render(); } }) : retosMenu(B));
+  if (tab === 'juegos') await (gameSel === 'rps' ? gamesView(B) : gameSel === 'pen' ? penView(B) : gameSel === 'bb' ? bbView(B) : gameSel === 'tc' ? tcView(B) : gameSel === 'roulette' ? RouletteUI.view(B, { api, esc, fmt, flash, me, token, onBack: () => { gameSel = null; render(); } }) : retosMenu(B));
   if (tab === 'admin') await adminView(B);
   } catch (e) { flash(e.message); }
 }
@@ -798,8 +798,8 @@ async function retosMenu(B) {
   const tile = (k, ic, n, d, legacy) => `<button class="alt retot${legacy ? ' legacy' : ''}" data-gm="${k}">${ic}<b>${n}</b><span class="small">${pend(d) ? `📩 ${pend(d)} reto(s) recibido(s)` : ''}${turn(d) ? ` · 🎯 te toca en ${turn(d)}` : (!pend(d) && live(d).length ? ` · ${live(d).length} en curso` : '')}</span></button>`;
   const legacyTiles = [['pen', 'Tanda de penaltis (antiguo)', p], ['bb', 'Béisbol (antiguo)', q], ['tc', 'Three Contest (antiguo)', z]]
     .filter(([, , d]) => live(d).length).map(([k, n, d]) => tile(k, '<span class="legacy-dot">⏳</span>', n, d, true)).join('');
-  const ruTile = `<button class="alt retot" data-gm="roulette"><img class="reto-icon rl-game-icon" src="/icons/roulette-icon.png" srcset="/icons/roulette-icon.png 1x, /icons/roulette-icon@2x.png 2x" width="88" height="88" alt="Ruleta" decoding="async"><b>Ruleta</b><span class="small">Europea · un solo cero</span></button>`;
-  B.innerHTML = `<div class="card"><h2>⚔️ Retos</h2><p class="small">Juega piedra, papel o tijera, o prueba la ruleta europea de un cero (monedas de juego).</p>
+  const ruTile = `<button class="alt retot" data-gm="roulette"><img class="reto-icon rl-game-icon" src="/icons/roulette-icon.png" srcset="/icons/roulette-icon.png 1x, /icons/roulette-icon@2x.png 2x" width="88" height="88" alt="Ruleta" decoding="async"><b>Ruleta</b><span class="small">En vivo · un solo cero</span></button>`;
+  B.innerHTML = `<div class="card"><h2>⚔️ Retos</h2><p class="small">Juega piedra, papel o tijera, o entra a la ruleta en vivo (monedas de juego, mesa compartida).</p>
     <div class="retos">${tile('rps', `<img class="reto-icon rps-game-icon" src="/img/rps/tile.webp" width="88" height="88" alt="Piedra papel o tijera" decoding="async">`, 'Piedra, papel o tijera', r, false)}${ruTile}</div>
     ${legacyTiles ? `<div class="small" style="margin-top:10px">Retos antiguos aún abiertos (solo para terminar o responder; ya no se pueden crear nuevos):</div><div class="retos">${legacyTiles}</div>` : ''}
   </div>`;

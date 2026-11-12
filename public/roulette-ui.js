@@ -87,87 +87,169 @@ window.RouletteUI = (() => {
     };
   }
 
-  async function view(B, { api, esc, fmt, flash, me, onBack }) {
-    const d = await api('/roulette');
-    const limits = d.limits || {};
-    let chip = 100, bets = [], lastBets = null, spinning = false, muted = { on: localStorage.rlMute === '1' };
+
+  const easeOut = t => 1 - Math.pow(1 - t, 4);
+  function wheelPose(n, t) {
+    const idx = WHEEL.indexOf(n);
+    const wheelEnd = 360 * 5 - idx * STEP;
+    const ballRev = -360 * 9;
+    t = Math.max(0, Math.min(1, t));
+    const w = wheelEnd * easeOut(t);
+    const pocket = idx * STEP + w;
+    let bAng;
+    if (t < 0.72) bAng = ballRev * easeOut(t / 0.72);
+    else {
+      const u = (t - 0.72) / 0.28;
+      const start = ballRev;
+      const bounce = Math.sin(u * Math.PI * 2) * 10 * (1 - u);
+      bAng = start + (pocket - start) * easeOut(u) + bounce;
+    }
+    if (t >= 1) return { wheel: wheelEnd, ball: wheelEnd + idx * STEP, done: true };
+    return { wheel: w, ball: bAng, done: false };
+  }
+  function applyPose(B, n, t) {
+    const wheel = B.querySelector('#rlWheel'), ball = B.querySelector('#rlBall');
+    if (!wheel || !ball || n == null) return;
+    const p = wheelPose(n, t);
+    wheel.style.transform = `rotate(${p.wheel}deg)`;
+    ball.style.transform = `rotate(${p.ball}deg)`;
+    ball.classList.toggle('in-pocket', p.done);
+  }
+
+  let liveStop = () => {};
+  function stop() { try { liveStop(); } catch {} liveStop = () => {}; }
+
+  async function view(B, { api, esc, fmt, flash, me, onBack, token }) {
+    stop();
+    const first = await api('/roulette/live');
+    const limits = first.limits || {};
+    let chip = 100, slip = [], lastBets = null, muted = { on: localStorage.rlMute === '1' };
     const sound = snd(muted);
-    const total = () => bets.reduce((s, b) => s + b.amount, 0);
+    let offset = (first.serverNow || first.now || Date.now()) - Date.now();
+    const syncedNow = () => Date.now() + offset;
+    let state = first, raf = 0, timer = 0, poller = 0, es = null, closed = false;
+    let lastPoseKey = '';
+    const SPIN_MS = 8000;
+    const total = () => slip.reduce((s, b) => s + b.amount, 0);
+    const phaseNow = () => {
+      const n = syncedNow();
+      if (n < state.closes) return 'open';
+      if (n < state.spinEnds) return 'spinning';
+      if (n < state.ends) return 'result';
+      return 'ended';
+    };
+    const setCall = (t, cls = '') => { const el = B.querySelector('#rlCall'); if (el) { el.textContent = t; el.className = 'rl-call ' + cls; } };
+    const fmtLeft = ms => {
+      const s = Math.max(0, Math.ceil(ms / 1000));
+      const m = Math.floor(s / 60);
+      return m ? `${m}:${String(s % 60).padStart(2, '0')}` : `${s}s`;
+    };
     const paintStacks = () => {
       B.querySelectorAll('.rl-stack').forEach(el => { el.innerHTML = ''; el.classList.remove('on', 'win', 'lose'); });
       const map = new Map();
-      for (const b of bets) {
-        const k = keyOf(b);
-        map.set(k, (map.get(k) || 0) + b.amount);
-      }
-      for (const [k, v] of map) {
-        const el = B.querySelector(`.rl-stack[data-spot="${k}"]`);
+      for (const b of slip) { const k = keyOf(b); map.set(k, (map.get(k) || 0) + b.amount); }
+      for (const row of (state.mine || [])) for (const b of (row.bets || [])) { const k = keyOf(b); map.set(k, (map.get(k) || 0) + b.amount); }
+      for (const [key, v] of map) {
+        const el = B.querySelector(`.rl-stack[data-spot="${key}"]`);
         if (!el) continue;
         el.classList.add('on');
         el.innerHTML = `<span class="rl-chip ${chipClass(v)}">${fmt(v)}</span>`;
       }
+      if (state.phase !== 'open' && state.number != null) {
+        const won = new Set();
+        for (const row of (state.mine || [])) for (const b of (row.bets || [])) if (b.win || b.paid) won.add(keyOf(b));
+        // win flags may be absent until we mark visually by number: leave highlighting to dolly + payout text
+      }
     };
-    const setCall = (t, cls = '') => { const el = B.querySelector('#rlCall'); if (el) { el.textContent = t; el.className = 'rl-call ' + cls; } };
-    const paintBoard = (board) => {
-      const rec = (board && board.recent) || [];
-      const strip = B.querySelector('#rlRecent');
-      if (strip) strip.innerHTML = rec.map(r => `<span class="rl-pip rl-${r.color}">${r.number}</span>`).join('') || '<span class="small">Sin giros aún</span>';
-      const hot = B.querySelector('#rlHot'), cold = B.querySelector('#rlCold');
-      if (hot) hot.innerHTML = ((board && board.hot) || []).map(x => `<span class="rl-pip rl-${x.color}">${x.n}</span>`).join('') || '—';
-      if (cold) cold.innerHTML = ((board && board.cold) || []).map(x => `<span class="rl-pip rl-${x.color}">${x.n}</span>`).join('') || '—';
-    };
-    const paintHist = (hist) => {
-      const el = B.querySelector('#rlHist');
+    const paintFeed = () => {
+      const el = B.querySelector('#rlFeed');
       if (!el) return;
-      el.innerHTML = (hist || []).map(s => {
-        const won = s.profit > 0;
-        return `<div class="rl-hrow ${won ? 'win' : 'lose'}"><span class="rl-pip rl-${s.color}">${s.number}</span> ${colorName(s.color)} · apostado ${fmt(s.stake)} · ${won ? 'ganaste ' + fmt(s.profit) : 'perdiste ' + fmt(-s.profit)}</div>`;
-      }).join('') || '<div class="small">Aún no has girado.</div>';
+      const rows = state.feed || [];
+      el.innerHTML = rows.slice().reverse().map(f => `<div class="rl-feed-row${f.mine ? ' mine' : ''}"><b>${esc(f.name)}</b> · ${esc(f.summary)} · ${fmt(f.amount)}</div>`).join('') || '<div class="small">Aún no hay apuestas en esta ronda.</div>';
     };
-    const paintTotal = () => { const t = B.querySelector('#rlTotal'); if (t) t.textContent = fmt(total()); const g = B.querySelector('#rlGo'); if (g) g.disabled = spinning || !bets.length; };
-
-    const easeOut = t => 1 - Math.pow(1 - t, 4);
-    const animate = (n, ms = 5200) => new Promise(resolve => {
-      const wheel = B.querySelector('#rlWheel'), ball = B.querySelector('#rlBall');
-      const idx = WHEEL.indexOf(n);
-      const wheelEnd = 360 * 5 - idx * STEP;
-      const ballRev = -360 * 9;
-      const t0 = performance.now();
-      let lastTick = 0;
-      const step = (now) => {
-        const t = Math.min(1, (now - t0) / ms);
-        const w = wheelEnd * easeOut(t);
-        const pocket = idx * STEP + w;
-        let bAng;
-        if (t < 0.72) bAng = ballRev * easeOut(t / 0.72);
-        else {
-          const u = (t - 0.72) / 0.28;
-          const start = ballRev;
-          const bounce = Math.sin(u * Math.PI * 2) * 10 * (1 - u);
-          bAng = start + (pocket - start) * easeOut(u) + bounce;
-        }
-        wheel.style.transform = `rotate(${w}deg)`;
-        ball.style.transform = `rotate(${bAng}deg)`;
-        if (t - lastTick > 0.045) { sound.tick(t); lastTick = t; }
-        if (t < 1) requestAnimationFrame(step); else {
-          wheel.style.transform = `rotate(${wheelEnd}deg)`;
-          ball.style.transform = `rotate(${wheelEnd + idx * STEP}deg)`;
-          ball.classList.add('in-pocket');
-          resolve();
-        }
-      };
-      ball.classList.remove('in-pocket');
-      requestAnimationFrame(step);
-    });
+    const paintHist = () => {
+      const el = B.querySelector('#rlRecent');
+      if (!el) return;
+      const rec = state.history || [];
+      el.innerHTML = rec.map(r => `<span class="rl-pip rl-${r.color}">${r.number}</span>`).join('') || '<span class="small">Sin giros aún</span>';
+    };
+    const paintCoins = () => {
+      const c = B.querySelector('#rlCoins');
+      if (c && state.coins != null) c.textContent = fmt(state.coins);
+      const used = B.querySelector('#rlUsed');
+      if (used) used.textContent = fmt(state.usedStake || 0);
+      const t = B.querySelector('#rlTotal'); if (t) t.textContent = fmt(total());
+    };
+    const lockBoard = on => { const felt = B.querySelector('.rl-felt'); if (felt) felt.classList.toggle('locked', on); };
+    const paintResult = () => {
+      const res = B.querySelector('#rlResult');
+      if (!res) return;
+      const ph = phaseNow();
+      if (ph !== 'result' && ph !== 'ended' && !(ph === 'spinning' && false)) { res.hidden = true; return; }
+      if (ph === 'spinning' || state.number == null) { res.hidden = true; return; }
+      const mineStake = (state.mine || []).reduce((s, b) => s + b.stake, 0);
+      const minePay = (state.mine || []).reduce((s, b) => s + (b.payout || 0), 0);
+      const profit = minePay - mineStake;
+      const win = profit > 0;
+      res.hidden = false;
+      res.className = 'rl-result ' + (mineStake ? (win ? 'win' : 'lose') : '');
+      res.innerHTML = `<b class="rl-pip rl-${state.color}">${state.number}</b> ${colorName(state.color).toUpperCase()}${mineStake ? (win ? ' · Ganaste ' + fmt(profit) : profit < 0 ? ' · Perdiste ' + fmt(-profit) : ' · Empate') : ''}${mineStake ? ' · pagado ' + fmt(minePay) : ''}`;
+      B.querySelectorAll('.rl-num, .rl-zero').forEach(el => el.classList.toggle('dolly', el.dataset.nums === String(state.number) && el.dataset.bet === 'straight'));
+    };
+    const paintCall = () => {
+      const ph = phaseNow(), n = syncedNow();
+      if (ph === 'open') setCall('Hagan sus apuestas · ' + fmtLeft(state.closes - n));
+      else if (ph === 'spinning') setCall('No va más', 'lock');
+      else if (ph === 'result') setCall(state.number != null ? (`${state.number} ${colorName(state.color)} · siguiente en ` + fmtLeft(state.ends - n)) : 'Resultado', state.number != null && (state.mine || []).some(b => (b.payout || 0) > b.stake) ? 'win' : '');
+      else setCall('Siguiente ronda');
+      const cd = B.querySelector('#rlCount');
+      if (cd) {
+        if (ph === 'open') cd.textContent = 'Apuestas abiertas · ' + fmtLeft(state.closes - n);
+        else if (ph === 'spinning') cd.textContent = 'La bola está en juego';
+        else cd.textContent = 'Siguiente ronda en ' + fmtLeft(state.ends - n);
+      }
+      const go = B.querySelector('#rlGo');
+      if (go) go.disabled = ph !== 'open' || !slip.length;
+      lockBoard(ph !== 'open');
+    };
+    const applyState = (d) => {
+      if (!d || closed) return;
+      if (d.serverNow != null || d.now != null) offset = (d.serverNow || d.now) - Date.now();
+      const prevPhase = state && state.phase;
+      const prevId = state && state.id;
+      state = d;
+      if (state.coins == null && me) state.coins = me.coins;
+      if (prevId != null && d.id !== prevId) {
+        slip = [];
+        B.querySelectorAll('.rl-num, .rl-zero').forEach(el => el.classList.remove('dolly'));
+        lastPoseKey = '';
+        const ball = B.querySelector('#rlBall'); if (ball) { ball.classList.remove('in-pocket'); ball.style.transform = ''; }
+        const wheel = B.querySelector('#rlWheel'); if (wheel) wheel.style.transform = '';
+      }
+      if (prevPhase === 'open' && d.phase === 'spinning') sound.lock();
+      paintHist(); paintFeed(); paintStacks(); paintCoins(); paintCall(); paintResult();
+    };
+    const tickWheel = () => {
+      if (closed) return;
+      const ph = phaseNow();
+      paintCall();
+      if ((ph === 'spinning' || ph === 'result' || ph === 'ended') && state.number != null) {
+        const t = ph === 'spinning' ? (syncedNow() - state.closes) / SPIN_MS : 1;
+        const key = state.id + ':' + state.number + ':' + (t >= 1 ? 'end' : 'go');
+        applyPose(B, state.number, t);
+        if (t >= 1 && lastPoseKey !== key) { sound.land((state.mine || []).some(b => (b.payout || 0) > b.stake)); lastPoseKey = key; paintResult(); }
+        else lastPoseKey = key;
+      }
+      raf = requestAnimationFrame(tickWheel);
+    };
 
     B.innerHTML = `<div class="card rl-page">
       <button type="button" class="alt" id="toRetos">← Retos</button>
-      <h2>Roulette europea · un solo cero</h2>
-      <p class="small">Ruleta de un cero (0–36). Las apuestas se cobran al girar, con tu saldo de monedas. No cuenta en la tabla de apuestas deportivas.</p>
+      <h2>Ruleta en vivo · un solo cero</h2>
+      <p class="small">Mesa compartida: 40 s para apostar, luego «No va más» y sale la bola. Las apuestas se cobran al confirmar y se pagan al cerrar la ronda. No cuenta en la tabla de apuestas deportivas.</p>
+      <div class="rl-count" id="rlCount"></div>
       <div class="rl-marquee">
         <div class="rl-board-lab">Últimos</div><div id="rlRecent" class="rl-pips"></div>
-        <div class="rl-hc"><span>Calientes</span><div id="rlHot" class="rl-pips"></div></div>
-        <div class="rl-hc"><span>Fríos</span><div id="rlCold" class="rl-pips"></div></div>
       </div>
       <div class="rl-stage">
         <div class="rl-call" id="rlCall">Hagan sus apuestas</div>
@@ -186,15 +268,15 @@ window.RouletteUI = (() => {
           <button type="button" class="alt" id="rlClear">Borrar</button>
           <button type="button" class="alt" id="rlRepeat">Repetir apuesta</button>
         </div>
-        <div class="rl-sum">Total apostado: <b id="rlTotal">0</b> · Saldo <b id="rlCoins">${fmt(d.coins ?? me.coins)}</b></div>
-        <button type="button" id="rlGo" disabled>Girar</button>
+        <div class="rl-sum">En el tapete: <b id="rlTotal">0</b> · Confirmado esta ronda: <b id="rlUsed">0</b> · Saldo <b id="rlCoins">${fmt(first.coins ?? me.coins)}</b></div>
+        <button type="button" id="rlGo" disabled>Apostar</button>
         <div id="rlResult" class="rl-result" hidden></div>
       </div>
-      <div class="card"><h3>Tus giros</h3><div id="rlHist"></div></div>
-      <p class="small">Mín. ${fmt(limits.minBet || 100)} por ficha · máx. ${fmt(limits.maxBet || 25000)} por apuesta · máx. ${fmt(limits.maxSpin || 50000)} por giro. 0 verde: las apuestas pares (rojo/negro, par/impar, 1–18/19–36) pierden.</p>
+      <div class="card"><h3>Apuestas de la mesa</h3><div id="rlFeed" class="rl-feed"></div></div>
+      <p class="small">Mín. ${fmt(limits.minBet || 100)} por ficha · máx. ${fmt(limits.maxBet || 25000)} por apuesta · máx. ${fmt(limits.maxSpin || 50000)} y ${limits.maxBets || 40} fichas por ronda (todas tus apuestas de la ronda). 0 verde: las apuestas pares (rojo/negro, par/impar, 1–18/19–36) pierden.</p>
     </div>`;
 
-    paintBoard(d.board); paintHist(d.history); paintTotal();
+    applyState(first);
     B.querySelector('#toRetos').onclick = onBack;
     B.querySelector('#rlMute').onclick = ev => {
       muted.on = !muted.on; localStorage.rlMute = muted.on ? '1' : '0';
@@ -206,53 +288,56 @@ window.RouletteUI = (() => {
       B.querySelectorAll('[data-chip]').forEach(x => x.classList.toggle('sel', +x.dataset.chip === chip));
     });
     const placeFrom = btn => {
-      if (spinning) return;
+      if (phaseNow() !== 'open') return;
       const type = btn.dataset.bet;
       const nums = (btn.dataset.nums || '').split(',').filter(Boolean).map(Number);
       const bet = { type, amount: chip };
       if (nums.length) bet.nums = nums;
       if (btn.dataset.dozen) bet.dozen = +btn.dataset.dozen;
       if (btn.dataset.column) bet.column = +btn.dataset.column;
-      bets.push(bet);
-      setCall('Hagan sus apuestas');
-      paintStacks(); paintTotal();
+      slip.push(bet);
+      paintStacks(); paintCoins(); paintCall();
     };
     B.querySelectorAll('[data-bet]').forEach(btn => btn.onclick = () => placeFrom(btn));
-    B.querySelector('#rlUndo').onclick = () => { if (spinning || !bets.length) return; bets.pop(); paintStacks(); paintTotal(); };
-    B.querySelector('#rlClear').onclick = () => { if (spinning) return; bets = []; paintStacks(); paintTotal(); };
-    B.querySelector('#rlRepeat').onclick = () => { if (spinning || !lastBets) return; bets = lastBets.map(b => ({ ...b })); paintStacks(); paintTotal(); };
+    B.querySelector('#rlUndo').onclick = () => { if (phaseNow() !== 'open' || !slip.length) return; slip.pop(); paintStacks(); paintCoins(); paintCall(); };
+    B.querySelector('#rlClear').onclick = () => { if (phaseNow() !== 'open') return; slip = []; paintStacks(); paintCoins(); paintCall(); };
+    B.querySelector('#rlRepeat').onclick = () => { if (phaseNow() !== 'open' || !lastBets) return; slip = lastBets.map(b => ({ ...b })); paintStacks(); paintCoins(); paintCall(); };
     B.querySelector('#rlGo').onclick = async () => {
-      if (spinning || !bets.length) return;
-      spinning = true; paintTotal();
-      setCall('No va más', 'lock'); sound.lock();
-      B.querySelector('.rl-felt').classList.add('locked');
-      const payload = bets.map(b => ({ ...b }));
+      if (phaseNow() !== 'open' || !slip.length) return;
+      const payload = slip.map(b => ({ ...b }));
+      const btn = B.querySelector('#rlGo'); if (btn) btn.disabled = true;
       try {
-        const r = await api('/roulette/spin', { bets: payload, idem: idem() });
+        const r = await api('/roulette/live/bet', { bets: payload, idem: idem() });
         lastBets = payload;
-        await animate(r.number);
-        const res = B.querySelector('#rlResult');
-        const win = r.profit > 0;
-        res.hidden = false;
-        res.className = 'rl-result ' + (win ? 'win' : 'lose');
-        res.innerHTML = `<b class="rl-pip rl-${r.color}">${r.number}</b> ${colorName(r.color).toUpperCase()} · ${win ? 'Ganaste ' + fmt(r.profit) : 'Sin premio'} · pagado ${fmt(r.payout)}`;
-        B.querySelector('#rlCoins').textContent = fmt(r.coins);
-        B.querySelectorAll('.rl-num, .rl-zero').forEach(el => el.classList.toggle('dolly', el.dataset.nums === String(r.number) && el.dataset.bet === 'straight'));
-        const wonKeys = new Set((r.settled || []).filter(b => b.win).map(keyOf));
-        B.querySelectorAll('.rl-stack.on').forEach(el => {
-          const k = el.getAttribute('data-spot');
-          el.classList.add(wonKeys.has(k) ? 'win' : 'lose');
-        });
-        sound.land(win);
-        setCall(win ? '¡Ganador!' : 'Suerte para la próxima', win ? 'win' : 'lose');
-        bets = [];
-        const fresh = await api('/roulette');
-        paintBoard(fresh.board); paintHist(fresh.history); paintStacks(); paintTotal();
-      } catch (e) { flash(e.message); setCall('Hagan sus apuestas'); }
-      B.querySelector('.rl-felt').classList.remove('locked');
-      spinning = false; paintTotal();
+        slip = [];
+        if (r.coins != null) state.coins = r.coins;
+        const fresh = await api('/roulette/live');
+        applyState(fresh);
+        flash('Apuesta confirmada');
+      } catch (e) { flash(e.message); paintCall(); }
+    };
+
+    const onMsg = d => { if (d && !d.error) applyState(d); };
+    const poll = async () => { try { onMsg(await api('/roulette/live')); } catch {} };
+    poller = setInterval(poll, 2000);
+    timer = setInterval(paintCall, 250);
+    raf = requestAnimationFrame(tickWheel);
+    const tok = token || (typeof localStorage !== 'undefined' ? localStorage.token : '');
+    try {
+      if (typeof EventSource !== 'undefined' && tok) {
+        es = new EventSource('/api/roulette/live/stream?token=' + encodeURIComponent(tok));
+        es.onmessage = ev => { try { onMsg(JSON.parse(ev.data)); } catch {} };
+        es.onerror = () => { /* poll already running */ };
+      }
+    } catch {}
+
+    liveStop = () => {
+      closed = true;
+      if (raf) cancelAnimationFrame(raf);
+      clearInterval(poller); clearInterval(timer);
+      if (es) { try { es.close(); } catch {} es = null; }
     };
   }
 
-  return { view, WHEEL, RED };
+  return { view, stop, WHEEL, RED, wheelPose };
 })();

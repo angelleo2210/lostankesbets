@@ -82,31 +82,18 @@ const mk = () => {
   return { D, u, coinsOf };
 };
 
-t('insufficient funds rejected; no debit', () => {
+t('new solo spins are rejected; existing history stays intact; no debit', () => {
   const { D, u, coinsOf } = mk();
-  D.db.prepare('UPDATE users SET coins=150 WHERE id=?').run(u);
   const before = coinsOf(u);
-  assert.equal(before, 150);
-  assert.throws(() => D.rouletteSpin(u, [{ type: 'red', amount: 100 }, { type: 'black', amount: 100 }], 'rl_aaaaaaaa'), /suficientes/);
+  D.db.prepare("INSERT INTO roulette_spins(user_id,idem,number,color,stake,payout,profit,bets,ts) VALUES(?,?,?,?,?,?,?,?,?)")
+    .run(u, 'legacy_keep_1', 17, 'black', 100, 0, -100, '[]', Date.now());
+  assert.throws(() => D.rouletteSpin(u, [{ type: 'red', amount: 100 }], 'rl_aaaaaaaa'), /solitario|mesa en vivo|Retos/);
+  assert.throws(() => D.rouletteSpin(u, [{ type: 'straight', nums: [7], amount: 100 }], 'rl_samekey1'), /solitario|mesa en vivo|Retos/);
   assert.equal(coinsOf(u), before);
-});
-
-t('atomic settle + idempotent retry does not double-pay', () => {
-  const { D, u, coinsOf } = mk();
-  const before = coinsOf(u);
-  const r1 = D.rouletteSpin(u, [{ type: 'straight', nums: [7], amount: 100 }], 'rl_samekey1');
-  assert.ok(r1.number >= 0 && r1.number <= 36);
-  assert.equal(coinsOf(u), before - r1.stake + r1.payout);
-  assert.equal(r1.replay, false);
-  const mid = coinsOf(u);
-  const r2 = D.rouletteSpin(u, [{ type: 'straight', nums: [7], amount: 100 }], 'rl_samekey1');
-  assert.equal(r2.id, r1.id); assert.equal(r2.number, r1.number); assert.equal(r2.payout, r1.payout);
-  assert.equal(r2.replay, true);
-  assert.equal(coinsOf(u), mid);
   const hist = D.rouletteHistory(u);
   assert.equal(hist.length, 1);
-  const board = D.rouletteBoard();
-  assert.ok(board.recent.length >= 1 && board.limits.minBet === 100);
+  assert.equal(hist[0].number, 17);
+  assert.equal(D.db.prepare('SELECT COUNT(*) c FROM roulette_spins').get().c, 1);
 });
 
 t('UI hooks and European wheel present; retos entry + no sports ranking mix', () => {
@@ -119,8 +106,11 @@ t('UI hooks and European wheel present; retos entry + no sports ranking mix', ()
   assert.ok(require('fs').existsSync(__dirname + '/public/icons/roulette-icon.png') && require('fs').existsSync(__dirname + '/public/icons/roulette-icon@2x.png'));
   assert.ok(css.includes('.rps-game-icon,.rl-game-icon,.reto-icon{display:block;width:88px;height:88px;object-fit:cover;object-position:center;border-radius:22%') && css.includes('repeat(2,minmax(0,1fr))') && !css.includes('width:min(220px,72vw)') && !css.includes('min(148px,42vw)'));
   assert.ok(ui.includes('Hagan sus apuestas') && ui.includes('No va más') && ui.includes("const WHEEL = [0, 32, 15, 19, 4, 21, 2, 25"));
-  assert.ok(ui.includes('rl-ball-track') && css.includes('.rl-felt{') && css.includes('.rl-dolly') || css.includes('dolly'));
-  assert.ok(core.includes('roulette_spins') && !/refreshRanks\(\).*roulette|roulette.*refreshRanks/.test(core));
+  assert.ok(ui.includes('Ruleta en vivo') && ui.includes('/roulette/live') && ui.includes('EventSource') && ui.includes('setInterval(poll, 2000)'));
+  assert.ok(!ui.includes('>Girar</button>') && ui.includes('>Apostar</button>'));
+  assert.ok(ui.includes('rl-ball-track') && css.includes('.rl-felt{') && (css.includes('.rl-dolly') || css.includes('dolly')));
+  assert.ok(core.includes('roulette_spins') && core.includes('live_rounds') && !/refreshRanks\(\).*roulette|roulette.*refreshRanks/.test(core));
+  assert.ok(!app.includes('data-gm="live-roulette"') && app.includes('/icons/roulette-icon.png') && app.includes('roulette-icon@2x.png'));
 });
 
 console.log(n, 'roulette tests passed');
