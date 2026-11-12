@@ -110,6 +110,40 @@ t('parse: fills spreads and totals from another book if the preferred one only h
   assert.equal(nhl.markets.find(x => x.key === 'spreads').bookmaker, 'FanDuel');
 });
 
+t('cancelled imports do not block re-add; open/settled still dedupe', () => {
+  const { D } = mk();
+  const ev = {
+    id: 'nl-reimport', title: 'UEFA Nations League: Czech Republic vs Spain',
+    sport: 'UEFA Nations League', sport_key: 'soccer_uefa_nations_league',
+    home: 'Czech Republic', away: 'Spain', unit: 'goles',
+    starts: future(30),
+    markets: [
+      { key: 'h2h', options: [{ label: 'Czech Republic', odds: 180 }, { label: 'Spain', odds: 150 }, { label: 'Draw', odds: 220 }] },
+      { key: 'spreads', options: [{ label: 'Czech Republic', point: 0.5, odds: -105 }, { label: 'Spain', point: -0.5, odds: -115 }] },
+      { key: 'totals', options: [{ label: 'Over', point: 2.5, odds: -110 }, { label: 'Under', point: 2.5, odds: -110 }] },
+    ],
+  };
+  const ids = D.createEvent({ ...ev, title: ev.title }, 'real');
+  assert.equal(ids.length, 3);
+  assert.equal(D.hasImportedEvent('nl-reimport'), true);
+  assert.deepEqual(D.createEvent({ ...ev, title: ev.title }, 'real'), ids);
+  for (const id of ids) D.cancelLine(id);
+  assert.equal(D.hasImportedEvent('nl-reimport'), false);
+  const again = D.createEvent({ ...ev, title: ev.title }, 'real');
+  assert.equal(again.length, 3);
+  assert.ok(again.every(id => !ids.includes(id)));
+  assert.ok(again.every(id => D.lines().find(l => l.id === id).status === 'open'));
+  assert.equal(D.hasImportedEvent('nl-reimport'), true);
+  // still-open event stays blocked
+  const kept = D.createEvent({ id: 'keep-1', title: 'A vs B', home: 'A', away: 'B', markets: [{ key: 'h2h', options: [{ label: 'A', odds: -120 }, { label: 'B', odds: 100 }] }] }, 'real');
+  assert.equal(D.hasImportedEvent('keep-1'), true);
+  D.closeLine(kept[0]);
+  assert.equal(D.hasImportedEvent('keep-1'), true);
+  D.settleLine(kept[0], D.lines().find(l => l.id === kept[0]).options[0].id);
+  assert.equal(D.hasImportedEvent('keep-1'), true);
+});
+
+
 
 
 t('key: stored last-4 only, env fallback, stored wins, delete does not touch env', () => {

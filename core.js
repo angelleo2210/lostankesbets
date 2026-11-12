@@ -584,11 +584,11 @@ function open(file = 'data.db') {
         try { Markets.validate(m.key, m.options, event.home, event.away, m.prop_title); } catch(e) { err(e.message); }
         if (m.key === 'props') {
           const pt = String(m.prop_title || '').trim();
-          const prior = db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND market='props' AND prop_title=?").get(String(event.id), kind, pt);
+          const prior = db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND market='props' AND prop_title=? AND status!='cancelled'").get(String(event.id), kind, pt);
           if (prior) return prior.id;
           return api.createLine(event.title, m.options, { kind, event_id: String(event.id), starts: event.starts, market: 'props', prop_title: pt, home: event.home, away: event.away, unit: event.unit, bookmaker: m.bookmaker, sport: sportOf(event) });
         }
-        const prior = db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND COALESCE(market,'h2h')=?").get(String(event.id), kind, m.key);
+        const prior = db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND COALESCE(market,'h2h')=? AND status!='cancelled'").get(String(event.id), kind, m.key);
         if (prior) return prior.id;
         return api.createLine(event.title, m.options, { kind, event_id: String(event.id), starts: event.starts, market: m.key, home: event.home, away: event.away, unit: event.unit, bookmaker: m.bookmaker, sport: sportOf(event) });
       }));
@@ -1280,7 +1280,7 @@ function open(file = 'data.db') {
     db.prepare('DELETE FROM app_settings WHERE key=?').run('odds_api_key');
     return api.oddsKeyStatus();
   };
-  api.hasImportedEvent = eventId => !!db.prepare('SELECT 1 FROM lines WHERE event_id=?').get(String(eventId));
+  api.hasImportedEvent = eventId => !!db.prepare("SELECT 1 FROM lines WHERE event_id=? AND status!='cancelled'").get(String(eventId));
   api.db = db;
   api.PODIUM_MIN_SETTLED = PODIUM_MIN_SETTLED;
   api.DISABLED_NEW_MINIGAMES = DISABLED_NEW_MINIGAMES;
