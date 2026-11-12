@@ -219,6 +219,7 @@ t('admin UI has the key form and manual search; no auto poll in admin view', () 
   const card = src.slice(i, j);
   assert.ok(card.includes('Clave de The Odds API'));
   assert.ok(card.includes('Buscar partidos nuevos'));
+  assert.ok(card.includes('Revisa a las 6 p.m. y 12 a.m. (hora del Este)'));
   assert.ok(card.includes('Agregar a la app'));
   assert.ok(card.includes('Te quedan'));
   assert.ok(card.includes('type="password"'));

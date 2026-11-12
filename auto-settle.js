@@ -4,7 +4,9 @@
 // extra time may need a manual check. NBA/NHL/MLB use the final score as reported (OT included).
 const odds = require('./odds-api');
 
-const FETCH_MS = 45 * 60e3;
+const TZ = 'America/New_York';
+const SLOT_HOURS = [0, 18]; // midnight and 6 p.m. ET
+const CATCHUP_MS = 2 * 3600e3;
 const GIVE_UP_MS = 3 * 24 * 3600e3;
 const DURATION = {
   soccer: 2.5 * 3600e3,
@@ -13,6 +15,50 @@ const DURATION = {
   baseball: 3.5 * 3600e3,
 };
 const SETTLED_MARKETS = new Set(['h2h', 'spreads', 'totals']);
+
+function nyParts(ms) {
+  const f = new Intl.DateTimeFormat('en-US', { timeZone: TZ, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' });
+  return Object.fromEntries(f.formatToParts(new Date(ms)).filter(x => x.type !== 'literal').map(x => [x.type, Number(x.value)]));
+}
+function nyLocalToUtc(year, month, day, hour = 0, minute = 0, second = 0) {
+  const want = Date.UTC(year, month - 1, day, hour, minute, second);
+  let t = want;
+  for (let i = 0; i < 3; i++) {
+    const q = nyParts(t);
+    t += want - Date.UTC(q.year, q.month - 1, q.day, q.hour, q.minute, q.second);
+  }
+  return t;
+}
+function slotId(year, month, day, hour) {
+  const p = n => String(n).padStart(2, '0');
+  return `${year}-${p(month)}-${p(day)}T${p(hour)}:00`;
+}
+function addCivilDays(year, month, day, n) {
+  const d = new Date(Date.UTC(year, month - 1, day + n));
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() };
+}
+function slotsNear(now, back = 2, forward = 2) {
+  const p = nyParts(now);
+  const out = [];
+  for (let i = -back; i <= forward; i++) {
+    const d = addCivilDays(p.year, p.month, p.day, i);
+    for (const hour of SLOT_HOURS) {
+      const at = nyLocalToUtc(d.year, d.month, d.day, hour, 0, 0);
+      out.push({ id: slotId(d.year, d.month, d.day, hour), at, hour });
+    }
+  }
+  return out.sort((a, b) => a.at - b.at);
+}
+function dueSlot(now, lastRunSlot) {
+  const due = slotsNear(now).filter(s => s.at <= now && now - s.at <= CATCHUP_MS && s.id !== lastRunSlot);
+  if (!due.length) return null;
+  return due.sort((a, b) => b.at - a.at)[0];
+}
+function nextSlot(now, lastRunSlot) {
+  const due = dueSlot(now, lastRunSlot);
+  if (due) return due;
+  return slotsNear(now, 0, 2).find(s => s.at > now) || null;
+}
 
 function autoSportOk(key) {
   const k = String(key || '');
@@ -120,6 +166,7 @@ function groupPending(lines, now) {
 }
 
 module.exports = {
-  FETCH_MS, GIVE_UP_MS, DURATION, autoSportOk, durationMs, isSoccer,
+  TZ, SLOT_HOURS, CATCHUP_MS, GIVE_UP_MS, DURATION, autoSportOk, durationMs, isSoccer,
   titleSportKey, parseScoreEvent, decideLine, eventReady, groupPending, SETTLED_MARKETS,
+  nyParts, nyLocalToUtc, slotId, dueSlot, nextSlot, slotsNear,
 };

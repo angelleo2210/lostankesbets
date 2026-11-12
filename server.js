@@ -140,6 +140,7 @@ app.get('/api/admin/invites', h(r => { admin(r); return C.listInvites(); }));
 const port = process.env.PORT || 3000; app.listen(port, () => {
   try { C.liveRecover(); } catch (e) { console.error('LIVE_ROULETTE_RECOVER', e && e.message); }
   setInterval(() => { try { C.liveTick(); liveBroadcast(); } catch (e) { if (e && !e.user) console.error('LIVE_ROULETTE_TICK', e && e.message); } }, 1000);
+  // Slot check only (6 p.m. and midnight ET, plus a 2h catch-up after restart). Does not poll scores every minute.
   const settleTick = () => { C.autoSettleTick().catch(e => { if (e && !e.user) console.error('AUTO_SETTLE', e && e.message); }); };
   setTimeout(settleTick, 10 * 1000);
   setInterval(settleTick, 60 * 1000);

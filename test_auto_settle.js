@@ -3,7 +3,7 @@ const { open, START_COINS } = require('./core');
 const Auto = require('./auto-settle');
 let n = 0; const t = (name, fn) => { const r = fn(); if (r && r.then) return r.then(() => { console.log('OK', name); n++; }); console.log('OK', name); n++; return r; };
 
-const now = Date.parse('2026-11-12T22:00:00Z');
+const now = Auto.nyLocalToUtc(2026, 11, 12, 18); // 6 p.m. ET, 12 Nov 2026
 const startAgo = hours => new Date(now - hours * 3600e3).toISOString();
 const mk = () => {
   const D = open(':memory:');
@@ -67,6 +67,25 @@ t('decide spreads push on exact integer; half points do not push; totals equal i
     { id: 20, outcome: 'Over', point: 2.5 }, { id: 21, outcome: 'Under', point: 2.5 },
   ]};
   assert.equal(Auto.decideLine(totH, 2, 1, 'soccer_epl').optionId, 20);
+});
+
+t('slots are 6 p.m. and midnight America/New_York; 2h catch-up only', () => {
+  const six = Auto.nyLocalToUtc(2026, 11, 12, 18);
+  assert.equal(six, Date.parse('2026-11-12T23:00:00Z'));
+  const mid = Auto.nyLocalToUtc(2026, 11, 13, 0);
+  assert.equal(mid, Date.parse('2026-11-13T05:00:00Z'));
+  const sixSummer = Auto.nyLocalToUtc(2026, 6, 15, 18);
+  assert.equal(sixSummer, Date.parse('2026-06-15T22:00:00Z'));
+  const midSummer = Auto.nyLocalToUtc(2026, 6, 16, 0);
+  assert.equal(midSummer, Date.parse('2026-06-16T04:00:00Z'));
+  assert.equal(Auto.dueSlot(six - 1, null), null);
+  assert.equal(Auto.dueSlot(six, null).id, '2026-11-12T18:00');
+  assert.equal(Auto.dueSlot(six + 90 * 60e3, null).id, '2026-11-12T18:00');
+  assert.equal(Auto.dueSlot(six + 90 * 60e3, '2026-11-12T18:00'), null);
+  assert.equal(Auto.dueSlot(six + Auto.CATCHUP_MS + 1000, null), null);
+  assert.equal(Auto.dueSlot(mid, '2026-11-12T18:00').id, '2026-11-13T00:00');
+  assert.equal(Auto.nextSlot(six - 3600e3, null).id, '2026-11-12T18:00');
+  assert.equal(Auto.nextSlot(six + 1000, '2026-11-12T18:00').id, '2026-11-13T00:00');
 });
 
 t('title backfill maps official names; MMA is never auto', () => {
@@ -178,11 +197,13 @@ t('title backfill maps official names; MMA is never auto', () => {
     assert.equal(D.lines().find(l => l.id === ok[0]).status, 'settled');
     const after = calls;
     await D.autoSettleTick(now, fetch);
+    assert.equal(calls, after); // same 6 p.m. slot already persisted — no second fetch
     assert.equal(D.lines().find(l => l.id === ok[0]).status, 'settled');
-    // cache reuse within 45 min: no extra fetch required if nothing new is due, or at most same cache
-    const st = D.autoSettleStatus();
+    const st = D.autoSettleStatus(now);
     assert.equal(st.enabled, true);
-    assert.ok(st.lastCheckAt);
+    assert.ok(st.lastRunAt);
+    assert.equal(st.lastRunSlot, '2026-11-12T18:00');
+    assert.ok(st.nextRunAt > now);
     assert.equal(JSON.stringify(st).includes('test-secret-KEY99'), false);
   });
 
@@ -201,8 +222,67 @@ t('title backfill maps official names; MMA is never auto', () => {
     const earlyOnly = D.createEvent(ev('nl-wait', { starts: startAgo(1) }), 'real');
     const before = calls;
     await D.autoSettleTick(now, async () => { calls++; return { events: [], usage: { last: 2 } }; });
-    // ready event already settled; early game is not ready — no need to call if no ready sports remain
+    assert.equal(calls, before); // slot already used; early game waits until the next slot
     assert.equal(D.lines().find(l => l.id === earlyOnly[0]).status, 'open');
+  });
+
+  await t('does not fetch outside the 6 p.m. / midnight ET slots', async () => {
+    const { D } = mk();
+    D.createEvent(ev('nl-off'), 'real');
+    let calls = 0;
+    const fivePm = Auto.nyLocalToUtc(2026, 11, 12, 17);
+    await D.autoSettleTick(fivePm, async () => { calls++; return { events: [] }; });
+    assert.equal(calls, 0);
+    assert.equal(D.lines().find(l => l.event_id === 'nl-off').status, 'open');
+    const st = D.autoSettleStatus(fivePm);
+    assert.equal(st.lastRunAt, null);
+    assert.equal(st.nextRunAt, now);
+  });
+
+  await t('catch-up runs once if a slot was missed within 2h; not after 2h; restart does not double-run', async () => {
+    const { D } = mk();
+    D.createEvent(ev('nl-catch', { starts: startAgo(3) }), 'real');
+    let calls = 0;
+    const fetch = async (sportKey) => { calls++; return fetchOf({ soccer_uefa_nations_league: [score('nl-catch', 'Wales', 'Portugal', 1, 0)] })(sportKey); };
+    const seven30 = now + 90 * 60e3; // 7:30 p.m. ET
+    await D.autoSettleTick(seven30, fetch);
+    assert.equal(calls, 1);
+    assert.equal(D.lines().find(l => l.event_id === 'nl-catch' && l.market === 'h2h').status, 'settled');
+    await D.autoSettleTick(seven30 + 1000, fetch);
+    assert.equal(calls, 1);
+
+    const D2 = mk().D;
+    D2.createEvent(ev('nl-late'), 'real');
+    let late = 0;
+    const eight01 = now + (2 * 3600e3) + 60e3; // 8:01 p.m. ET, past the 2h catch-up
+    await D2.autoSettleTick(eight01, async () => { late++; return { events: [] }; });
+    assert.equal(late, 0);
+    assert.equal(D2.autoSettleStatus(eight01).nextRunAt, Auto.nyLocalToUtc(2026, 11, 13, 0));
+  });
+
+  await t('midnight ET is a new slot; empty leagues are not called; one call per pending league', async () => {
+    const { D } = mk();
+    D.createEvent(ev('nl-mid', { starts: startAgo(8) }), 'real');
+    D.createEvent(ev('nba-mid', { sport: 'NBA', sport_key: 'basketball_nba', home: 'Lakers', away: 'Celtics', unit: 'puntos', starts: startAgo(8),
+      markets: [{ key: 'h2h', options: [{ label: 'Lakers', odds: -150 }, { label: 'Celtics', odds: 130 }] }] }), 'real');
+    let seen = [];
+    const midnight = Auto.nyLocalToUtc(2026, 11, 13, 0);
+    const six = now;
+    await D.autoSettleTick(six, async (sportKey) => { seen.push(sportKey); return { events: [], usage: { remaining: 70, last: 2 } }; });
+    assert.deepEqual([...seen].sort(), ['basketball_nba', 'soccer_uefa_nations_league']);
+    seen = [];
+    await D.autoSettleTick(six + 1000, async (sportKey) => { seen.push(sportKey); return { events: [] }; });
+    assert.deepEqual(seen, []);
+    await D.autoSettleTick(midnight, async (sportKey) => { seen.push(sportKey); return fetchOf({
+      soccer_uefa_nations_league: [score('nl-mid', 'Wales', 'Portugal', 2, 0)],
+      basketball_nba: [score('nba-mid', 'Lakers', 'Celtics', 99, 90, 'basketball_nba')],
+      baseball_mlb: [score('ghost', 'Yankees', 'Red Sox', 1, 0, 'baseball_mlb')],
+    })(sportKey); });
+    assert.deepEqual([...seen].sort(), ['basketball_nba', 'soccer_uefa_nations_league']);
+    assert.ok(!seen.includes('baseball_mlb'));
+    assert.equal(D.autoSettleStatus(midnight).lastRunSlot, '2026-11-13T00:00');
+    assert.equal(D.lines().find(l => l.event_id === 'nl-mid' && l.market === 'h2h').status, 'settled');
+    assert.equal(D.lines().find(l => l.event_id === 'nba-mid').status, 'settled');
   });
 
   console.log(n, 'auto-settle tests passed');

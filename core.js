@@ -1302,18 +1302,22 @@ function open(file = 'data.db') {
     try { return JSON.parse(settleSetting('odds_auto_settle_state') || '{}') || {}; } catch { return {}; }
   };
   const writeSettleState = st => settleSetting('odds_auto_settle_state', JSON.stringify(st));
-  api.autoSettleStatus = () => {
+  api.autoSettleStatus = (now = Date.now()) => {
     const st = readSettleState();
     const credits = st.credits || {};
+    const nxt = AutoSettle.nextSlot(now, st.lastRunSlot);
     return {
       enabled: api.autoSettleEnabled(),
-      lastCheckAt: st.lastCheckAt || null,
+      lastCheckAt: st.lastRunAt || st.lastCheckAt || null,
+      lastRunAt: st.lastRunAt || st.lastCheckAt || null,
+      lastRunSlot: st.lastRunSlot || null,
+      nextRunAt: nxt ? nxt.at : null,
       lastSettled: st.lastSettled || 0,
       lastError: st.lastError || null,
       creditsRemaining: credits.remaining != null ? credits.remaining : null,
       creditsUsed: credits.used != null ? credits.used : null,
       creditsLast: credits.last != null ? credits.last : null,
-      pending: api.pendingAutoSettle(Date.now()).length,
+      pending: api.pendingAutoSettle(now).length,
     };
   };
   api.pendingAutoSettle = (now = Date.now()) => {
@@ -1342,38 +1346,32 @@ function open(file = 'data.db') {
     if (settleBusy) return readSettleState();
     settleBusy = true;
     const st = readSettleState();
-    st.lastCheckAt = now;
     try {
+      const slot = AutoSettle.dueSlot(now, st.lastRunSlot);
+      if (!slot) return st;
       if (!api.autoSettleEnabled()) { st.lastError = null; writeSettleState(st); return st; }
       const key = api.getOddsApiKey();
       if (!key) { st.lastError = 'Falta la clave de The Odds API'; writeSettleState(st); return st; }
+      // Persist the slot before calling the API so a restart cannot double-run this window.
+      st.lastRunSlot = slot.id;
+      st.lastRunAt = now;
+      st.lastCheckAt = now;
+      writeSettleState(st);
       const pending = api.pendingAutoSettle(now).filter(l => AutoSettle.eventReady(l, now));
       const bySport = AutoSettle.groupPending(pending, now);
       const fetchScores = fetchFn || oddsFetchScores;
       let settled = 0;
       st.lastError = null;
       for (const [sportKey, evs] of bySport) {
-        st.sports = st.sports || {};
-        const rec = st.sports[sportKey] || { lastFetch: 0, cache: null };
-        const stale = !rec.lastFetch || (now - rec.lastFetch >= AutoSettle.FETCH_MS);
-        let events = rec.cache;
-        if (stale || !Array.isArray(events)) {
-          const r = await fetchScores(sportKey, 3);
-          if (r.usage) st.credits = { remaining: r.usage.remaining, used: r.usage.used, last: r.usage.last, at: now };
-          if (r.error) {
-            rec.lastError = r.error;
-            st.sports[sportKey] = rec;
-            st.lastError = r.error;
-            console.log('AUTO_SETTLE ' + JSON.stringify({ sport: sportKey, error: r.error, remaining: st.credits && st.credits.remaining, used: st.credits && st.credits.used, last: st.credits && st.credits.last }));
-            continue;
-          }
-          events = r.events || [];
-          rec.cache = events;
-          rec.lastFetch = now;
-          rec.lastError = null;
-          st.sports[sportKey] = rec;
-          console.log('AUTO_SETTLE ' + JSON.stringify({ sport: sportKey, fetched: events.length, remaining: st.credits && st.credits.remaining, used: st.credits && st.credits.used, last: st.credits && st.credits.last }));
+        const r = await fetchScores(sportKey, 3);
+        if (r.usage) st.credits = { remaining: r.usage.remaining, used: r.usage.used, last: r.usage.last, at: now };
+        if (r.error) {
+          st.lastError = r.error;
+          console.log('AUTO_SETTLE ' + JSON.stringify({ slot: slot.id, sport: sportKey, error: r.error, remaining: st.credits && st.credits.remaining, used: st.credits && st.credits.used, last: st.credits && st.credits.last }));
+          continue;
         }
+        const events = r.events || [];
+        console.log('AUTO_SETTLE ' + JSON.stringify({ slot: slot.id, sport: sportKey, fetched: events.length, remaining: st.credits && st.credits.remaining, used: st.credits && st.credits.used, last: st.credits && st.credits.last }));
         const scored = new Map();
         for (const ev of events) {
           const p = AutoSettle.parseScoreEvent(ev);
@@ -1382,8 +1380,8 @@ function open(file = 'data.db') {
         for (const ev of evs) {
           const p = scored.get(String(ev.event_id));
           if (!p) continue;
-          const r = applyScoreToEvent(ev.event_id, p.homeScore, p.awayScore, sportKey);
-          settled += r.settled + r.pushed;
+          const out = applyScoreToEvent(ev.event_id, p.homeScore, p.awayScore, sportKey);
+          settled += out.settled + out.pushed;
         }
       }
       st.lastSettled = settled;
