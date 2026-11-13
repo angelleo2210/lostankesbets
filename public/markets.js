@@ -103,6 +103,18 @@
     now = now == null ? Date.now() : now;
     return (groups || []).slice().sort((a, b) => compareByStart(groupStartMeta(a, now), groupStartMeta(b, now), now));
   }
-  const api = { SAME_EVENT_NOTE, hasSameEvent, NAMES, validate, threshold, label, sameEventError, legOk, BUCKETS, eventBucket, eventBucketLabel, startMs, compareByStart, sortLinesByStart, sortGroupsByStart };
+  // Admin settlement: earliest start first (already started before upcoming); no start time last.
+  function compareBySoonestStart(a, b) {
+    const ta = startMs(a), tb = startMs(b);
+    if (ta == null && tb == null) return ((a && a.id) || 0) - ((b && b.id) || 0);
+    if (ta == null) return 1;
+    if (tb == null) return -1;
+    return (ta - tb) || ((a && a.id) || 0) - ((b && b.id) || 0);
+  }
+  function sortGroupsBySoonestStart(groups, now) {
+    now = now == null ? Date.now() : now;
+    return (groups || []).slice().sort((a, b) => compareBySoonestStart(groupStartMeta(a, now), groupStartMeta(b, now)));
+  }
+  const api = { SAME_EVENT_NOTE, hasSameEvent, NAMES, validate, threshold, label, sameEventError, legOk, BUCKETS, eventBucket, eventBucketLabel, startMs, compareByStart, sortLinesByStart, sortGroupsByStart, compareBySoonestStart, sortGroupsBySoonestStart };
   if (typeof module !== 'undefined') module.exports = api; else root.Markets = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -773,6 +773,27 @@ function open(file = 'data.db') {
         api._parlayLegs(l.id, null); api.refreshRanks();
       });
     },
+    batchSettle(actions) {
+      if (!Array.isArray(actions) || !actions.length) err('No hay cambios para aplicar');
+      if (actions.length > 200) err('Demasiados cambios a la vez');
+      const results = [];
+      for (const raw of actions) {
+        const id = Number(raw && raw.id);
+        const action = raw && raw.action;
+        try {
+          if (!Number.isFinite(id) || id <= 0) err('Línea inválida');
+          if (action === 'settle') api.settleLine(id, raw.optionId);
+          else if (action === 'push') api.pushLine(id);
+          else if (action === 'cancel') api.cancelLine(id);
+          else err('Acción no válida');
+          results.push({ id, action, ok: true });
+        } catch (e) {
+          if (!e || !e.user) throw e;
+          results.push({ id, action, ok: false, error: e.message });
+        }
+      }
+      return { results };
+    },
     myBets: (uid, t = Date.now()) => {
       const rows = db.prepare('SELECT b.*, l.title, l.kind, l.home, l.away, l.starts, l.status AS line_status, o.label FROM bets b JOIN lines l ON l.id=b.line_id JOIN options o ON o.id=b.option_id WHERE b.user_id=? ORDER BY b.id DESC').all(uid);
       return rows.map(b => ({ ...b, cancellable: b.status === 'open' && ['open','closed'].includes(b.line_status) && !hasStarted(b, t), repeatNoPoints: isRepeatNoPoints(uid, 'bet', b, b.sel_key || betSelKey(b.line_id, b.option_id)) }));

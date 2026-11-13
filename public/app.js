@@ -1,6 +1,11 @@
 const $ = s => document.querySelector(s); const A = $('#app');
 let token = localStorage.token, me = null, tab = 'lineas', boleto = [], boletoStake = '', oddsSearch = null, oddsPicked = [];
 let lineFilter = localStorage.ltbLineFilter || 'all';
+let adminSettleFilter = localStorage.ltbAdminSettleFilter || 'all';
+let settlePending = {};
+let settleApplySummary = '';
+let keepAdminScroll = null;
+let settleUnloadBound = false;
 let marketTarget = null;
 const dec = o => o > 0 ? 1 + o / 100 : 1 + 100 / -o; const toAm = d => d >= 2 ? Math.round((d - 1) * 100) : Math.round(-100 / (d - 1));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -42,8 +47,15 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
   const tabs = [['lineas', 'Líneas'], ['reales', 'Reales'], ['mias', 'Mis apuestas'], ['tabla', 'Tabla'], ['juegos', 'Retos' + (me.retosPend ? ` (${me.retosPend})` : '')], ['banco', 'Banco'], ['perfil', 'Mi perfil']].concat(me.is_admin ? [['admin', 'Admin']] : []);
   A.innerHTML = `${coverBanner(me)}${bankBanner(me.bank)}<nav>${tabs.map(([k, v]) => `<button class="${k === tab ? '' : 'alt'}" data-t="${k}">${v}</button>`).join('')}</nav>
   <div id="bono" class="bono"></div><p id="msg" class="err"></p><div id="body"></div><button class="alt" id="out">Salir</button>`;
-  A.querySelectorAll('nav button').forEach(b => b.onclick = () => { tab = b.dataset.t; render(); });
-  $('#out').onclick = () => { localStorage.removeItem('token'); token = null; start(); };
+  A.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+    const next = b.dataset.t;
+    if (tab === 'admin' && next !== 'admin' && Object.keys(settlePending).length && !confirm('Tienes liquidaciones marcadas sin aprobar. ¿Salir de Admin? Si vuelves en esta sesión, las marcas se conservan.')) return;
+    tab = next; render();
+  });
+  $('#out').onclick = () => {
+    if (Object.keys(settlePending).length && !confirm('Tienes liquidaciones marcadas sin aprobar. Si sales, se pierden. ¿Cerrar sesión?')) return;
+    localStorage.removeItem('token'); token = null; start();
+  };
   const B = $('#body'); bonusBar();
   try {
   if (tab === 'lineas') { const ls = await api('/lines'); const shown = linesInFilter(ls);
@@ -222,8 +234,13 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
     const sv = $('#sv'); if (sv) sv.onclick = async () => { try { const dn = $('#dn'); await api('/profile', { avatar: av, display_name: dn ? dn.value : '', facialHair: 'ninguno', cosmetics: cos, avatarCfg: acfg }); render(); } catch (e) { flash(e.message); } }; }
   if (tab === 'juegos') await (gameSel === 'rps' ? gamesView(B) : gameSel === 'pen' ? penView(B) : gameSel === 'bb' ? bbView(B) : gameSel === 'tc' ? tcView(B) : gameSel === 'roulette' ? RouletteUI.view(B, { api, esc, fmt, flash, me, token, onBack: () => { gameSel = null; render(); } }) : retosMenu(B));
   if (tab === 'admin') await adminView(B);
+  if (tab === 'admin' && keepAdminScroll != null) {
+    const y = keepAdminScroll; keepAdminScroll = null;
+    requestAnimationFrame(() => window.scrollTo(0, y));
+  }
   } catch (e) { flash(e.message); }
 }
+
 // Mis apuestas: singles + parlays merged; pending (open) first, then the rest; each group newest first (ts, else created). Ties: higher id, parlay before single.
 function betTime(x) { return Number.isFinite(Number(x.ts)) && x.ts != null ? Number(x.ts) : (Date.parse(String(x.created || '').replace(' ', 'T') + 'Z') || 0) * 1000; }
 function newestFirst(parlays, bets) { return [...(parlays || []).map(v => ({ type: 'p', v })), ...(bets || []).map(v => ({ type: 'b', v }))].sort((a, b) => (b.v.status === 'open') - (a.v.status === 'open') || betTime(b.v) - betTime(a.v) || b.v.id - a.v.id || (a.type === 'p' ? -1 : 1)); }
@@ -265,10 +282,10 @@ function lineSportChips(ls) {
   const chips = [['all', 'Todos']].concat(Markets.BUCKETS.filter(([k]) => counts[k]));
   return `<div class="chips depts line-sports" role="tablist" aria-label="Filtrar por deporte">${chips.map(([k, lab]) => `<button type="button" class="chip ${lineFilter === k ? 'on' : 'alt'}" data-line-sport="${k}" role="tab" aria-selected="${lineFilter === k}">${esc(lab)} (${counts[k] || 0})</button>`).join('')}</div>`;
 }
-function linesInFilter(ls) {
-  if (lineFilter === 'all') return ls;
+function linesInFilter(ls, filter = lineFilter) {
+  if (filter === 'all') return ls;
   const keep = new Set();
-  for (const g of linesByEvent(ls)) if (eventGroupBucket(g) === lineFilter) for (const l of g) keep.add(l);
+  for (const g of linesByEvent(ls)) if (eventGroupBucket(g) === filter) for (const l of g) keep.add(l);
   return ls.filter(l => keep.has(l));
 }
 function bindLineFilter() {
@@ -431,10 +448,9 @@ async function adminView(B) {
   <div id="propInputs" style="display:none"><input id="propTitle" placeholder="Título del prop (ej: Aaron Judge 1.5+ hits)" maxlength="120">
   <div id="propOpts"></div><button type="button" class="alt" id="propAddOpt">+ Opción</button></div>
   <p class="small" id="existingHelp">Hándicap: el visitante recibe el umbral opuesto. Total: Over y Under usan el mismo umbral.</p><button id="existingAdd">Agregar mercado al partido</button></div>
-  <div class="card"><h2>Liquidar / cerrar</h2>${ls.map(l => `<div class="card"><b>${esc(vsTitle(l.title, l.home, l.away))}${l.market === 'props' ? ' · ' + esc(l.prop_title || 'Prop') : l.market ? " · " + Markets.NAMES[l.market] : ""}</b> <span class="small">(${l.status === 'open' ? 'abierta' : 'cerrada'})</span>
-   ${l.status === 'open' ? `<button class="alt" data-close="${l.id}">Cerrar apuestas</button>` : ''}
-   <select id="w${l.id}">${l.options.map(o => `<option value="${o.id}">${esc(o.label)} ${od(o.odds)}</option>`).join('')}</select>
-   <div class="row"><button data-settle="${l.id}">Ganó esta</button>${["spreads","totals"].includes(l.market) && l.options.every(o => Number.isInteger(o.point)) ? `<button class="alt" data-push="${l.id}">Push: empate exacto / devolver</button>` : ""}<button class="red" data-cancel="${l.id}">Cancelar y devolver</button>${l.market === 'props' ? `<button class="alt" data-remove-prop="${l.id}">Quitar prop (sin apuestas)</button>` : ''}</div></div>`).join('') || 'Nada pendiente.'}</div>
+  <div class="card" id="settleBox"><h2>Liquidar / cerrar</h2>
+  <p class="small">Organizado como en Líneas. Marca el ganador, un push o una cancelación; nada se liquida hasta que apruebes los cambios.</p>
+  ${settleSection(ls)}</div>
   <div class="card"><h2>Recargar saldo</h2><select id="tu">${us.map(u => `<option value="${u.id}">${esc((u.avatar ? u.avatar + ' ' : '') + (u.display_name || u.username))} · 🪙 ${fmt(u.coins)}</option>`).join('')}</select>
    <input id="ta" type="number" min="1" max="10000000" step="1" placeholder="Monto (máx 10.000.000)"><button id="tgo">Recargar</button>
    ${tps.length ? '<div class="small" style="margin-top:6px">Recientes</div>' + tps.map(t => `<div class="small">${esc(new Date(t.created + 'Z').toLocaleString('es-US'))} · ${who(t)} +${fmt(t.amount)} (por ${esc(t.admin)})</div>`).join('') : ''}</div>
@@ -485,14 +501,10 @@ async function adminView(B) {
     if ($('#emt').checked) markets.push({ key: 'totals', options: [{ label: 'Over', point: num('etp'), odds: num('eto') }, { label: 'Under', point: num('etp'), odds: num('etuo') }] });
     return api('/admin/events', { title: $('#et').value, home, away, unit: $('#eu').value, sport: $('#esport').value, starts: $('#estart').value ? new Date($('#estart').value).toISOString() : null, markets });
   });
-  act('[data-push]', b => confirm('¿Resultado exactamente igual al umbral? Push solo de este mercado: devolver simples y anular patas de parlay.') && api(`/admin/lines/${b.dataset.push}/push`, {}));
-  act('[data-close]', b => api(`/admin/lines/${b.dataset.close}/close`, {}));
-  act('[data-settle]', b => confirm('¿Liquidar esta línea?') && api(`/admin/lines/${b.dataset.settle}/settle`, { optionId: Number($('#w' + b.dataset.settle).value) }));
-  act('[data-cancel]', b => confirm('¿Cancelar y devolver monedas?') && api(`/admin/lines/${b.dataset.cancel}/cancel`, {}));
-  act('[data-remove-prop]', b => confirm('¿Quitar este prop? Solo funciona si nadie apostó.') && api(`/admin/lines/${b.dataset.removeProp}/remove-prop`, {}));
   act('#tgo', () => { const n = Number($('#ta').value); return confirm(`¿Recargar ${fmt(n)} monedas?`) && api('/admin/topup', { userId: Number($('#tu').value), amount: n }); });
   act('#inv', () => api('/admin/invites', {}));
   bindOddsAdmin();
+  bindSettleSection(ls);
 }
 
 const ODDS_LEAGUES = [['soccer_epl','Premier League'],['soccer_spain_la_liga','LaLiga'],['soccer_italy_serie_a','Serie A'],['soccer_germany_bundesliga','Bundesliga'],['soccer_uefa_champs_league','Champions League'],['basketball_nba','NBA'],['baseball_mlb','MLB'],['mma_mixed_martial_arts','UFC (MMA)'],['icehockey_nhl','NHL'],['soccer_uefa_nations_league','UEFA Nations League'],['soccer_fifa_world_cup_qualifiers_europe','Eliminatorias Mundial (Europa)'],['soccer_fifa_world_cup_qualifiers_south_america','Eliminatorias Mundial (Sudamérica)']];
@@ -501,6 +513,141 @@ const etWhen = iso => {
   if (isNaN(d)) return '';
   return d.toLocaleString('es-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + ' ET';
 };
+function settlePendingCount() { return Object.keys(settlePending).length; }
+function settlePendingLabel(p) {
+  if (!p) return '';
+  if (p.action === 'push') return 'Push: empate exacto / devolver';
+  if (p.action === 'cancel') return 'Cancelar y devolver';
+  return p.label ? 'Ganó ' + p.label : 'Ganador marcado';
+}
+function adminSettleChips(ls) {
+  const groups = Markets.sortGroupsBySoonestStart(linesByEvent(ls));
+  const counts = { all: groups.length };
+  for (const g of groups) { const b = eventGroupBucket(g); counts[b] = (counts[b] || 0) + 1; }
+  if (adminSettleFilter !== 'all' && !counts[adminSettleFilter]) adminSettleFilter = 'all';
+  const chips = [['all', 'Todos']].concat(Markets.BUCKETS.filter(([k]) => counts[k]));
+  return `<div class="chips depts line-sports" id="adminSettleChips" role="tablist" aria-label="Filtrar liquidación por deporte">${chips.map(([k, lab]) => `<button type="button" class="chip ${adminSettleFilter === k ? 'on' : 'alt'}" data-admin-sport="${k}" role="tab" aria-selected="${adminSettleFilter === k}">${esc(lab)} (${counts[k] || 0})</button>`).join('')}</div>`;
+}
+function settleMarketRow(l) {
+  const p = settlePending[l.id];
+  const canPush = ['spreads', 'totals'].includes(l.market) && (l.options || []).every(o => Number.isInteger(o.point));
+  const sel = p && p.action === 'settle' ? Number(p.optionId) : null;
+  const name = l.market === 'props' ? (l.prop_title || 'Prop') : (Markets.NAMES[l.market || 'h2h'] || 'Ganador');
+  return `<div class="settle-mkt${p ? ' settle-pending' : ''}" data-settle-line="${l.id}">
+    <div><b>${esc(name)}</b> <span class="small">(${l.status === 'open' ? 'abierta' : 'cerrada'})</span>${p ? `<span class="small settle-mark">Marcado: ${esc(settlePendingLabel(p))}</span>` : ''}</div>
+    ${l.status === 'open' ? `<button type="button" class="alt" data-close="${l.id}">Cerrar apuestas</button>` : ''}
+    <select id="w${l.id}">${(l.options || []).map(o => `<option value="${o.id}"${sel === o.id ? ' selected' : ''}>${esc(o.label)} ${od(o.odds)}</option>`).join('')}</select>
+    <div class="row"><button type="button" data-settle="${l.id}">Ganó esta</button>${canPush ? `<button type="button" class="alt" data-push="${l.id}">Push: empate exacto / devolver</button>` : ''}<button type="button" class="red" data-cancel="${l.id}">Cancelar y devolver</button>${p ? `<button type="button" class="alt" data-settle-undo="${l.id}">Quitar marca</button>` : ''}${l.market === 'props' ? `<button type="button" class="alt" data-remove-prop="${l.id}">Quitar prop (sin apuestas)</button>` : ''}</div>
+  </div>`;
+}
+function adminSettleCards(ls) {
+  let groups = Markets.sortGroupsBySoonestStart(linesByEvent(ls));
+  if (adminSettleFilter !== 'all') groups = groups.filter(g => eventGroupBucket(g) === adminSettleFilter);
+  if (!groups.length) return '<div class="small">No hay líneas en esta categoría.</div>';
+  return groups.map(group => {
+    const base = group.find(l => l.home) || group[0];
+    const featured = ['h2h', 'spreads', 'totals'].map(k => group.find(l => (l.market || 'h2h') === k)).filter(Boolean);
+    const props = group.filter(l => l.market === 'props');
+    const rest = group.filter(l => !featured.includes(l) && l.market !== 'props');
+    const started = group.some(l => l.started || (l.starts && Date.now() >= Date.parse(l.starts)));
+    const when = base.starts ? etWhen(base.starts) : '';
+    return `<div class="card settle-ev"><div class="line-hd"><h2>${esc(vsTitle(base.title, base.home, base.away))}</h2><div class="small">${base.kind === 'real' ? 'Real · ' : ''}${started ? 'Empezado' : (when ? 'Próximo' : '')}${when ? ' · ' + when : ''}</div></div>${[...featured, ...rest, ...props].map(settleMarketRow).join('')}</div>`;
+  }).join('');
+}
+function settleBarHtml() {
+  const n = settlePendingCount();
+  const sum = settleApplySummary ? `<div class="settle-summary${/error|Error|No se aplicó/i.test(settleApplySummary) && !/^Se aplicaron/.test(settleApplySummary) ? ' err' : ''}">${esc(settleApplySummary)}</div>` : '';
+  return `<div class="settle-bar" id="settleBar"${n ? '' : ' hidden'}><button type="button" id="settleApply">Aprobar cambios (${n})</button>${sum}</div>`;
+}
+function settleSection(ls) {
+  return (ls.length ? adminSettleChips(ls) + `<div id="settleList">${adminSettleCards(ls)}</div>` : '<div class="small">Nada pendiente.</div>') + settleBarHtml();
+}
+function paintSettleSection(ls) {
+  const box = $('#settleBox');
+  if (box) {
+    const head = box.querySelector('h2');
+    const hint = box.querySelector('p.small');
+    box.innerHTML = (head ? head.outerHTML : '<h2>Liquidar / cerrar</h2>') + (hint ? hint.outerHTML : '') + settleSection(ls);
+  }
+  bindSettleSection(ls);
+}
+function markSettlePending(id, action, line) {
+  const sel = $('#w' + id);
+  if (action === 'settle') {
+    const opt = (line.options || []).find(o => o.id === Number(sel && sel.value));
+    if (!opt) return flash('Elige el ganador');
+    settlePending[id] = { action, optionId: opt.id, label: `${opt.label} ${od(opt.odds)}` };
+  } else settlePending[id] = { action };
+  settleApplySummary = '';
+}
+function bindSettleSection(ls) {
+  const byId = Object.fromEntries((ls || []).map(l => [String(l.id), l]));
+  const paint = () => paintSettleSection(ls);
+  document.querySelectorAll('[data-admin-sport]').forEach(b => b.onclick = () => {
+    adminSettleFilter = b.dataset.adminSport;
+    try { localStorage.ltbAdminSettleFilter = adminSettleFilter; } catch {}
+    paint();
+  });
+  document.querySelectorAll('[data-settle]').forEach(b => b.onclick = () => {
+    const line = byId[b.dataset.settle]; if (!line) return;
+    markSettlePending(Number(b.dataset.settle), 'settle', line);
+    paint();
+  });
+  document.querySelectorAll('[data-push]').forEach(b => b.onclick = () => {
+    markSettlePending(Number(b.dataset.push), 'push');
+    paint();
+  });
+  document.querySelectorAll('[data-cancel]').forEach(b => b.onclick = () => {
+    markSettlePending(Number(b.dataset.cancel), 'cancel');
+    paint();
+  });
+  document.querySelectorAll('[data-settle-undo]').forEach(b => b.onclick = () => {
+    delete settlePending[Number(b.dataset.settleUndo)];
+    settleApplySummary = '';
+    paint();
+  });
+  document.querySelectorAll('[data-settle-line] select').forEach(sel => sel.onchange = () => {
+    const id = Number(sel.id.slice(1));
+    const p = settlePending[id], line = byId[id];
+    if (p && p.action === 'settle' && line) { markSettlePending(id, 'settle', line); paint(); }
+  });
+  document.querySelectorAll('[data-close]').forEach(b => b.onclick = async () => {
+    try { await api(`/admin/lines/${b.dataset.close}/close`, {}); keepAdminScroll = window.scrollY; await render(); }
+    catch (e) { flash(e.message); }
+  });
+  document.querySelectorAll('[data-remove-prop]').forEach(b => b.onclick = async () => {
+    if (!confirm('¿Quitar este prop? Solo funciona si nadie apostó.')) return;
+    try { await api(`/admin/lines/${b.dataset.removeProp}/remove-prop`, {}); keepAdminScroll = window.scrollY; await render(); }
+    catch (e) { flash(e.message); }
+  });
+  const apply = $('#settleApply');
+  if (apply) apply.onclick = async () => {
+    const actions = Object.entries(settlePending).map(([id, p]) => ({ id: Number(id), action: p.action, optionId: p.optionId }));
+    if (!actions.length) return;
+    const n = actions.length;
+    if (!confirm(`¿Aplicar ${n} cambio${n === 1 ? '' : 's'}? Esto paga o devuelve las apuestas de las líneas marcadas.`)) return;
+    apply.disabled = true;
+    try {
+      const r = await api('/admin/settle-batch', { actions });
+      const results = r.results || [];
+      const ok = results.filter(x => x.ok).length;
+      const bad = results.filter(x => !x.ok);
+      for (const x of results) if (x.ok) delete settlePending[x.id];
+      settleApplySummary = (ok ? `Se aplicaron ${ok} cambio${ok === 1 ? '' : 's'}.` : 'No se aplicó ningún cambio.') + (bad.length ? ' Errores: ' + bad.map(x => `#${x.id}: ${x.error}`).join(' · ') : '');
+      keepAdminScroll = window.scrollY;
+      await render();
+      flash(settleApplySummary);
+    } catch (e) { apply.disabled = false; flash(e.message); }
+  };
+  if (!settleUnloadBound) {
+    settleUnloadBound = true;
+    addEventListener('beforeunload', e => {
+      if (!settlePendingCount()) return;
+      e.preventDefault();
+      e.returnValue = '';
+    });
+  }
+}
 function oddsAdminCard(st, settle) {
   const last = st && st.configured && st.last4 ? `Clave guardada ••••${esc(st.last4)}` : 'No hay una clave guardada.';
   const src = st && st.source === 'env' ? ' Se está usando la clave del servidor. Puedes guardar otra aquí; eliminar solo quita la que está en la app.' : (st && st.source === 'stored' ? ' Puedes reemplazarla o eliminarla.' : ' Si el servidor ya tiene una, se usará como respaldo.');

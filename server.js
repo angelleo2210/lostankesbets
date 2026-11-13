@@ -132,6 +132,7 @@ app.post('/api/admin/lines', h(r => { admin(r); return { id: C.createLine(r.body
 app.post('/api/admin/lines/:id/close', h(r => { admin(r); C.closeLine(Number(r.params.id)); }));
 app.post('/api/admin/lines/:id/settle', h(r => { admin(r); C.settleLine(r.params.id, r.body.optionId); }));
 app.post('/api/admin/lines/:id/cancel', h(r => { admin(r); C.cancelLine(r.params.id); }));
+app.post('/api/admin/settle-batch', h(r => { admin(r); return C.batchSettle((r.body && r.body.actions) || []); }));
 app.get('/api/admin/users', h(r => { admin(r); return C.users(); }));
 app.get('/api/admin/topups', h(r => { admin(r); return C.topups(); }));
 app.post('/api/admin/topup', h(r => { const a = admin(r); return C.topup(a.id, r.body.userId, r.body.amount); }));
