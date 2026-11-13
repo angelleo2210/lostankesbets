@@ -39,7 +39,7 @@ t('admin UI groups by Líneas categories, pending marks, approve bar; never Fict
   const html = fs.readFileSync(__dirname + '/public/index.html', 'utf8');
   assert.ok(html.includes('settle-bar') && html.includes('settle-pending'));
   const sw = fs.readFileSync(__dirname + '/public/sw.js', 'utf8');
-  assert.ok(sw.includes('ltb-shell-v28'));
+  assert.ok(sw.includes('ltb-shell-v29'));
   const server = fs.readFileSync(__dirname + '/server.js', 'utf8');
   const line = server.split('\n').find(l => l.includes('/api/admin/settle-batch') && l.includes('app.post'));
   assert.ok(line && line.includes('admin(r)'), 'batch route is admin-only');

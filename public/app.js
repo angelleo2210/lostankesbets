@@ -103,7 +103,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
           <div class="hrb-row"><div class="hrb-left"><span class="hrb-tag">Simple</span><span class="hrb-name">${esc(vsTitle(b.title, b.home, b.away))}</span></div><span class="hrb-odds">${od(b.odds)}</span></div>
           <div class="hrb-sel">${esc(b.label)}</div>
           <div class="hrb-money"><div><span class="k">Apostado</span><b>${fmt(b.stake)}</b></div><div><span class="k">${m.payK}</span><b>${money(b)}</b></div></div>
-          ${b.repeatNoPoints ? '<div class="hrb-dup small">Apuesta repetida: no suma puntos</div>' : ''}
+          ${b.rankQualifies === false ? '<div class="hrb-dup small">No suma puntos al ranking (cuota menor a -150)</div>' : b.repeatNoPoints ? '<div class="hrb-dup small">Apuesta repetida: no suma puntos</div>' : ''}
           <div class="hrb-foot"><button type="button" class="hrb-id" data-copy="${b.id}">#${b.id}</button><button type="button" class="hrb-share" data-sharebtn="b-${b.id}">Compartir</button>${b.cancellable ? `<button type="button" class="alt hrb-cancel" data-cancel-bet="${b.id}">Cancelar apuesta</button>` : ''}</div>
         </div></article>`;
     };
@@ -120,7 +120,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
           <div class="hrb-row"><div class="hrb-left"><span class="hrb-tag">Parlay</span><span class="hrb-name">${n}-Pick Parlay</span></div><span class="hrb-odds">${p.odds ? od(p.odds) : ''}</span></div>
           <div class="hrb-sel">${esc(picks)}</div>${p.pricing_note ? `<details class="odds-info small"><summary>Cuota estimada · Sobre la cuota</summary><div>${esc(p.pricing_note)}</div></details>` : ''}
           <div class="hrb-money"><div><span class="k">Apostado</span><b>${fmt(p.stake)}</b></div><div><span class="k">${m.payK}</span><b>${money(p)}</b></div></div>
-          ${p.repeatNoPoints ? '<div class="hrb-dup small">Apuesta repetida: no suma puntos</div>' : ''}
+          ${p.rankQualifies === false ? '<div class="hrb-dup small">No suma puntos al ranking (cuota menor a -150)</div>' : p.repeatNoPoints ? '<div class="hrb-dup small">Apuesta repetida: no suma puntos</div>' : ''}
           <div class="hrb-foot"><button type="button" class="hrb-id" data-copy="${p.id}">#${p.id}</button><button type="button" class="hrb-share" data-sharebtn="p-${p.id}">Compartir</button>${p.cancellable ? `<button type="button" class="alt hrb-cancel" data-cancel-parlay="${p.id}">Cancelar apuesta</button>` : ''}</div>
           <details class="hrb-details"><summary>Ver selecciones</summary><div class="hrb-legs">${legs}</div></details>
         </div></article>`;
@@ -206,7 +206,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
       </div>
       <div class="chips depts tb-filters">${periods.map(([k, lab]) => `<button class="chip ${tablaPeriod === k ? 'on' : 'alt'}" data-tp="${k}">${lab}</button>`).join('')}</div>
       <div class="tb-list card">${rowHtml || '<div class="small">Nadie en el ranking aún.</div>'}</div>
-      <div class="small">Orden por puntos: +3 por victoria, 0 por derrota, −7 por préstamo, −20 con bancarrota activa (1 mes). Podio: los 3 con más puntos (empate: mejor % de victoria, luego más dinero). Stats liquidadas (parlay = 1). Racha: 🔥 3 · 🔥🔥 5+ · 🧊 2 · 🧊🧊 3+.</div>
+      <div class="small">Orden por puntos: +3 por victoria, 0 por derrota, −7 por préstamo, −20 con bancarrota activa (1 mes). Desde 21 puntos, una victoria solo suma +3 si la cuota (o la combinada del parlay) es -150 o mejor. Podio: los 3 con más puntos (empate: mejor % de victoria, luego más dinero). Stats liquidadas (parlay = 1). Racha: 🔥 3 · 🔥🔥 5+ · 🧊 2 · 🧊🧊 3+.</div>
     </div>`;
     B.querySelectorAll('[data-tp]').forEach(b => b.onclick = () => { tablaPeriod = b.dataset.tp; render(); });
   }
@@ -364,12 +364,19 @@ function lineCard(l) {
   return `<div class="card line"><div class="line-hd"><h2>${esc(vsTitle(l.title, l.home, l.away))}</h2><div class="small">${l.kind === 'real' ? 'Real · ' : ''}${open ? 'Abierta' : started ? '🔒 Partido empezado' : 'Cerrada'}${l.starts ? ' · ' + new Date(l.starts).toLocaleString('es-US') : ''}</div></div><div class="line-grid">${rows}</div>${!l.market ? `<div class="small">Esta línea antigua solo tiene Ganador. Hándicap y Total necesitan sus umbrales y cuotas.</div>${me?.is_admin && open ? `<button type="button" class="alt" data-market-config="${l.id}">Agregar hándicap / total</button>` : ''}` : ''}</div>`;
 }
 function slipQuote(b) { const ev = {}; for (const x of b) if (x.event) ev[x.event] = x.lines || []; return Sgp.quote(b, ev); }
+function rankSlipNotice(american) {
+  if (!me || me.points == null || me.points < 21) return '';
+  const ok = Number(american) >= -150;
+  return ok
+    ? '<div class="slip-rank ok">Esta apuesta califica para el ranking (+3 pts)</div>'
+    : '<div class="slip-rank no">Esta apuesta no suma puntos al ranking: desde 21 puntos la cuota debe ser -150 o mejor</div>';
+}
 function boletoCard() {
   if (!boleto.length) return '<div class="card slip empty"><div class="small">Toca una cuota para marcarla en azul. Luego escribe el monto aquí abajo.</div></div>';
   const n = boleto.length, q = n > 1 ? slipQuote(boleto) : {}, d = q.dec || boleto.reduce((m, b) => m * dec(b.odds), 1);
   const kind = n === 1 ? 'Simple' : 'Parlay';
   return `<div class="card slip"><h2>🎟️ Boleto · ${kind} (${n}/15)</h2><div class="slip-list">${boleto.map(b => `<div class="slip-row"><span class="small">${esc(vsTitle(b.title, b.home, b.away))}: <b>${esc(b.label)} ${od(b.odds)}</b></span><button type="button" class="alt slip-x" data-rm="${b.id}" aria-label="Quitar">✕</button></div>`).join('')}</div>
-  <div class="slip-meta">${n === 1 ? 'Cuota' : 'Cuota combinada'} <b>${od(toAm(d))}</b></div>${q.error ? `<div class="slip-warn" style="border:2px solid #d33;background:#fde8e8;color:#600;padding:8px;border-radius:8px;font-weight:600">⛔ ${esc(q.error)}</div>` : ''}
+  <div class="slip-meta">${n === 1 ? 'Cuota' : 'Cuota combinada'} <b>${od(toAm(d))}</b></div>${rankSlipNotice(toAm(d))}${q.error ? `<div class="slip-warn" style="border:2px solid #d33;background:#fde8e8;color:#600;padding:8px;border-radius:8px;font-weight:600">⛔ ${esc(q.error)}</div>` : ''}
   <input type="number" min="1" inputmode="numeric" placeholder="Monto a apostar" id="ps" value="${esc(boletoStake)}">
   <div class="small" id="pw">Escribe un monto</div>
   <div class="row"><button type="button" id="pgo">Apostar</button><button type="button" class="alt" id="pclr">Vaciar</button></div></div>`;
