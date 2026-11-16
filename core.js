@@ -634,6 +634,54 @@ function open(file = 'data.db') {
         return api.createLine(source.title, options, { kind: source.kind, event_id: eventId, starts: source.starts, market, prop_title: propTitle, home: home || source.home, away: away || source.away, unit: source.unit || String(unit || ''), sport: source.sport, sport_key: source.sport_key || null });
       });
     },
+    // Admin edit of an existing market (local or imported). Only odds and, for Hándicap/Total, the threshold.
+    // Bets and parlay legs store their own odds, so existing tickets keep the price they were placed at.
+    // The threshold cannot change once anyone has a bet/leg on the line (it would change what they already bought).
+    lineBetCounts() {
+      const out = {};
+      for (const r of db.prepare("SELECT line_id, COUNT(*) n FROM bets GROUP BY line_id").all()) out[r.line_id] = (out[r.line_id] || 0) + r.n;
+      for (const r of db.prepare("SELECT line_id, COUNT(*) n FROM parlay_legs GROUP BY line_id").all()) out[r.line_id] = (out[r.line_id] || 0) + r.n;
+      return out;
+    },
+    editLineMarket(adminId, lineId, edits) {
+      return tx(() => {
+        const a = db.prepare('SELECT is_admin FROM users WHERE id=?').get(adminId); if (!a || !a.is_admin) err('Solo el administrador');
+        const l = db.prepare('SELECT * FROM lines WHERE id=?').get(Number(lineId));
+        if (!l) err('Línea no existe');
+        if (!['open', 'closed'].includes(l.status)) err('Esta línea ya está liquidada o cancelada; no se puede editar');
+        if (!Array.isArray(edits) || !edits.length) err('No hay cambios');
+        const cur = db.prepare('SELECT * FROM options WHERE line_id=? ORDER BY id').all(l.id);
+        const market = l.market || 'h2h';
+        const byId = new Map(cur.map(o => [o.id, o]));
+        const seen = new Set();
+        for (const e of edits) { const id = Number(e && e.id); if (!byId.has(id)) err('Opción no pertenece a esta línea'); if (seen.has(id)) err('Opción repetida'); seen.add(id); }
+        if (seen.size !== cur.length) err('Envía todas las opciones del mercado');
+        const merged = cur.map(o => {
+          const e = edits.find(x => Number(x.id) === o.id);
+          const odds = Number(e.odds);
+          if (!Number.isInteger(odds)) err('Las cuotas deben ser números enteros americanos (ej. -110, +150)');
+          try { profit(100, odds); } catch (x) { err(x.message); }
+          let point = o.point;
+          if (market === 'spreads' || market === 'totals') {
+            if (e.point === undefined || e.point === null || e.point === '') err('Falta el umbral');
+            point = Number(e.point);
+            if (!Number.isFinite(point)) err('Umbral inválido');
+          }
+          return { id: o.id, label: o.outcome || o.label, odds, point: point == null ? undefined : point, prev: o };
+        });
+        if (l.market) { try { Markets.validate(market, merged.map(m => ({ label: m.label, odds: m.odds, point: m.point })), l.home, l.away, l.prop_title); } catch (x) { err(x.message); } }
+        const pointChanged = merged.some(m => (market === 'spreads' || market === 'totals') && m.point !== m.prev.point);
+        const oddsChanged = merged.some(m => m.odds !== m.prev.odds);
+        if (!pointChanged && !oddsChanged) return { ok: true, changed: false, bets: 0 };
+        const used = api.lineBetCounts()[l.id] || 0;
+        if (pointChanged && used) err(`Esta línea ya tiene ${used} apuesta${used === 1 ? '' : 's'}: no se puede cambiar el umbral (cambiaría lo que ya apostaron). Puedes cambiar las cuotas, o cancelar y devolver el mercado.`);
+        for (const m of merged) {
+          const label = market !== 'spreads' && market !== 'totals' ? m.prev.label : Markets.label(market, { label: m.label, outcome: m.label, point: m.point }, l.prop_title);
+          db.prepare('UPDATE options SET odds=?, point=?, label=? WHERE id=? AND line_id=?').run(m.odds, market === 'spreads' || market === 'totals' ? m.point : m.prev.point, label, m.id, l.id);
+        }
+        return { ok: true, changed: true, bets: used };
+      });
+    },
     // Remove a prop only when it has no bets/parlay legs. Otherwise close or void it.
     removeProp(adminId, lineId) {
       return tx(() => {

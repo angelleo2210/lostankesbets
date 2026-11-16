@@ -7,6 +7,7 @@ let settleApplySummary = '';
 let keepAdminScroll = null;
 let settleUnloadBound = false;
 let marketTarget = null;
+let lineBetCounts = {};
 const dec = o => o > 0 ? 1 + o / 100 : 1 + 100 / -o; const toAm = d => d >= 2 ? Math.round((d - 1) * 100) : Math.round(-100 / (d - 1));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = n => Number(n).toLocaleString('es-US'); const od = o => (o > 0 ? '+' : '') + o;
@@ -58,6 +59,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
   };
   const B = $('#body'); bonusBar();
   try {
+  if ((tab === 'lineas' || tab === 'reales') && me?.is_admin) lineBetCounts = await api('/admin/line-bets').catch(() => ({}));
   if (tab === 'lineas') { const ls = await api('/lines'); const shown = linesInFilter(ls);
     B.innerHTML = boletoCard() + (ls.length ? lineSportChips(ls) + (shown.length ? marketCards(shown) : '<div class="card">No hay líneas en esta categoría.</div>') : '<div class="card">No hay líneas abiertas.</div>'); bindBets(ls); bindLineFilter(); }
   if (tab === 'reales') { const sp = await api('/real/sports'); window.realSport = window.realSport || sp.default; const d = await api('/real?sport=' + encodeURIComponent(window.realSport)); const ls = (await api('/lines')).filter(l => l.kind === 'real');
@@ -295,6 +297,16 @@ function bindLineFilter() {
     render();
   });
 }
+function editMarketForms(group) {
+  const forms = group.filter(l => ['open', 'closed'].includes(l.status)).map(l => {
+    const key = l.market || 'h2h', n = (typeof lineBetCounts === 'object' && lineBetCounts[l.id]) || 0;
+    const hasPt = key === 'spreads' || key === 'totals';
+    const rows = l.options.map(o => `<div class="edit-opt"><span class="edit-lab">${esc(o.outcome || o.label)}</span>${hasPt ? `<label class="small">Umbral <input type="number" step="0.5" data-ep="${o.id}" data-ek="${key}" value="${o.point}"${n ? ' disabled title="Ya hay apuestas: el umbral no se puede cambiar"' : ''}></label>` : ''}<label class="small">Cuota <input type="number" step="1" data-eo="${o.id}" value="${o.odds}"></label></div>`).join('');
+    const name = key === 'props' ? esc(l.prop_title || 'Prop') : Markets.NAMES[key];
+    return `<div class="edit-mkt" data-edit-line="${l.id}"><div><b>${name}</b>${n ? ` <span class="small" style="color:#b06d00">${n} apuesta${n === 1 ? '' : 's'}: conservan su cuota original; solo cambian las cuotas nuevas${hasPt ? ' (umbral bloqueado)' : ''}</span>` : ' <span class="small">sin apuestas todavía</span>'}</div>${rows}<button type="button" class="alt" data-edit-save="${l.id}">Guardar cuotas${hasPt && !n ? ' y umbrales' : ''}</button></div>`;
+  }).join('');
+  return forms ? `<details class="market-edit"><summary>Editar cuotas y umbrales</summary>${forms}</details>` : '';
+}
 function marketCards(ls) {
   return linesByEvent(ls).map(group => {
     const base = group.find(l => l.home) || group[0];
@@ -346,8 +358,8 @@ function marketCards(ls) {
         }).join('');
         return `<details class="event-props"><summary>Más mercados (${props.length})</summary><div class="prop-board">${hasOu ? '<div class="prop-board-hd"><span></span><span>OVER</span><span>UNDER</span></div>' : ''}${rows}</div></details>`;
       })() : ''}
-      <div class="market-note small">— No disponible</div>
-      ${me?.is_admin ? `<details class="market-admin"><summary>Configurar mercados</summary><button type="button" class="alt" data-market-config="${(winner || base).id}">Agregar hándicap / total / prop</button>${group.some(l => ['open','closed'].includes(l.status)) ? `<button type="button" class="alt" data-pause="${(winner || base).id}" data-paused="${group.some(l => l.paused) ? 1 : 0}"${started && group.some(l => l.paused) ? ' disabled title="El partido ya empezó: cambia la hora de inicio para reabrir"' : ''}>${group.some(l => l.paused) ? '▶ Reactivar apuestas' : '⏸ Pausar apuestas'}</button>` : ''}<label class="small">Inicio (hora de tu dispositivo): <input type="datetime-local" data-start-in="${(winner || base).id}" value="${base.starts ? toLocalInput(base.starts) : ''}"></label><button type="button" class="alt" data-start="${(winner || base).id}">Guardar inicio</button>${started ? '<div class="small">El partido ya empezó: solo se reabre si guardas una hora de inicio futura. Puedes liquidar normalmente.</div>' : ''}<label class="small">Deporte: <select data-sport="${(winner || base).id}">${[['','Sin especificar'],['soccer','Fútbol'],['hockey','Hockey'],['baseball','Béisbol'],['basketball','Baloncesto'],['mma','MMA'],['other','Otro']].map(([k,n]) => `<option value="${k}"${(base.sport || '') === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label><div class="small">${group.filter(l => l.bookmaker).map(l => `${Markets.NAMES[l.market]}: ${esc(l.bookmaker)}`).join(' · ')}</div></details>` : ''}</div>`;
+      ${(!by.spreads || !by.totals || !winner) ? '<div class="market-note small">— = mercado sin cuota (no cargado)</div>' : ''}
+      ${me?.is_admin ? `<details class="market-admin"><summary>Configurar mercados</summary>${editMarketForms(group)}<button type="button" class="alt" data-market-config="${(winner || base).id}">Agregar hándicap / total / prop</button>${group.some(l => ['open','closed'].includes(l.status)) ? `<button type="button" class="alt" data-pause="${(winner || base).id}" data-paused="${group.some(l => l.paused) ? 1 : 0}"${started && group.some(l => l.paused) ? ' disabled title="El partido ya empezó: cambia la hora de inicio para reabrir"' : ''}>${group.some(l => l.paused) ? '▶ Reactivar apuestas' : '⏸ Pausar apuestas'}</button>` : ''}<label class="small">Inicio (hora de tu dispositivo): <input type="datetime-local" data-start-in="${(winner || base).id}" value="${base.starts ? toLocalInput(base.starts) : ''}"></label><button type="button" class="alt" data-start="${(winner || base).id}">Guardar inicio</button>${started ? '<div class="small">El partido ya empezó: solo se reabre si guardas una hora de inicio futura. Puedes liquidar normalmente.</div>' : ''}<label class="small">Deporte: <select data-sport="${(winner || base).id}">${[['','Sin especificar'],['soccer','Fútbol'],['hockey','Hockey'],['baseball','Béisbol'],['basketball','Baloncesto'],['mma','MMA'],['other','Otro']].map(([k,n]) => `<option value="${k}"${(base.sport || '') === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label><div class="small">${group.filter(l => l.bookmaker).map(l => `${Markets.NAMES[l.market]}: ${esc(l.bookmaker)}`).join(' · ')}</div></details>` : ''}</div>`;
   }).join('');
 }
 function lineCard(l) {
@@ -389,6 +401,17 @@ function bindBets(ls = []) {
   A.querySelectorAll('[data-start]').forEach(b => b.onclick = async () => { const v = A.querySelector(`[data-start-in="${b.dataset.start}"]`).value;
     if (!confirm(v ? `¿Guardar inicio ${new Date(v).toLocaleString('es-US')} (hora de tu dispositivo)? Las apuestas nuevas se cerrarán a esa hora.` : '¿Quitar la hora de inicio? El partido quedará sin cierre automático.')) return;
     try { const r = await api(`/admin/lines/${b.dataset.start}/start`, { starts: v ? new Date(v).toISOString() : null }); if (r.error) throw new Error(r.error); render(); } catch (e) { flash(e.message); } });
+  A.querySelectorAll('[data-ep]').forEach(inp => inp.oninput = () => {
+    const box = inp.closest('[data-edit-line]'), all = [...box.querySelectorAll('[data-ep]')], v = inp.value;
+    if (all.length === 2 && v !== '' && Number.isFinite(Number(v))) { const other = all.find(x => x !== inp); other.value = inp.dataset.ek === 'totals' ? v : String(-Number(v) || 0); }
+  });
+  A.querySelectorAll('[data-edit-save]').forEach(b => b.onclick = async () => {
+    const id = b.dataset.editSave, box = A.querySelector(`[data-edit-line="${id}"]`);
+    const options = [...box.querySelectorAll('[data-eo]')].map(i => { const oid = Number(i.dataset.eo), p = box.querySelector(`[data-ep="${oid}"]`); const o = { id: oid, odds: Number(i.value) }; if (p) o.point = Number(p.value); return o; });
+    if (options.some(o => !Number.isInteger(o.odds) || Math.abs(o.odds) < 100)) return flash('Cuotas americanas enteras: -110, +150… (mínimo 100 en valor absoluto)');
+    if (!confirm('¿Guardar estas cuotas/umbrales? Las apuestas ya hechas conservan su cuota original; solo cambian las nuevas.')) return;
+    try { const r = await api(`/admin/lines/${id}/edit`, { options }); if (r.error) throw new Error(r.error); flash(r.changed === false ? 'Sin cambios' : 'Mercado actualizado'); const y = window.scrollY; await render(); window.scroll(0, y); } catch (e) { flash(e.message); }
+  });
   A.querySelectorAll('[data-market-config]').forEach(b => b.onclick = () => { marketTarget = Number(b.dataset.marketConfig); tab = 'admin'; render(); });
   const payoutHint = () => {
     const el = $('#pw'); if (!el || !boleto.length) return;
