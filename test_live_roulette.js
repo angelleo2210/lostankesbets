@@ -63,7 +63,9 @@ t('number is drawn only after close and never leaked in open state', () => {
   assert.ok(!mid || mid.number == null);
   st = D.livePublicState(a, opens + 40000);
   assert.equal(st.phase, 'spinning');
-  assert.ok(Number.isInteger(st.number) && st.number >= 0 && st.number <= 36);
+  assert.ok(Number.isInteger(st.number) && st.number >= 0 && st.number <= 37);
+  assert.equal(st.wheel, 'american');
+  assert.equal(st.label, R.labelOf(st.number));
   assert.ok(st.color);
   const stored = D.db.prepare('SELECT number FROM live_rounds WHERE id=?').get(st.id).number;
   assert.equal(stored, st.number);
@@ -159,6 +161,35 @@ t('live roulette does not award ranking points; routes and tile stay on Retos �
   const app = fs.readFileSync(__dirname + '/public/app.js', 'utf8');
   assert.ok(app.includes('data-gm="roulette"') && app.includes('/icons/roulette-icon.png') && !app.includes('🎡'));
   assert.ok(!app.includes('data-gm="roulette-live"') && !app.includes('Ruleta en vivo</b>'));
+});
+
+t('new rounds are tagged american; a leftover NULL wheel draws and settles as European 0–36', () => {
+  const { D, a, coins } = mk();
+  const opens = 800 * R.LIVE.ROUND_MS;
+  const id = R.roundIdAt(opens);
+  // Pre-insert a leftover European round (wheel NULL) as production would look mid-switch.
+  D.db.prepare("INSERT INTO live_rounds(id,opens,closes,status) VALUES(?,?,?,'open')").run(id, opens, opens + R.LIVE.BET_MS);
+  const tagged = D.db.prepare('SELECT wheel FROM live_rounds WHERE id=?').get(id);
+  assert.ok(tagged.wheel == null, 'must not backfill existing rounds');
+  D.liveBet(a, [{ type: 'red', amount: 100 }], 'euro_legacy_1', opens + 10);
+  // liveEnsure INSERT OR IGNORE must not stamp american onto the leftover row
+  assert.equal(D.db.prepare('SELECT wheel FROM live_rounds WHERE id=?').get(id).wheel, null);
+  const st = D.livePublicState(a, opens + 40000);
+  assert.equal(st.wheel, 'european');
+  assert.ok(Number.isInteger(st.number) && st.number >= 0 && st.number <= 36);
+  assert.notEqual(st.number, 37);
+  assert.equal(st.label, String(st.number));
+  const expect = R.settle([{ type: 'red', amount: 100, nums: [] }], st.number, 'european');
+  const row = D.db.prepare('SELECT payout FROM live_bets WHERE idem=?').get('euro_legacy_1');
+  assert.equal(row.payout, expect.payout);
+
+  const opens2 = 900 * R.LIVE.ROUND_MS;
+  D.liveBet(a, [{ type: 'straight', nums: [37], amount: 100 }], 'am_new_00', opens2 + 10);
+  const id2 = R.roundIdAt(opens2);
+  assert.equal(D.db.prepare('SELECT wheel FROM live_rounds WHERE id=?').get(id2).wheel, 'american');
+  const st2 = D.livePublicState(a, opens2 + 1000);
+  assert.equal(st2.wheel, 'american');
+  assert.equal(st2.number, null);
 });
 
 console.log(n, 'live roulette tests passed');

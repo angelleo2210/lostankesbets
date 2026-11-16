@@ -144,7 +144,7 @@ t('duplicate rule still awards only 3 points total; non-qualifying unique wins d
   assert.equal(row().wins, 8); // unique selections
 });
 
-t('UI shows live slip notices and ranking help; SW v29', () => {
+t('UI shows live slip notices and ranking help; SW v30', () => {
   const src = fs.readFileSync(__dirname + '/public/app.js', 'utf8');
   assert.ok(src.includes('function rankSlipNotice'));
   assert.ok(src.includes('Esta apuesta califica para el ranking (+3 pts)'));
@@ -155,7 +155,7 @@ t('UI shows live slip notices and ranking help; SW v29', () => {
   assert.ok(src.includes('No suma puntos al ranking (cuota menor a -150)'));
   const html = fs.readFileSync(__dirname + '/public/index.html', 'utf8');
   assert.ok(html.includes('slip-rank') && html.includes('slip-rank.ok') && html.includes('slip-rank.no'));
-  assert.ok(fs.readFileSync(__dirname + '/public/sw.js', 'utf8').includes('ltb-shell-v29'));
+  assert.ok(fs.readFileSync(__dirname + '/public/sw.js', 'utf8').includes('ltb-shell-v30'));
 });
 
 console.log(n, 'rank-odds tests passed');

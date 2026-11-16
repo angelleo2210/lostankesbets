@@ -187,6 +187,7 @@ function open(file = 'data.db') {
     bets TEXT NOT NULL, stake INTEGER NOT NULL, payout INTEGER, ts INTEGER NOT NULL,
     UNIQUE(round_id, user_id, idem));`);
   db.exec('CREATE INDEX IF NOT EXISTS live_bets_round ON live_bets(round_id, id);');
+  if (!db.prepare('PRAGMA table_info(live_rounds)').all().some(col => col.name === 'wheel')) db.exec('ALTER TABLE live_rounds ADD COLUMN wheel TEXT');
   db.exec('CREATE TABLE IF NOT EXISTS app_settings(key TEXT PRIMARY KEY, value TEXT, ts INTEGER)');
 
   // Unprovable pre-migration debt/penalty kept as one older "legacy" bucket (paid first, refunded only when fully paid).
@@ -1065,7 +1066,7 @@ function open(file = 'data.db') {
   const livePhase = (now, t) => Roulette.phaseAt(now, t);
   const liveEnsure = id => {
     const t = liveTimes(id);
-    db.prepare("INSERT OR IGNORE INTO live_rounds(id,opens,closes,status) VALUES(?,?,?,'open')").run(t.id, t.opens, t.closes);
+    db.prepare("INSERT OR IGNORE INTO live_rounds(id,opens,closes,status,wheel) VALUES(?,?,?,'open','american')").run(t.id, t.opens, t.closes);
     return db.prepare('SELECT * FROM live_rounds WHERE id=?').get(t.id);
   };
   const liveRoundBets = id => db.prepare('SELECT * FROM live_bets WHERE round_id=? ORDER BY id').all(id);
@@ -1077,7 +1078,7 @@ function open(file = 'data.db') {
     for (const b of bets) {
       if (b.payout != null) continue;
       const list = typeof b.bets === 'string' ? JSON.parse(b.bets) : b.bets;
-      const r = Roulette.settle(list, row.number);
+      const r = Roulette.settle(list, row.number, Roulette.styleOf(row));
       if (r.payout) db.prepare('UPDATE users SET coins=coins+? WHERE id=?').run(r.payout, b.user_id);
       db.prepare('UPDATE live_bets SET payout=? WHERE id=?').run(r.payout, b.id);
     }
@@ -1103,7 +1104,7 @@ function open(file = 'data.db') {
     const row = db.prepare('SELECT * FROM live_rounds WHERE id=?').get(id);
     if (row.number != null) return row;
     if (row.status === 'settled' || row.status === 'refunded') return row;
-    const n = Roulette.spinNumber();
+    const n = Roulette.spinNumber(Roulette.styleOf(row));
     db.prepare('UPDATE live_rounds SET number=?, color=? WHERE id=? AND number IS NULL').run(n, Roulette.colorOf(n), id);
     return db.prepare('SELECT * FROM live_rounds WHERE id=?').get(id);
   });
@@ -1151,7 +1152,7 @@ function open(file = 'data.db') {
   const liveHistory = (now, limit = 20) => {
     const cur = Roulette.roundIdAt(now);
     return db.prepare("SELECT id,number,color,opens FROM live_rounds WHERE number IS NOT NULL AND id<=? ORDER BY id DESC LIMIT ?").all(cur, limit)
-      .map(r => ({ id: r.id, number: r.number, color: r.color, ts: r.opens }));
+      .map(r => ({ id: r.id, number: r.number, label: Roulette.labelOf(r.number), color: r.color, ts: r.opens }));
   };
   const liveFeed = (roundId, viewerId) => liveRoundBets(roundId).map(b => {
     const list = typeof b.bets === 'string' ? JSON.parse(b.bets) : b.bets;
@@ -1177,7 +1178,8 @@ function open(file = 'data.db') {
     const coins = uid ? db.prepare('SELECT coins FROM users WHERE id=?').get(uid).coins : null;
     return {
       id, phase, now, serverNow: now, opens: t.opens, closes: t.closes, spinEnds: t.spinEnds, ends: t.ends,
-      number, color, status: (row && row.status) || 'open',
+      number, label: number != null ? Roulette.labelOf(number) : null, color, wheel: row ? Roulette.styleOf(row) : 'american',
+      status: (row && row.status) || 'open',
       feed: liveFeed(id, uid), history: liveHistory(now),
       mine, usedStake, usedChips, coins,
       limits: api.ROULETTE

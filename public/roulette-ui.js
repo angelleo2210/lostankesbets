@@ -1,73 +1,91 @@
-// European single-zero roulette UI (display only; result comes from the server).
+// American 0/00 live roulette UI (display only; result comes from the server).
 window.RouletteUI = (() => {
-  const WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
+  const ZERO00 = 37;
+  const WHEEL = [0, 28, 9, 26, 30, 11, 7, 20, 32, 17, 5, 22, 34, 15, 3, 24, 36, 13, 1, ZERO00, 27, 10, 25, 29, 12, 8, 19, 31, 18, 6, 21, 33, 16, 4, 23, 35, 14, 2];
+  const WHEEL_EU = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
   const RED = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
-  const STEP = 360 / 37;
+  const STEP = 360 / 38;
   const CHIPS = [100, 500, 1000, 5000, 10000];
-  const colorOf = n => (n === 0 ? 'green' : RED.has(n) ? 'red' : 'black');
+  const colorOf = n => (n === 0 || n === ZERO00 ? 'green' : RED.has(n) ? 'red' : 'black');
   const colorName = c => (c === 'red' ? 'rojo' : c === 'black' ? 'negro' : 'verde');
+  const labelOf = n => (n === ZERO00 ? '00' : String(n));
   const keyOf = b => b.type + ':' + (b.nums && b.nums.length ? b.nums.join(',') : (b.dozen || b.column || ''));
   const idem = () => 'rl_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  const wheelList = style => (style === 'european' ? WHEEL_EU : WHEEL);
+  const wheelStep = style => 360 / wheelList(style).length;
 
-  function wheelSvg() {
+  function wheelSvg(style = 'american') {
+    const list = wheelList(style), step = wheelStep(style), nPockets = list.length;
     const r0 = 96, r1 = 62, rN = 79, cx = 100, cy = 100;
     let segs = '', nums = '';
-    for (let i = 0; i < 37; i++) {
-      const n = WHEEL[i], a0 = (-90 - STEP / 2 + i * STEP) * Math.PI / 180, a1 = a0 + STEP * Math.PI / 180, am = (a0 + a1) / 2;
+    for (let i = 0; i < nPockets; i++) {
+      const n = list[i], a0 = (-90 - step / 2 + i * step) * Math.PI / 180, a1 = a0 + step * Math.PI / 180, am = (a0 + a1) / 2;
       const p = (a, r) => `${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`;
-      const fill = n === 0 ? '#0f7a3b' : RED.has(n) ? '#b91c1c' : '#171717';
-      segs += `<path d="M${p(a0, r1)} L${p(a0, r0)} A${r0},${r0} 0 0 1 ${p(a1, r0)} L${p(a1, r1)} A${r1},${r1} 0 0 0 ${p(a0, r1)}" fill="${fill}" stroke="#e8d48b" stroke-width=".6"/>`;
-      const tx = cx + rN * Math.cos(am), ty = cy + rN * Math.sin(am), rot = i * STEP;
-      nums += `<text x="${tx.toFixed(2)}" y="${ty.toFixed(2)}" text-anchor="middle" dominant-baseline="middle" transform="rotate(${rot.toFixed(2)},${tx.toFixed(2)},${ty.toFixed(2)})" fill="#fff" font-size="6.2" font-weight="700" font-family="Oswald,Arial Narrow,sans-serif">${n}</text>`;
+      const fill = (n === 0 || n === ZERO00) ? '#0f766e' : RED.has(n) ? '#b91c1c' : '#0a0a0a';
+      segs += `<path d="M${p(a0, r1)} L${p(a0, r0)} A${r0},${r0} 0 0 1 ${p(a1, r0)} L${p(a1, r1)} A${r1},${r1} 0 0 0 ${p(a0, r1)}" fill="${fill}" stroke="#94a3b8" stroke-width=".45"/>`;
+      const tx = cx + rN * Math.cos(am), ty = cy + rN * Math.sin(am), rot = i * step;
+      nums += `<text x="${tx.toFixed(2)}" y="${ty.toFixed(2)}" text-anchor="middle" dominant-baseline="middle" transform="rotate(${rot.toFixed(2)},${tx.toFixed(2)},${ty.toFixed(2)})" fill="#fff" font-size="${nPockets > 37 ? 5.4 : 6.2}" font-weight="700" font-family="Oswald,Arial Narrow,sans-serif">${labelOf(n)}</text>`;
     }
     return `<svg class="rl-wheel-svg" viewBox="0 0 200 200" aria-hidden="true">
       <defs>
-        <radialGradient id="rlRim" cx="50%" cy="40%"><stop offset="0" stop-color="#f3e2a7"/><stop offset=".45" stop-color="#c9a227"/><stop offset="1" stop-color="#6b4e10"/></radialGradient>
-        <radialGradient id="rlWood" cx="50%" cy="50%"><stop offset="0" stop-color="#5c3310"/><stop offset="1" stop-color="#2a1506"/></radialGradient>
-        <radialGradient id="rlCone" cx="40%" cy="35%"><stop offset="0" stop-color="#d4b05a"/><stop offset=".6" stop-color="#8a6a22"/><stop offset="1" stop-color="#3f2c0a"/></radialGradient>
+        <radialGradient id="rlRim" cx="50%" cy="40%"><stop offset="0" stop-color="#93c5fd"/><stop offset=".45" stop-color="#2563eb"/><stop offset="1" stop-color="#1e3a8a"/></radialGradient>
+        <radialGradient id="rlWood" cx="50%" cy="50%"><stop offset="0" stop-color="#1e3a5f"/><stop offset="1" stop-color="#020617"/></radialGradient>
+        <radialGradient id="rlCone" cx="40%" cy="35%"><stop offset="0" stop-color="#38bdf8"/><stop offset=".55" stop-color="#1d4ed8"/><stop offset="1" stop-color="#0b1a3a"/></radialGradient>
       </defs>
       <circle cx="100" cy="100" r="99.2" fill="url(#rlRim)"/>
       <circle cx="100" cy="100" r="97.2" fill="url(#rlWood)"/>
       <g class="rl-pockets">${segs}${nums}</g>
-      <circle cx="100" cy="100" r="61.2" fill="url(#rlWood)" stroke="#e8d48b" stroke-width=".8"/>
+      <circle cx="100" cy="100" r="61.2" fill="url(#rlWood)" stroke="#60a5fa" stroke-width=".8"/>
       <circle cx="100" cy="100" r="44" fill="url(#rlCone)"/>
-      <circle cx="100" cy="100" r="10" fill="#c9a227" stroke="#f3e2a7" stroke-width="1.2"/>
-      <circle cx="100" cy="100" r="3.2" fill="#3f2c0a"/>
+      <circle cx="100" cy="100" r="10" fill="#38bdf8" stroke="#bfdbfe" stroke-width="1.2"/>
+      <circle cx="100" cy="100" r="3.2" fill="#0b1a3a"/>
     </svg>`;
   }
 
-  function tableHtml(esc) {
-    const numBtn = n => `<button type="button" class="rl-num rl-${colorOf(n)}" data-bet="straight" data-nums="${n}" aria-label="Pleno ${n}"><span>${n}</span><i class="rl-stack" data-spot="straight:${n}"></i></button>`;
-    const split = (a, b) => `<button type="button" class="rl-hit rl-split" data-bet="split" data-nums="${a},${b}" aria-label="Caballo ${a}-${b}"><i class="rl-stack" data-spot="split:${a},${b}"></i></button>`;
-    const corner = (a, b, c, d) => `<button type="button" class="rl-hit rl-corner" data-bet="corner" data-nums="${a},${b},${c},${d}" aria-label="Cuadro ${a}"><i class="rl-stack" data-spot="corner:${a},${b},${c},${d}"></i></button>`;
-    const street = (a) => `<button type="button" class="rl-hit rl-street" data-bet="street" data-nums="${a},${a+1},${a+2}" aria-label="Transversal ${a}-${a+2}"><i class="rl-stack" data-spot="street:${a},${a+1},${a+2}"></i></button>`;
-    const six = (a) => `<button type="button" class="rl-hit rl-six" data-bet="sixline" data-nums="${a},${a+1},${a+2},${a+3},${a+4},${a+5}" aria-label="Línea ${a}-${a+5}"><i class="rl-stack" data-spot="sixline:${a},${a+1},${a+2},${a+3},${a+4},${a+5}"></i></button>`;
-    let rows = '';
+  const numBtn = (n, extra = '') => `<button type="button" class="rl-num rl-${colorOf(n)} ${extra}" data-bet="straight" data-nums="${n}" aria-label="Pleno ${labelOf(n)}"><span>${labelOf(n)}</span><i class="rl-stack" data-spot="straight:${n}"></i></button>`;
+  const outBtn = (type, label, extra = '') => `<button type="button" class="rl-out ${extra}" data-bet="${type}" data-nums="" aria-label="${label}"><span>${label}</span><i class="rl-stack" data-spot="${type}:"></i></button>`;
+  const dozBtn = (d, lab, extra = '') => `<button type="button" class="rl-out rl-doz ${extra}" data-bet="dozen" data-dozen="${d}" data-nums="" aria-label="${lab}"><span>${lab}</span><i class="rl-stack" data-spot="dozen:${d}"></i></button>`;
+  const colBtn = (c, lab, extra = '') => `<button type="button" class="rl-out rl-col ${extra}" data-bet="column" data-column="${c}" data-nums="" aria-label="${lab}"><span>${lab}</span><i class="rl-stack" data-spot="column:${c}"></i></button>`;
+  const zBtn = n => `<button type="button" class="rl-zero" data-bet="straight" data-nums="${n}" aria-label="Pleno ${labelOf(n)}"><span>${labelOf(n)}</span><i class="rl-stack" data-spot="straight:${n}"></i></button>`;
+
+  function vertFelt() {
+    let nums = '';
     for (let r = 0; r < 12; r++) {
-      const a = r * 3 + 1, b = a + 1, c = a + 2;
-      rows += `<div class="rl-row">${street(a)}${numBtn(a)}${split(a, b)}${numBtn(b)}${split(b, c)}${numBtn(c)}</div>`;
-      if (r < 11) {
-        rows += `<div class="rl-gap">${six(a)}${split(a, a+3)}${corner(a, b, a+3, b+3)}${split(b, b+3)}${corner(b, c, b+3, c+3)}${split(c, c+3)}</div>`;
-      }
+      for (let c = 0; c < 3; c++) nums += numBtn(r * 3 + c + 1, `rl-n-${r}-${c}`);
     }
-    const out = (type, label, extra = '') => `<button type="button" class="rl-out ${extra}" data-bet="${type}" data-nums="" aria-label="${esc(label)}">${label}<i class="rl-stack" data-spot="${type}:"></i></button>`;
-    const doz = (d, lab) => `<button type="button" class="rl-out" data-bet="dozen" data-dozen="${d}" data-nums="" aria-label="${lab}"><span>${lab}</span><i class="rl-stack" data-spot="dozen:${d}"></i></button>`;
-    const col = (c, lab) => `<button type="button" class="rl-out rl-col" data-bet="column" data-column="${c}" data-nums="" aria-label="${lab}"><span>${lab}</span><i class="rl-stack" data-spot="column:${c}"></i></button>`;
-    return `<div class="rl-felt">
-      <div class="rl-zero-col">
-        <button type="button" class="rl-zero" data-bet="straight" data-nums="0" aria-label="Pleno 0">0<i class="rl-stack" data-spot="straight:0"></i></button>
-        <button type="button" class="rl-hit rl-trio" data-bet="trio" data-nums="0,1,2" aria-label="Trío 0-1-2">0-1-2<i class="rl-stack" data-spot="trio:0,1,2"></i></button>
-        <button type="button" class="rl-hit rl-trio" data-bet="trio" data-nums="0,2,3" aria-label="Trío 0-2-3">0-2-3<i class="rl-stack" data-spot="trio:0,2,3"></i></button>
-        <button type="button" class="rl-hit rl-ff" data-bet="firstfour" data-nums="0,1,2,3" aria-label="Cesta 0-1-2-3">0-1-2-3<i class="rl-stack" data-spot="firstfour:0,1,2,3"></i></button>
-      </div>
-      <div class="rl-nums">${rows}</div>
-      <div class="rl-cols">${col(1, '2:1')}${col(2, '2:1')}${col(3, '2:1')}</div>
-      <div class="rl-doz">${doz(1, '1ª 12')}${doz(2, '2ª 12')}${doz(3, '3ª 12')}</div>
-      <div class="rl-outs">${out('low', '1–18')}${out('even', 'PAR')}${out('red', 'ROJO', 'rl-dia-red')}${out('black', 'NEGRO', 'rl-dia-black')}${out('odd', 'IMPAR')}${out('high', '19–36')}</div>
+    return `<div class="rl-felt rl-vfelt">
+      ${outBtn('low', '1 - 18', 'rl-v-low')}${outBtn('even', 'Even', 'rl-v-even')}
+      ${outBtn('red', 'Red', 'rl-v-red rl-dia-red')}${outBtn('black', 'Black', 'rl-v-black rl-dia-black')}
+      ${outBtn('odd', 'Odd', 'rl-v-odd')}${outBtn('high', '19 - 36', 'rl-v-high')}
+      ${dozBtn(1, '1st 12', 'rl-v-d1')}${dozBtn(2, '2nd 12', 'rl-v-d2')}${dozBtn(3, '3rd 12', 'rl-v-d3')}
+      <div class="rl-zeros">${zBtn(0)}${zBtn(ZERO00)}</div>
+      ${nums}
+      ${colBtn(1, '2to1', 'rl-v-c1')}${colBtn(2, '2to1', 'rl-v-c2')}${colBtn(3, '2to1', 'rl-v-c3')}
+      <div class="rl-rack" aria-label="Fichas"></div>
+    </div>`;
+  }
+
+  function horizFelt() {
+    let top = '', mid = '', bot = '';
+    for (let i = 0; i < 12; i++) {
+      top += numBtn(3 + i * 3, `rl-h-top rl-h-c${i}`);
+      mid += numBtn(2 + i * 3, `rl-h-mid rl-h-c${i}`);
+      bot += numBtn(1 + i * 3, `rl-h-bot rl-h-c${i}`);
+    }
+    return `<div class="rl-felt rl-hfelt">
+      <div class="rl-h0">${zBtn(0)}</div>
+      <div class="rl-h00">${zBtn(ZERO00)}</div>
+      ${top}${mid}${bot}
+      ${colBtn(3, '2to1', 'rl-h-col3')}${colBtn(2, '2to1', 'rl-h-col2')}${colBtn(1, '2to1', 'rl-h-col1')}
+      ${dozBtn(1, '1st 12', 'rl-h-d1')}${dozBtn(2, '2nd 12', 'rl-h-d2')}${dozBtn(3, '3rd 12', 'rl-h-d3')}
+      ${outBtn('low', '1 - 18', 'rl-h-low')}${outBtn('even', 'Even', 'rl-h-even')}
+      ${outBtn('red', 'Red', 'rl-dia-red rl-h-red')}${outBtn('black', 'Black', 'rl-dia-black rl-h-black')}
+      ${outBtn('odd', 'Odd', 'rl-h-odd')}${outBtn('high', '19 - 36', 'rl-h-high')}
     </div>`;
   }
 
   function chipClass(v) { return v >= 10000 ? 'c10k' : v >= 5000 ? 'c5k' : v >= 1000 ? 'c1k' : v >= 500 ? 'c500' : 'c100'; }
+  function chipLabel(v) { return v >= 1000 ? (v / 1000) + 'K' : String(v); }
 
   function snd(mutedRef) {
     let ctx;
@@ -87,15 +105,15 @@ window.RouletteUI = (() => {
     };
   }
 
-
   const easeOut = t => 1 - Math.pow(1 - t, 4);
-  function wheelPose(n, t) {
-    const idx = WHEEL.indexOf(n);
-    const wheelEnd = 360 * 5 - idx * STEP;
+  function wheelPose(n, t, style = 'american') {
+    const list = wheelList(style), step = wheelStep(style);
+    const idx = list.indexOf(n);
+    const wheelEnd = 360 * 5 - idx * step;
     const ballRev = -360 * 9;
     t = Math.max(0, Math.min(1, t));
     const w = wheelEnd * easeOut(t);
-    const pocket = idx * STEP + w;
+    const pocket = idx * step + w;
     let bAng;
     if (t < 0.72) bAng = ballRev * easeOut(t / 0.72);
     else {
@@ -104,13 +122,13 @@ window.RouletteUI = (() => {
       const bounce = Math.sin(u * Math.PI * 2) * 10 * (1 - u);
       bAng = start + (pocket - start) * easeOut(u) + bounce;
     }
-    if (t >= 1) return { wheel: wheelEnd, ball: wheelEnd + idx * STEP, done: true };
+    if (t >= 1) return { wheel: wheelEnd, ball: wheelEnd + idx * step, done: true };
     return { wheel: w, ball: bAng, done: false };
   }
-  function applyPose(B, n, t) {
+  function applyPose(B, n, t, style) {
     const wheel = B.querySelector('#rlWheel'), ball = B.querySelector('#rlBall');
     if (!wheel || !ball || n == null) return;
-    const p = wheelPose(n, t);
+    const p = wheelPose(n, t, style);
     wheel.style.transform = `rotate(${p.wheel}deg)`;
     ball.style.transform = `rotate(${p.ball}deg)`;
     ball.classList.toggle('in-pocket', p.done);
@@ -138,6 +156,7 @@ window.RouletteUI = (() => {
       if (n < state.ends) return 'result';
       return 'ended';
     };
+    const styleNow = () => (state && state.wheel === 'european' ? 'european' : 'american');
     const setCall = (t, cls = '') => { const el = B.querySelector('#rlCall'); if (el) { el.textContent = t; el.className = 'rl-call ' + cls; } };
     const fmtLeft = ms => {
       const s = Math.max(0, Math.ceil(ms / 1000));
@@ -146,19 +165,17 @@ window.RouletteUI = (() => {
     };
     const paintStacks = () => {
       B.querySelectorAll('.rl-stack').forEach(el => { el.innerHTML = ''; el.classList.remove('on', 'win', 'lose'); });
+      B.querySelectorAll('.rl-mine').forEach(el => el.classList.remove('rl-mine'));
       const map = new Map();
       for (const b of slip) { const k = keyOf(b); map.set(k, (map.get(k) || 0) + b.amount); }
       for (const row of (state.mine || [])) for (const b of (row.bets || [])) { const k = keyOf(b); map.set(k, (map.get(k) || 0) + b.amount); }
       for (const [key, v] of map) {
-        const el = B.querySelector(`.rl-stack[data-spot="${key}"]`);
-        if (!el) continue;
-        el.classList.add('on');
-        el.innerHTML = `<span class="rl-chip ${chipClass(v)}">${fmt(v)}</span>`;
-      }
-      if (state.phase !== 'open' && state.number != null) {
-        const won = new Set();
-        for (const row of (state.mine || [])) for (const b of (row.bets || [])) if (b.win || b.paid) won.add(keyOf(b));
-        // win flags may be absent until we mark visually by number: leave highlighting to dolly + payout text
+        B.querySelectorAll(`.rl-stack[data-spot="${key}"]`).forEach(el => {
+          el.classList.add('on');
+          el.innerHTML = `<span class="rl-chip ${chipClass(v)}">${fmt(v)}</span>`;
+          const cell = el.closest('button');
+          if (cell) cell.classList.add('rl-mine');
+        });
       }
     };
     const paintFeed = () => {
@@ -171,7 +188,7 @@ window.RouletteUI = (() => {
       const el = B.querySelector('#rlRecent');
       if (!el) return;
       const rec = state.history || [];
-      el.innerHTML = rec.map(r => `<span class="rl-pip rl-${r.color}">${r.number}</span>`).join('') || '<span class="small">Sin giros aún</span>';
+      el.innerHTML = rec.map(r => `<span class="rl-pip rl-${r.color}">${r.label || labelOf(r.number)}</span>`).join('') || '<span class="small">Sin giros aún</span>';
     };
     const paintCoins = () => {
       const c = B.querySelector('#rlCoins');
@@ -180,33 +197,48 @@ window.RouletteUI = (() => {
       if (used) used.textContent = fmt(state.usedStake || 0);
       const t = B.querySelector('#rlTotal'); if (t) t.textContent = fmt(total());
     };
-    const lockBoard = on => { const felt = B.querySelector('.rl-felt'); if (felt) felt.classList.toggle('locked', on); };
+    const lockBoard = on => { B.querySelectorAll('.rl-felt').forEach(felt => felt.classList.toggle('locked', on)); };
+    const mountWheel = () => {
+      const el = B.querySelector('#rlWheel');
+      if (!el) return;
+      const style = styleNow();
+      if (el.dataset.wheel === style) return;
+      el.dataset.wheel = style;
+      el.innerHTML = wheelSvg(style);
+    };
     const paintResult = () => {
       const res = B.querySelector('#rlResult');
       if (!res) return;
       const ph = phaseNow();
-      if (ph !== 'result' && ph !== 'ended' && !(ph === 'spinning' && false)) { res.hidden = true; return; }
-      if (ph === 'spinning' || state.number == null) { res.hidden = true; return; }
+      if (ph === 'spinning' || state.number == null || (ph !== 'result' && ph !== 'ended')) { res.hidden = true; return; }
       const mineStake = (state.mine || []).reduce((s, b) => s + b.stake, 0);
       const minePay = (state.mine || []).reduce((s, b) => s + (b.payout || 0), 0);
       const profit = minePay - mineStake;
       const win = profit > 0;
+      const lab = state.label || labelOf(state.number);
       res.hidden = false;
       res.className = 'rl-result ' + (mineStake ? (win ? 'win' : 'lose') : '');
-      res.innerHTML = `<b class="rl-pip rl-${state.color}">${state.number}</b> ${colorName(state.color).toUpperCase()}${mineStake ? (win ? ' · Ganaste ' + fmt(profit) : profit < 0 ? ' · Perdiste ' + fmt(-profit) : ' · Empate') : ''}${mineStake ? ' · pagado ' + fmt(minePay) : ''}`;
+      res.innerHTML = `<b class="rl-pip rl-${state.color}">${lab}</b> ${colorName(state.color).toUpperCase()}${mineStake ? (win ? ' · Ganaste ' + fmt(profit) : profit < 0 ? ' · Perdiste ' + fmt(-profit) : ' · Empate') : ''}${mineStake ? ' · pagado ' + fmt(minePay) : ''}`;
       B.querySelectorAll('.rl-num, .rl-zero').forEach(el => el.classList.toggle('dolly', el.dataset.nums === String(state.number) && el.dataset.bet === 'straight'));
     };
     const paintCall = () => {
       const ph = phaseNow(), n = syncedNow();
+      const lab = state.label || (state.number != null ? labelOf(state.number) : '');
       if (ph === 'open') setCall('Hagan sus apuestas · ' + fmtLeft(state.closes - n));
       else if (ph === 'spinning') setCall('No va más', 'lock');
-      else if (ph === 'result') setCall(state.number != null ? (`${state.number} ${colorName(state.color)} · siguiente en ` + fmtLeft(state.ends - n)) : 'Resultado', state.number != null && (state.mine || []).some(b => (b.payout || 0) > b.stake) ? 'win' : '');
+      else if (ph === 'result') setCall(state.number != null ? (`${lab} ${colorName(state.color)} · siguiente en ` + fmtLeft(state.ends - n)) : 'Resultado', state.number != null && (state.mine || []).some(b => (b.payout || 0) > b.stake) ? 'win' : '');
       else setCall('Siguiente ronda');
+      const page = B.querySelector('.rl-page');
+      if (page) {
+        page.classList.remove('rl-phase-open', 'rl-phase-spin', 'rl-phase-result', 'rl-phase-ended');
+        page.classList.add(ph === 'open' ? 'rl-phase-open' : ph === 'spinning' ? 'rl-phase-spin' : ph === 'result' ? 'rl-phase-result' : 'rl-phase-ended');
+      }
       const cd = B.querySelector('#rlCount');
       if (cd) {
         if (ph === 'open') cd.textContent = 'Apuestas abiertas · ' + fmtLeft(state.closes - n);
         else if (ph === 'spinning') cd.textContent = 'La bola está en juego';
-        else cd.textContent = 'Siguiente ronda en ' + fmtLeft(state.ends - n);
+        else if (ph === 'result') cd.textContent = 'Resultado · siguiente en ' + fmtLeft(state.ends - n);
+        else cd.textContent = 'Cargando la siguiente ronda…';
       }
       const go = B.querySelector('#rlGo');
       if (go) go.disabled = ph !== 'open' || !slip.length;
@@ -226,6 +258,7 @@ window.RouletteUI = (() => {
         const ball = B.querySelector('#rlBall'); if (ball) { ball.classList.remove('in-pocket'); ball.style.transform = ''; }
         const wheel = B.querySelector('#rlWheel'); if (wheel) wheel.style.transform = '';
       }
+      mountWheel();
       if (prevPhase === 'open' && d.phase === 'spinning') sound.lock();
       paintHist(); paintFeed(); paintStacks(); paintCoins(); paintCall(); paintResult();
     };
@@ -236,33 +269,39 @@ window.RouletteUI = (() => {
       if ((ph === 'spinning' || ph === 'result' || ph === 'ended') && state.number != null) {
         const t = ph === 'spinning' ? (syncedNow() - state.closes) / SPIN_MS : 1;
         const key = state.id + ':' + state.number + ':' + (t >= 1 ? 'end' : 'go');
-        applyPose(B, state.number, t);
+        applyPose(B, state.number, t, styleNow());
         if (t >= 1 && lastPoseKey !== key) { sound.land((state.mine || []).some(b => (b.payout || 0) > b.stake)); lastPoseKey = key; paintResult(); }
         else lastPoseKey = key;
       }
       raf = requestAnimationFrame(tickWheel);
     };
 
-    B.innerHTML = `<div class="card rl-page">
+    const rackHtml = CHIPS.map(v => `<button type="button" class="rl-chip ${chipClass(v)}${v === chip ? ' sel' : ''}" data-chip="${v}">${chipLabel(v)}</button>`).join('');
+    B.innerHTML = `<div class="card rl-page rl-am rl-phase-open">
       <button type="button" class="alt" id="toRetos">← Retos</button>
-      <h2>Ruleta en vivo · un solo cero</h2>
-      <p class="small">Mesa compartida: 40 s para apostar, luego «No va más» y sale la bola. Las apuestas se cobran al confirmar y se pagan al cerrar la ronda. No cuenta en la tabla de apuestas deportivas.</p>
+      <h2>Ruleta en vivo · LosTankesBets</h2>
+      <p class="small">Mesa americana de 0 y 00, compartida: 40 s para apostar, luego «No va más» y sale la bola. Las apuestas se cobran al confirmar y se pagan al cerrar la ronda. No cuenta en la tabla de apuestas deportivas.</p>
       <div class="rl-count" id="rlCount"></div>
       <div class="rl-marquee">
         <div class="rl-board-lab">Últimos</div><div id="rlRecent" class="rl-pips"></div>
       </div>
-      <div class="rl-stage">
-        <div class="rl-call" id="rlCall">Hagan sus apuestas</div>
-        <div class="rl-wheel-wrap">
-          <div class="rl-pointer" aria-hidden="true"></div>
-          <div id="rlWheel" class="rl-wheel">${wheelSvg()}</div>
-          <div id="rlBall" class="rl-ball-track"><span class="rl-ball"></span></div>
+      <div class="rl-call" id="rlCall">Hagan sus apuestas</div>
+      <div class="rl-spin-stage">
+        <div class="rl-wheel-scene">
+          <div class="rl-wheel-ring">
+            <div class="rl-wheel-wrap">
+              <div class="rl-pointer" aria-hidden="true"></div>
+              <div id="rlWheel" class="rl-wheel" data-wheel="american">${wheelSvg('american')}</div>
+              <div id="rlBall" class="rl-ball-track"><span class="rl-ball"></span></div>
+            </div>
+          </div>
         </div>
-        <button type="button" class="alt rl-mute" id="rlMute" aria-pressed="${muted.on}">${muted.on ? 'Sonido: off' : 'Sonido: on'}</button>
+        <div class="rl-brand">LosTankesBets</div>
+        ${horizFelt()}
       </div>
-      ${tableHtml(esc)}
+      <div class="rl-bet-stage">${vertFelt()}</div>
+      <button type="button" class="alt rl-mute" id="rlMute" aria-pressed="${muted.on}">${muted.on ? 'Sonido: off' : 'Sonido: on'}</button>
       <div class="rl-tray">
-        <div class="rl-chips">${CHIPS.map(v => `<button type="button" class="rl-chip ${chipClass(v)}${v === chip ? ' sel' : ''}" data-chip="${v}">${fmt(v)}</button>`).join('')}</div>
         <div class="rl-actions">
           <button type="button" class="alt" id="rlUndo">Deshacer</button>
           <button type="button" class="alt" id="rlClear">Borrar</button>
@@ -273,8 +312,11 @@ window.RouletteUI = (() => {
         <div id="rlResult" class="rl-result" hidden></div>
       </div>
       <div class="card"><h3>Apuestas de la mesa</h3><div id="rlFeed" class="rl-feed"></div></div>
-      <p class="small">Mín. ${fmt(limits.minBet || 100)} por ficha · máx. ${fmt(limits.maxBet || 25000)} por apuesta · máx. ${fmt(limits.maxSpin || 50000)} y ${limits.maxBets || 40} fichas por ronda (todas tus apuestas de la ronda). 0 verde: las apuestas pares (rojo/negro, par/impar, 1–18/19–36) pierden.</p>
+      <p class="small">Mín. ${fmt(limits.minBet || 100)} por ficha · máx. ${fmt(limits.maxBet || 25000)} por apuesta · máx. ${fmt(limits.maxSpin || 50000)} y ${limits.maxBets || 40} fichas por ronda (todas tus apuestas de la ronda). 0 y 00 verdes: las apuestas pares (rojo/negro, par/impar, 1–18/19–36) y las docenas o columnas pierden.</p>
     </div>`;
+
+    const rack = B.querySelector('.rl-rack');
+    if (rack) rack.innerHTML = rackHtml;
 
     applyState(first);
     B.querySelector('#toRetos').onclick = onBack;
@@ -283,10 +325,13 @@ window.RouletteUI = (() => {
       ev.currentTarget.textContent = muted.on ? 'Sonido: off' : 'Sonido: on';
       ev.currentTarget.setAttribute('aria-pressed', muted.on);
     };
-    B.querySelectorAll('[data-chip]').forEach(b => b.onclick = () => {
-      chip = +b.dataset.chip;
-      B.querySelectorAll('[data-chip]').forEach(x => x.classList.toggle('sel', +x.dataset.chip === chip));
-    });
+    const bindChips = () => {
+      B.querySelectorAll('[data-chip]').forEach(b => b.onclick = () => {
+        chip = +b.dataset.chip;
+        B.querySelectorAll('[data-chip]').forEach(x => x.classList.toggle('sel', +x.dataset.chip === chip));
+      });
+    };
+    bindChips();
     const placeFrom = btn => {
       if (phaseNow() !== 'open') return;
       const type = btn.dataset.bet;
@@ -339,5 +384,5 @@ window.RouletteUI = (() => {
     };
   }
 
-  return { view, stop, WHEEL, RED, wheelPose };
+  return { view, stop, WHEEL, WHEEL_EU, RED, ZERO00, wheelPose, labelOf };
 })();

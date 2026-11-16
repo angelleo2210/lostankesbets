@@ -1,25 +1,45 @@
 'use strict';
 const crypto = require('node:crypto');
 
+const ZERO00 = 37; // stored pocket for '00'; never display as 37
 const RED = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
-const WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
+// European single-zero order, kept to animate/draw leftover rounds opened before the American switch.
+const WHEEL_EU = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
+// Standard American wheel order, clockwise from 0, with 00 after 1.
+const WHEEL = [0, 28, 9, 26, 30, 11, 7, 20, 32, 17, 5, 22, 34, 15, 3, 24, 36, 13, 1, ZERO00, 27, 10, 25, 29, 12, 8, 19, 31, 18, 6, 21, 33, 16, 4, 23, 35, 14, 2];
 const MIN_BET = 100, MAX_BET = 25000, MAX_SPIN = 50000, MAX_BETS = 40;
 const PAYOUT = {
-  straight: 35, split: 17, street: 11, trio: 11, corner: 8, firstfour: 8, sixline: 5,
+  straight: 35, split: 17, street: 11, trio: 11, corner: 8, firstfour: 8, firstfive: 6, sixline: 5,
   dozen: 2, column: 2, red: 1, black: 1, odd: 1, even: 1, low: 1, high: 1
 };
 const OUTSIDE = new Set(['red', 'black', 'odd', 'even', 'low', 'high']);
 
 const userErr = m => { const e = new Error(m); e.user = true; return e; };
-const colorOf = n => (n === 0 ? 'green' : RED.has(n) ? 'red' : 'black');
-const sortNums = a => [...a].map(Number).sort((x, y) => x - y);
-const isNum = n => Number.isInteger(n) && n >= 0 && n <= 36;
+const isGreen = n => n === 0 || n === ZERO00;
+const colorOf = n => (isGreen(n) ? 'green' : RED.has(n) ? 'red' : 'black');
+const labelOf = n => (n === ZERO00 ? '00' : String(n));
+const parsePocket = v => {
+  if (v === '00' || v === ZERO00) return ZERO00;
+  const n = Number(v);
+  return Number.isInteger(n) ? n : NaN;
+};
+const sortNums = a => [...a].map(parsePocket).sort((x, y) => x - y);
+const isNum = (n, style = 'american') => Number.isInteger(n) && n >= 0 && n <= (style === 'european' ? 36 : ZERO00) && (style === 'european' ? n !== ZERO00 : true);
 const rowCol = n => ({ row: Math.floor((n - 1) / 3), col: (n - 1) % 3 });
+function styleOf(row) {
+  // New rounds are tagged 'american'. A missing/NULL wheel is a leftover European round.
+  return row && row.wheel === 'american' ? 'american' : 'european';
+}
 
 function adjacent(a, b) {
-  if (a === b || !isNum(a) || !isNum(b)) return false;
+  if (a === b || !Number.isInteger(a) || !Number.isInteger(b)) return false;
   const [x, y] = a < b ? [a, b] : [b, a];
-  if (x === 0) return y === 1 || y === 2 || y === 3;
+  if (x === 0 && y === ZERO00) return true;
+  if (x === 0) return y === 1 || y === 2;
+  if (x === ZERO00 || y === ZERO00) {
+    const o = x === ZERO00 ? y : x;
+    return o === 2 || o === 3;
+  }
   if (x < 1) return false;
   const A = rowCol(x), B = rowCol(y);
   return (A.row === B.row && Math.abs(A.col - B.col) === 1) || (A.col === B.col && Math.abs(A.row - B.row) === 1);
@@ -29,7 +49,10 @@ const isStreet = nums => {
   const [a, b, c] = sortNums(nums);
   return a >= 1 && a <= 34 && a % 3 === 1 && b === a + 1 && c === a + 2;
 };
-const isTrio = nums => { const s = sortNums(nums).join(','); return s === '0,1,2' || s === '0,2,3'; };
+const isTrio = nums => {
+  const s = sortNums(nums).join(',');
+  return s === '0,1,2' || s === '0,2,3' || s === '2,3,37' || s === '0,2,37';
+};
 const isCorner = nums => {
   if (nums.length !== 4) return false;
   const [a, b, c, d] = sortNums(nums);
@@ -38,6 +61,7 @@ const isCorner = nums => {
   return A.col < 2 && b === a + 1 && c === a + 3 && d === a + 4;
 };
 const isFirstFour = nums => sortNums(nums).join(',') === '0,1,2,3';
+const isFirstFive = nums => sortNums(nums).join(',') === '0,1,2,3,37';
 const isSixline = nums => {
   if (nums.length !== 6) return false;
   const s = sortNums(nums);
@@ -65,7 +89,7 @@ function normalizeBet(raw) {
     return { type, amount, nums: columnOf(c), column: c };
   }
   const nums = sortNums(raw.nums || raw.numbers || []);
-  if (!nums.length || nums.some(n => !isNum(n)) || new Set(nums).size !== nums.length) throw userErr('Números de apuesta inválidos');
+  if (!nums.length || nums.some(n => !isNum(n, 'american')) || new Set(nums).size !== nums.length) throw userErr('Números de apuesta inválidos');
   if (type === 'straight') {
     if (nums.length !== 1) throw userErr('Pleno requiere un número');
     return { type, amount, nums };
@@ -79,7 +103,7 @@ function normalizeBet(raw) {
     return { type, amount, nums };
   }
   if (type === 'trio') {
-    if (!isTrio(nums)) throw userErr('Trío inválido (0-1-2 o 0-2-3)');
+    if (!isTrio(nums)) throw userErr('Trío inválido (0-1-2, 00-2-3 o 0-00-2)');
     return { type, amount, nums };
   }
   if (type === 'corner') {
@@ -90,6 +114,10 @@ function normalizeBet(raw) {
     if (!isFirstFour(nums)) throw userErr('Cesta inválida (0-1-2-3)');
     return { type, amount, nums };
   }
+  if (type === 'firstfive') {
+    if (!isFirstFive(nums)) throw userErr('Línea de cinco inválida (0-00-1-2-3)');
+    return { type, amount, nums };
+  }
   if (type === 'sixline') {
     if (!isSixline(nums)) throw userErr('Línea de seis inválida');
     return { type, amount, nums };
@@ -98,10 +126,14 @@ function normalizeBet(raw) {
 }
 
 function hits(bet, n) {
+  if (isGreen(n)) {
+    if (bet.type === 'red' || bet.type === 'black' || bet.type === 'odd' || bet.type === 'even' || bet.type === 'low' || bet.type === 'high') return false;
+    if (bet.type === 'dozen' || bet.type === 'column') return false;
+  }
   if (bet.type === 'red') return colorOf(n) === 'red';
   if (bet.type === 'black') return colorOf(n) === 'black';
-  if (bet.type === 'odd') return n !== 0 && n % 2 === 1;
-  if (bet.type === 'even') return n !== 0 && n % 2 === 0;
+  if (bet.type === 'odd') return !isGreen(n) && n % 2 === 1;
+  if (bet.type === 'even') return !isGreen(n) && n % 2 === 0;
   if (bet.type === 'low') return n >= 1 && n <= 18;
   if (bet.type === 'high') return n >= 19 && n <= 36;
   return bet.nums.includes(n);
@@ -116,8 +148,8 @@ function normalizeBets(list) {
   return { bets, stake };
 }
 
-function settle(bets, n) {
-  if (!isNum(n)) throw new Error('Número de ruleta inválido');
+function settle(bets, n, style = 'american') {
+  if (!isNum(n, style)) throw new Error('Número de ruleta inválido');
   let payout = 0;
   const settled = bets.map(b => {
     const win = hits(b, n);
@@ -126,18 +158,19 @@ function settle(bets, n) {
     return { ...b, win, paid };
   });
   const stake = bets.reduce((s, b) => s + b.amount, 0);
-  return { number: n, color: colorOf(n), stake, payout, profit: payout - stake, settled };
+  return { number: n, label: labelOf(n), color: colorOf(n), stake, payout, profit: payout - stake, settled };
 }
 
-const spinNumber = () => crypto.randomInt(0, 37);
+const spinNumber = (style = 'american') => crypto.randomInt(0, style === 'european' ? 37 : 38);
 const colorName = c => (c === 'red' ? 'rojo' : c === 'black' ? 'negro' : 'verde');
+const pocketPublic = (n, color) => n == null || n === '' ? { number: null, label: null, color: null } : { number: n, label: labelOf(n), color: color || colorOf(n) };
 
 const LIVE = { ROUND_MS: 60_000, BET_MS: 40_000, SPIN_MS: 8_000 };
 LIVE.RESULT_MS = LIVE.ROUND_MS - LIVE.BET_MS - LIVE.SPIN_MS;
 
 const TYPE_NAME = {
   straight: 'Pleno', split: 'Caballo', street: 'Transversal', trio: 'Trío',
-  corner: 'Cuadro', firstfour: 'Cesta', sixline: 'Línea de seis',
+  corner: 'Cuadro', firstfour: 'Cesta', firstfive: 'Línea de cinco', sixline: 'Línea de seis',
   dozen: 'Docena', column: 'Columna', red: 'Rojo', black: 'Negro',
   odd: 'Impar', even: 'Par', low: '1–18', high: '19–36'
 };
@@ -146,7 +179,7 @@ function betSummary(b) {
   if (b.type === 'dozen') return `Docena ${b.dozen || b.n || ''}`.trim();
   if (b.type === 'column') return `Columna ${b.column || b.n || ''}`.trim();
   if (OUTSIDE.has(b.type)) return TYPE_NAME[b.type] || b.type;
-  const nums = (b.nums || []).join('-');
+  const nums = (b.nums || []).map(labelOf).join('-');
   return `${TYPE_NAME[b.type] || b.type}${nums ? ' ' + nums : ''}`;
 }
 function betsSummary(list) {
@@ -165,8 +198,8 @@ function phaseAt(now, t) {
 }
 
 module.exports = {
-  RED, WHEEL, MIN_BET, MAX_BET, MAX_SPIN, MAX_BETS, PAYOUT, LIVE, TYPE_NAME,
-  colorOf, colorName, adjacent, isStreet, isTrio, isCorner, isFirstFour, isSixline,
-  columnOf, dozenOf, normalizeBet, normalizeBets, hits, settle, spinNumber, isNum,
+  RED, WHEEL, WHEEL_EU, ZERO00, MIN_BET, MAX_BET, MAX_SPIN, MAX_BETS, PAYOUT, LIVE, TYPE_NAME,
+  colorOf, colorName, labelOf, parsePocket, pocketPublic, isGreen, adjacent, isStreet, isTrio, isCorner, isFirstFour, isFirstFive, isSixline,
+  columnOf, dozenOf, normalizeBet, normalizeBets, hits, settle, spinNumber, isNum, styleOf,
   betSummary, betsSummary, roundIdAt, roundTimes, phaseAt
 };
