@@ -612,8 +612,13 @@ function open(file = 'data.db') {
     },
     addEventMarket(lineId, market, options, home, away, unit = '', propTitle = '') {
       return tx(() => {
-        const source = db.prepare('SELECT * FROM lines WHERE id=?').get(Number(lineId));
-        if (!source || source.status !== 'open') err('El evento debe tener una línea abierta');
+        let source = db.prepare('SELECT * FROM lines WHERE id=?').get(Number(lineId));
+        if (!source) err('El evento debe tener una línea abierta');
+        // A cancelled/closed market must not block the event: use any open line of the same event as the anchor.
+        if (source.status !== 'open' && source.event_id) {
+          source = db.prepare("SELECT * FROM lines WHERE event_id=? AND kind=? AND status='open' ORDER BY (COALESCE(market,'h2h')='h2h') DESC, id LIMIT 1").get(source.event_id, source.kind) || source;
+        }
+        if (source.status !== 'open') err('El evento debe tener una línea abierta');
         if (!['spreads','totals','props'].includes(market)) err('Solo se pueden agregar hándicap, total o prop');
         home = String(home || source.home || '').trim(); away = String(away || source.away || '').trim();
         if (market !== 'props') {
@@ -627,8 +632,8 @@ function open(file = 'data.db') {
         const eventId = source.event_id || `legacy:${source.id}`;
         if (market === 'props') {
           const pt = String(propTitle || '').trim();
-          if (db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND market='props' AND prop_title=?").get(eventId, source.kind, pt)) err('Ya existe un prop con ese título en este partido');
-        } else if (db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND market=?").get(eventId, source.kind, market)) err('Este mercado ya existe; no se sobrescriben cuotas ni apuestas');
+          if (db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND market='props' AND prop_title=? AND status NOT IN ('cancelled','pushed')").get(eventId, source.kind, pt)) err('Ya existe un prop con ese título en este partido');
+        } else if (db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND market=? AND status NOT IN ('cancelled','pushed')").get(eventId, source.kind, market)) err('Este mercado ya existe (edítalo con «Editar cuotas y umbrales»); no se sobrescriben cuotas ni apuestas');
         // Explicit admin action upgrades grouping metadata only. Original options/bets/odds untouched.
         db.prepare("UPDATE lines SET event_id=?,home=?,away=?,unit=?,market=COALESCE(market,'h2h') WHERE id=?").run(eventId, home || source.home, away || source.away, source.unit || String(unit || ''), source.id);
         return api.createLine(source.title, options, { kind: source.kind, event_id: eventId, starts: source.starts, market, prop_title: propTitle, home: home || source.home, away: away || source.away, unit: source.unit || String(unit || ''), sport: source.sport, sport_key: source.sport_key || null });
@@ -735,7 +740,7 @@ function open(file = 'data.db') {
         const legMeta = legs.map(o => ({ event: o.event_id ? `${o.kind}:${o.event_id}` : null, line: o.line_id, market: o.market, home: o.home, away: o.away, outcome: o.outcome, label: o.label, point: o.point, option: o.id, odds: o.odds })); { const e = Markets.sameEventError(legMeta); if (e) err(e); }
         const eventLines = {};
         for (const g of legs) if (g.event_id) { const k = `${g.kind}:${g.event_id}`; if (eventLines[k]) continue;
-          eventLines[k] = db.prepare('SELECT * FROM lines WHERE event_id=? AND kind=? ORDER BY id').all(g.event_id, g.kind).map(l => ({ market: l.market, home: l.home, away: l.away, sport: l.sport, options: db.prepare('SELECT label,odds,point,outcome FROM options WHERE line_id=? ORDER BY id').all(l.id) })); }
+          eventLines[k] = db.prepare('SELECT * FROM lines WHERE event_id=? AND kind=? AND status IN (\'open\',\'closed\') ORDER BY id').all(g.event_id, g.kind).map(l => ({ market: l.market, home: l.home, away: l.away, sport: l.sport, options: db.prepare('SELECT label,odds,point,outcome FROM options WHERE line_id=? ORDER BY id').all(l.id) })); }
         const q = Sgp.quote(legMeta, eventLines); if (q.error) err(q.error);
         const u = db.prepare('SELECT coins FROM users WHERE id=?').get(userId);
         if (u.coins < stake) err('No tienes suficientes monedas');

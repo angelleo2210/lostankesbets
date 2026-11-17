@@ -24,7 +24,9 @@ const who = (u, full) => { const c = u.cosmetics || {}, ac = rw(c.accessory), co
   return `${head(u, full || 28)} ${u.badge ? u.badge + ' ' : ''}${u.avatar ? esc(u.avatar) : ''}${ac ? ac.icon : ''}${ac || u.avatar ? ' ' : ''}<span style="${col ? `color:${col.color};font-weight:800;text-shadow:0 0 6px ${col.color}88` : ''}">${esc(u.display_name || u.username)}</span>`; };
 const EMOJIS = '😎🦁🐯🐺🦅🔥⚡💪🍀🎲🏆⚽🏀🏈⚾🥊🍝🍺🤑👑🚀🐐🦈💀'.match(/\p{Extended_Pictographic}/gu);
 function builder(el) { if (el) el.innerHTML = ''; }
-const flash = m => { const e = $('#msg'); if (e) e.textContent = m; else alert(m); };
+const flash = m => { const e = $('#msg'); if (e) e.textContent = m; else { alert(m); return; }
+  if (!m) return; let t = document.getElementById('toast'); if (!t) { t = document.createElement('div'); t.id = 'toast'; t.setAttribute('role', 'alert'); document.body.appendChild(t); }
+  t.textContent = m; t.className = 'toast show'; clearTimeout(flash.timer); flash.timer = setTimeout(() => { t.className = 'toast'; }, 7000); };
 async function start() {
   if (token) try { me = await api('/me'); return render(); } catch { token = null; localStorage.removeItem('token'); }
   const st = await api('/status'); const code = new URLSearchParams(location.search).get('invitacion') || '';
@@ -305,7 +307,14 @@ function editMarketForms(group) {
     const name = key === 'props' ? esc(l.prop_title || 'Prop') : Markets.NAMES[key];
     return `<div class="edit-mkt" data-edit-line="${l.id}"><div><b>${name}</b>${n ? ` <span class="small" style="color:#b06d00">${n} apuesta${n === 1 ? '' : 's'}: conservan su cuota original; solo cambian las cuotas nuevas${hasPt ? ' (umbral bloqueado)' : ''}</span>` : ' <span class="small">sin apuestas todavía</span>'}</div>${rows}<button type="button" class="alt" data-edit-save="${l.id}">Guardar cuotas${hasPt && !n ? ' y umbrales' : ''}</button></div>`;
   }).join('');
-  return forms ? `<details class="market-edit"><summary>Editar cuotas y umbrales</summary>${forms}</details>` : '';
+  const base = group.find(l => l.home) || group[0], live = group.filter(l => ['open', 'closed'].includes(l.status));
+  const src = (live.find(l => l.status === 'open' && (l.market || 'h2h') === 'h2h') || live.find(l => l.status === 'open'));
+  const missing = [];
+  if (src && base && base.home) {
+    if (!live.some(l => l.market === 'spreads')) missing.push(`<div class="edit-mkt edit-add" data-add-box="spreads"><div><b>Hándicap</b> <span class="small">falta: agrégalo aquí</span></div><div class="edit-opt"><label class="small">Umbral ${esc(base.home)} (ej. -0.5)<input type="number" step="0.5" data-am-point></label><label class="small">Cuota ${esc(base.home)}<input type="number" step="1" data-am-a placeholder="-110"></label><label class="small">Cuota ${esc(base.away)}<input type="number" step="1" data-am-b placeholder="-110"></label></div><button type="button" class="alt" data-add-mkt="spreads" data-src="${src.id}" data-home="${esc(base.home)}" data-away="${esc(base.away)}" data-unit="${esc(base.unit || '')}">Agregar hándicap</button></div>`);
+    if (!live.some(l => l.market === 'totals')) missing.push(`<div class="edit-mkt edit-add" data-add-box="totals"><div><b>Total</b> <span class="small">falta: agrégalo aquí</span></div><div class="edit-opt"><label class="small">Umbral (ej. 2.5)<input type="number" step="0.5" data-am-point></label><label class="small">Cuota Over<input type="number" step="1" data-am-a placeholder="-110"></label><label class="small">Cuota Under<input type="number" step="1" data-am-b placeholder="-110"></label></div><button type="button" class="alt" data-add-mkt="totals" data-src="${src.id}" data-home="${esc(base.home)}" data-away="${esc(base.away)}" data-unit="${esc(base.unit || '')}">Agregar total</button></div>`);
+  }
+  return forms || missing.length ? `<details class="market-edit"><summary>Editar cuotas y umbrales${missing.length ? ' / agregar mercado' : ''}</summary>${forms}${missing.join('')}</details>` : '';
 }
 function marketCards(ls) {
   return linesByEvent(ls).map(group => {
@@ -412,6 +421,15 @@ function bindBets(ls = []) {
     if (!confirm('¿Guardar estas cuotas/umbrales? Las apuestas ya hechas conservan su cuota original; solo cambian las nuevas.')) return;
     try { const r = await api(`/admin/lines/${id}/edit`, { options }); if (r.error) throw new Error(r.error); flash(r.changed === false ? 'Sin cambios' : 'Mercado actualizado'); const y = window.scrollY; await render(); window.scroll(0, y); } catch (e) { flash(e.message); }
   });
+  A.querySelectorAll('[data-add-mkt]').forEach(b => b.onclick = async () => {
+    const box = b.closest('[data-add-box]'), market = b.dataset.addMkt, v = s => box.querySelector(s).value.trim();
+    if (!v('[data-am-point]') || !v('[data-am-a]') || !v('[data-am-b]')) return flash('Escribe el umbral y las dos cuotas');
+    const point = Number(v('[data-am-point]')), a = Number(v('[data-am-a]')), bb = Number(v('[data-am-b]'));
+    if (!Number.isFinite(point) || !Number.isInteger(a) || !Number.isInteger(bb)) return flash('Umbral numérico y cuotas americanas enteras (-110, +150)');
+    const home = b.dataset.home, away = b.dataset.away;
+    const options = market === 'spreads' ? [{ label: home, point, odds: a }, { label: away, point: -point, odds: bb }] : [{ label: 'Over', point, odds: a }, { label: 'Under', point, odds: bb }];
+    try { const r = await api(`/admin/lines/${b.dataset.src}/markets`, { home, away, unit: b.dataset.unit, market, options }); if (r.error) throw new Error(r.error); flash(market === 'spreads' ? 'Hándicap agregado' : 'Total agregado'); const y = window.scrollY; await render(); window.scroll(0, y); } catch (e) { flash(e.message); }
+  });
   A.querySelectorAll('[data-market-config]').forEach(b => b.onclick = () => { marketTarget = Number(b.dataset.marketConfig); tab = 'admin'; render(); });
   const payoutHint = () => {
     const el = $('#pw'); if (!el || !boleto.length) return;
@@ -487,7 +505,7 @@ async function adminView(B) {
   <div class="card"><h2>Invitaciones</h2><button id="inv">Crear invitación</button>${inv.map(i => `<div class="small">${i.used_by ? '✅ usada por ' + who({ ...i, username: i.used_by }) : `<a style="color:#93c5fd" href="/?invitacion=${i.code}">${location.origin}/?invitacion=${i.code}</a>`}</div>`).join('')}</div>`;
   const addOpt = (l = '', o = '') => { const d = document.createElement('div'); d.className = 'row'; d.innerHTML = `<input placeholder="Opción" value="${l}"><input placeholder="Cuota (-250 / +880)" value="${o}">`; $('#opts').append(d); };
   addOpt('Sí', '-250'); addOpt('No', '+880'); $('#add').onclick = () => addOpt();
-  const act = (sel, fn) => B.querySelectorAll(sel).forEach(b => b.onclick = async () => { try { await fn(b); render(); } catch (e) { flash(e.message); } });
+  const act = (sel, fn) => B.querySelectorAll(sel).forEach(b => b.onclick = async () => { try { const r = await fn(b); if (r && r.error) throw new Error(r.error); if (sel === '#existingAdd') flash('Mercado agregado. Míralo en Líneas / Reales.'); render(); } catch (e) { flash(e.message); } });
   act('#create', () => api('/admin/lines', { title: $('#t').value, options: [...$('#opts').children].map(r => ({ label: r.children[0].value, odds: Number(r.children[1].value) })) }));
   const fillExistingTeams = () => {
     const l = ls.find(l => l.id === Number($('#existingEvent').value)); if (!l) return;
