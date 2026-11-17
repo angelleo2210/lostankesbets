@@ -126,6 +126,7 @@ app.post('/api/admin/lines/:id/start', h(r => C.setEventStart(admin(r).id, r.par
 app.post('/api/admin/lines/:id/pause', h(r => C.setEventPaused(admin(r).id, r.params.id, !!r.body.paused)));
 app.post('/api/admin/events', h(r => { admin(r); return { ids: C.createEvent({ ...r.body, id: 'custom:' + require('node:crypto').randomUUID() }) }; }));
 app.post('/api/admin/lines/:id/markets', h(r => { admin(r); return { id: C.addEventMarket(r.params.id, r.body.market, r.body.options, r.body.home, r.body.away, r.body.unit, r.body.prop_title) }; }));
+app.get('/api/admin/lines/:id/event-lines', h(r => C.eventLinesAll(admin(r).id, r.params.id)));
 app.get('/api/admin/line-bets', h(r => { admin(r); return C.lineBetCounts(); }));
 app.post('/api/admin/lines/:id/edit', h(r => C.editLineMarket(admin(r).id, r.params.id, r.body && r.body.options)));
 app.post('/api/admin/lines/:id/remove-prop', h(r => { C.removeProp(admin(r).id, r.params.id); }));

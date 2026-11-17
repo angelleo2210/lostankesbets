@@ -78,7 +78,7 @@ t('with bets: odds can change, existing tickets keep their odds, threshold is lo
   assert.ok(D.bankStatus(u).coins >= c0 + 2050);
 });
 
-t('settled/cancelled lines cannot be edited; routes and UI wired; SW v32; "No disponible" only when a market is missing', () => {
+t('settled/cancelled lines cannot be edited; routes and UI wired; SW v33; "No disponible" only when a market is missing', () => {
   const { D, admin, ids, opts } = mk();
   const o = opts(ids[2]);
   D.cancelLine(ids[2]);
@@ -87,7 +87,7 @@ t('settled/cancelled lines cannot be edited; routes and UI wired; SW v32; "No di
   assert.ok(srv.includes("/api/admin/lines/:id/edit") && srv.includes("/api/admin/line-bets"));
   assert.ok(app.includes('Editar cuotas y umbrales') && app.includes('Guardar cuotas') && app.includes('data-edit-save'));
   assert.ok(!app.includes('<div class="market-note small">— No disponible</div>') && app.includes('(!by.spreads || !by.totals || !winner)'));
-  assert.ok(fs.readFileSync(__dirname + '/public/sw.js', 'utf8').includes('ltb-shell-v32'));
+  assert.ok(fs.readFileSync(__dirname + '/public/sw.js', 'utf8').includes('ltb-shell-v33'));
 });
 
 t('cancelled handicap/total do not block re-adding; anchor may be a cancelled line; new market shows in lines() and works in bets and parlays', () => {
@@ -117,5 +117,28 @@ t('cancelled handicap/total do not block re-adding; anchor may be a cancelled li
 t('UI: errors show as a visible toast; edit form can add a missing Hándicap/Total', () => {
   const app = fs.readFileSync(__dirname + '/public/app.js', 'utf8'), css = fs.readFileSync(__dirname + '/public/index.html', 'utf8');
   assert.ok(app.includes("t.id = 'toast'") && css.includes('.toast.show') && app.includes('data-add-mkt') && app.includes('Agregar hándicap') && app.includes('Agregar total'));
+});
+
+t('"already exists" uses the grid definition (open/closed only); error names the line; admin can list every stored line', () => {
+  const { D, admin, u, ids, opts } = mk();
+  const [h2h, spr] = ids;
+  assert.throws(() => D.addEventMarket(h2h, 'spreads', [{ label: 'Denmark', point: -1, odds: -110 }, { label: 'Norway', point: 1, odds: -110 }], 'Denmark', 'Norway'), new RegExp('ya existe en la línea #' + spr + ' \\(abierta\\)'));
+  D.closeLine(spr);
+  assert.throws(() => D.addEventMarket(h2h, 'spreads', [{ label: 'Denmark', point: -1, odds: -110 }, { label: 'Norway', point: 1, odds: -110 }], 'Denmark', 'Norway'), /cerrada/);
+  // a settled (hidden by the grid) handicap no longer blocks a new one
+  D.settleLine(spr, opts(spr)[0].id);
+  const grid = D.lines(['open', 'closed']).filter(l => l.event_id === 'odds:abc').map(l => l.market);
+  assert.ok(!grid.includes('spreads'));
+  const ns = D.addEventMarket(h2h, 'spreads', [{ label: 'Denmark', point: -1, odds: -110 }, { label: 'Norway', point: 1, odds: -110 }], 'Denmark', 'Norway');
+  const all = D.eventLinesAll(admin, h2h);
+  assert.deepEqual(all.map(r => [r.id, r.market, r.status]).filter(r => r[1] === 'spreads'), [[spr, 'spreads', 'settled'], [ns, 'spreads', 'open']]);
+  assert.ok(all.every(r => Array.isArray(r.options) && typeof r.bets === 'number'));
+  assert.throws(() => D.eventLinesAll(u, h2h), /administrador/);
+});
+
+t('UI: Editar mercados button on each admin card, jump button from the Admin error, hidden-market note', () => {
+  const app = fs.readFileSync(__dirname + '/public/app.js', 'utf8'), srv = fs.readFileSync(__dirname + '/server.js', 'utf8');
+  assert.ok(app.includes('data-edit-open') && app.includes('✏️ Editar mercados') && app.includes('Ir a editar este partido en Líneas') && app.includes('applyJump') && app.includes('data-show-all') && app.includes('no coinciden con los equipos'));
+  assert.ok(srv.includes('/api/admin/lines/:id/event-lines'));
 });
 console.log(n, 'edit-lines tests passed');

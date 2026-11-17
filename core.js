@@ -630,10 +630,11 @@ function open(file = 'data.db') {
         } else if (!home || !away) err('El prop necesita un partido con equipos');
         try { Markets.validate(market, options, home, away, propTitle); } catch(e) { err(e.message); }
         const eventId = source.event_id || `legacy:${source.id}`;
+        let dup = null;
         if (market === 'props') {
           const pt = String(propTitle || '').trim();
-          if (db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND market='props' AND prop_title=? AND status NOT IN ('cancelled','pushed')").get(eventId, source.kind, pt)) err('Ya existe un prop con ese título en este partido');
-        } else if (db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND market=? AND status NOT IN ('cancelled','pushed')").get(eventId, source.kind, market)) err('Este mercado ya existe (edítalo con «Editar cuotas y umbrales»); no se sobrescriben cuotas ni apuestas');
+          if (db.prepare("SELECT id FROM lines WHERE event_id=? AND kind=? AND market='props' AND prop_title=? AND status IN ('open','closed')").get(eventId, source.kind, pt)) err('Ya existe un prop con ese título en este partido');
+        } else if ((dup = db.prepare("SELECT id, status FROM lines WHERE event_id=? AND kind=? AND market=? AND status IN ('open','closed') ORDER BY id LIMIT 1").get(eventId, source.kind, market))) err(`Este mercado ya existe en la línea #${dup.id} (${dup.status === 'open' ? 'abierta' : 'cerrada'}); edítalo con «Editar cuotas y umbrales» en Líneas; no se sobrescriben cuotas ni apuestas`);
         // Explicit admin action upgrades grouping metadata only. Original options/bets/odds untouched.
         db.prepare("UPDATE lines SET event_id=?,home=?,away=?,unit=?,market=COALESCE(market,'h2h') WHERE id=?").run(eventId, home || source.home, away || source.away, source.unit || String(unit || ''), source.id);
         return api.createLine(source.title, options, { kind: source.kind, event_id: eventId, starts: source.starts, market, prop_title: propTitle, home: home || source.home, away: away || source.away, unit: source.unit || String(unit || ''), sport: source.sport, sport_key: source.sport_key || null });
@@ -642,6 +643,15 @@ function open(file = 'data.db') {
     // Admin edit of an existing market (local or imported). Only odds and, for Hándicap/Total, the threshold.
     // Bets and parlay legs store their own odds, so existing tickets keep the price they were placed at.
     // The threshold cannot change once anyone has a bet/leg on the line (it would change what they already bought).
+    // Every line stored for the event of lineId, whatever its status (so hidden/orphaned markets can be seen). Admin only.
+    eventLinesAll(adminId, lineId) {
+      const a = db.prepare('SELECT is_admin FROM users WHERE id=?').get(adminId); if (!a || !a.is_admin) err('Solo el administrador');
+      const l = db.prepare('SELECT * FROM lines WHERE id=?').get(Number(lineId)); if (!l) err('Línea no existe');
+      const rows = l.event_id ? db.prepare('SELECT * FROM lines WHERE event_id=? AND kind=? ORDER BY id').all(l.event_id, l.kind) : [l];
+      const counts = api.lineBetCounts();
+      return rows.map(r => ({ id: r.id, market: r.market || 'h2h', prop_title: r.prop_title, status: r.status, kind: r.kind, event_id: r.event_id, bets: counts[r.id] || 0,
+        options: db.prepare('SELECT id,label,outcome,odds,point FROM options WHERE line_id=? ORDER BY id').all(r.id) }));
+    },
     lineBetCounts() {
       const out = {};
       for (const r of db.prepare("SELECT line_id, COUNT(*) n FROM bets GROUP BY line_id").all()) out[r.line_id] = (out[r.line_id] || 0) + r.n;

@@ -8,6 +8,7 @@ let keepAdminScroll = null;
 let settleUnloadBound = false;
 let marketTarget = null;
 let lineBetCounts = {};
+let jumpTarget = null;
 const dec = o => o > 0 ? 1 + o / 100 : 1 + 100 / -o; const toAm = d => d >= 2 ? Math.round((d - 1) * 100) : Math.round(-100 / (d - 1));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = n => Number(n).toLocaleString('es-US'); const od = o => (o > 0 ? '+' : '') + o;
@@ -63,7 +64,7 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
   try {
   if ((tab === 'lineas' || tab === 'reales') && me?.is_admin) lineBetCounts = await api('/admin/line-bets').catch(() => ({}));
   if (tab === 'lineas') { const ls = await api('/lines'); const shown = linesInFilter(ls);
-    B.innerHTML = boletoCard() + (ls.length ? lineSportChips(ls) + (shown.length ? marketCards(shown) : '<div class="card">No hay líneas en esta categoría.</div>') : '<div class="card">No hay líneas abiertas.</div>'); bindBets(ls); bindLineFilter(); }
+    B.innerHTML = boletoCard() + (ls.length ? lineSportChips(ls) + (shown.length ? marketCards(shown) : '<div class="card">No hay líneas en esta categoría.</div>') : '<div class="card">No hay líneas abiertas.</div>'); bindBets(ls); bindLineFilter(); applyJump(); }
   if (tab === 'reales') { const sp = await api('/real/sports'); window.realSport = window.realSport || sp.default; const d = await api('/real?sport=' + encodeURIComponent(window.realSport)); const ls = (await api('/lines')).filter(l => l.kind === 'real');
     const shown = linesInFilter(ls);
     B.innerHTML = boletoCard() + `<div class="card"><label>Liga de fútbol: <select id="realSport">${sp.sports.map(x => `<option value="${esc(x.key)}"${x.key === window.realSport ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label></div>` + '<div class="card small">Nuevas importaciones: Hard Rock Bet (Florida) vía The Odds API. Solo mercados disponibles; sin sustitución de casa. Las líneas ya importadas conservan su fuente y cuotas originales.</div>' + (d.notice ? `<div class="card">${esc(d.notice)}</div>` : '') + (d.error ? `<div class="card">${esc(d.error)}</div>` : '') + (ls.length ? lineSportChips(ls) + (shown.length ? marketCards(shown) : '<div class="card">No hay líneas en esta categoría.</div>') : '<div class="card">El administrador aún no ha agregado líneas reales.</div>') +
@@ -299,6 +300,17 @@ function bindLineFilter() {
     render();
   });
 }
+function openEditor(card) {
+  if (!card) return;
+  card.querySelectorAll('.market-admin, .market-edit').forEach(d => { d.open = true; });
+  card.scrollIntoView({ block: 'start' });
+}
+function applyJump() {
+  if (jumpTarget == null) return;
+  const id = String(jumpTarget); jumpTarget = null;
+  const card = [...A.querySelectorAll('[data-card]')].find(el => el.dataset.card.split(',').includes(id));
+  if (card) openEditor(card); else flash('No encontré ese partido en Líneas (revisa el filtro de deporte o si ya empezó).');
+}
 function editMarketForms(group) {
   const forms = group.filter(l => ['open', 'closed'].includes(l.status)).map(l => {
     const key = l.market || 'h2h', n = (typeof lineBetCounts === 'object' && lineBetCounts[l.id]) || 0;
@@ -314,7 +326,8 @@ function editMarketForms(group) {
     if (!live.some(l => l.market === 'spreads')) missing.push(`<div class="edit-mkt edit-add" data-add-box="spreads"><div><b>Hándicap</b> <span class="small">falta: agrégalo aquí</span></div><div class="edit-opt"><label class="small">Umbral ${esc(base.home)} (ej. -0.5)<input type="number" step="0.5" data-am-point></label><label class="small">Cuota ${esc(base.home)}<input type="number" step="1" data-am-a placeholder="-110"></label><label class="small">Cuota ${esc(base.away)}<input type="number" step="1" data-am-b placeholder="-110"></label></div><button type="button" class="alt" data-add-mkt="spreads" data-src="${src.id}" data-home="${esc(base.home)}" data-away="${esc(base.away)}" data-unit="${esc(base.unit || '')}">Agregar hándicap</button></div>`);
     if (!live.some(l => l.market === 'totals')) missing.push(`<div class="edit-mkt edit-add" data-add-box="totals"><div><b>Total</b> <span class="small">falta: agrégalo aquí</span></div><div class="edit-opt"><label class="small">Umbral (ej. 2.5)<input type="number" step="0.5" data-am-point></label><label class="small">Cuota Over<input type="number" step="1" data-am-a placeholder="-110"></label><label class="small">Cuota Under<input type="number" step="1" data-am-b placeholder="-110"></label></div><button type="button" class="alt" data-add-mkt="totals" data-src="${src.id}" data-home="${esc(base.home)}" data-away="${esc(base.away)}" data-unit="${esc(base.unit || '')}">Agregar total</button></div>`);
   }
-  return forms || missing.length ? `<details class="market-edit"><summary>Editar cuotas y umbrales${missing.length ? ' / agregar mercado' : ''}</summary>${forms}${missing.join('')}</details>` : '';
+  const anchorId = (src || live[0] || group[0]).id;
+  return `<details class="market-edit"><summary>Editar cuotas y umbrales${missing.length ? ' / agregar mercado' : ''}</summary>${forms}${missing.join('')}<button type="button" class="alt" data-show-all="${anchorId}">Ver todos los mercados guardados (incluye cancelados/ocultos)</button><div class="small" data-all-box="${anchorId}"></div></details>`;
 }
 function marketCards(ls) {
   return linesByEvent(ls).map(group => {
@@ -334,7 +347,8 @@ function marketCards(ls) {
     const row = (name, i) => // totals stay Over top / Under bottom, independent of team rows
        `<div class="event-team">${esc(name)}</div>${cell(by.spreads, by.spreads?.options.find(o => o.outcome === name))}${cell(by.totals, by.totals?.options.find(o => o.outcome === (i === 0 ? 'Over' : 'Under')))}${cell(winner, winner?.options.find(o => (o.outcome || o.label) === name))}`;
     const draw = winner?.options.find(o => ['Draw','Empate'].includes(o.outcome || o.label));
-    return `<div class="card line"><div class="line-hd"><h2>${esc(vsTitle(base.title, base.home, base.away))}</h2>${base.kind === 'real' ? '<div class="small">Real</div>' : ''}${started ? '<div class="small started-lock" style="color:#dc2626;font-weight:600">🔒 Partido empezado · apuestas cerradas</div>' : paused ? '<div class="small" style="color:#b06d00;font-weight:600">⏸ Apuestas pausadas</div>' : ''}</div>
+    const hiddenWarn = me?.is_admin ? ['spreads', 'totals'].filter(k => by[k] && !(k === 'totals' ? ['Over', 'Under'].every(n => by[k].options.some(o => o.outcome === n)) : teams.every(n => by[k].options.some(o => o.outcome === n)))).map(k => Markets.NAMES[k]) : [];
+    return `<div class="card line" data-card="${group.map(l => l.id).join(',')}"><div class="line-hd"><h2>${esc(vsTitle(base.title, base.home, base.away))}</h2>${base.kind === 'real' ? '<div class="small">Real</div>' : ''}${me?.is_admin ? `<button type="button" class="alt edit-open" data-edit-open="${(winner || base).id}">✏️ Editar mercados</button>` : ''}${started ? '<div class="small started-lock" style="color:#dc2626;font-weight:600">🔒 Partido empezado · apuestas cerradas</div>' : paused ? '<div class="small" style="color:#b06d00;font-weight:600">⏸ Apuestas pausadas</div>' : ''}</div>
       <div class="event-market-grid"><span class="market-head">Equipo</span><span class="market-head">Hándicap</span><span class="market-head">Total${base.unit ? '<br>' + esc(base.unit) : ''}</span><span class="market-head">Ganador</span>
       ${teams.map(row).join('')}${draw ? `<span class="event-team">Empate</span><span></span><span></span>${cell(winner, draw)}` : ''}</div>
       <div class="event-date small">${base.starts ? esc(new Date(base.starts).toLocaleString('es-US')) + ' (hora de tu dispositivo)' + (started ? '' : ' · se cierra al empezar') : 'Fecha no indicada · sin cierre automático'}</div>
@@ -367,6 +381,7 @@ function marketCards(ls) {
         }).join('');
         return `<details class="event-props"><summary>Más mercados (${props.length})</summary><div class="prop-board">${hasOu ? '<div class="prop-board-hd"><span></span><span>OVER</span><span>UNDER</span></div>' : ''}${rows}</div></details>`;
       })() : ''}
+      ${hiddenWarn.length ? `<div class="market-note small" style="color:#fbbf24">⚠ ${hiddenWarn.join(' y ')} existe pero los nombres de sus opciones no coinciden con los equipos, por eso se ve «—». Toca «✏️ Editar mercados» para verlo y corregirlo o cancelarlo.</div>` : ''}
       ${(!by.spreads || !by.totals || !winner) ? '<div class="market-note small">— = mercado sin cuota (no cargado)</div>' : ''}
       ${me?.is_admin ? `<details class="market-admin"><summary>Configurar mercados</summary>${editMarketForms(group)}<button type="button" class="alt" data-market-config="${(winner || base).id}">Agregar hándicap / total / prop</button>${group.some(l => ['open','closed'].includes(l.status)) ? `<button type="button" class="alt" data-pause="${(winner || base).id}" data-paused="${group.some(l => l.paused) ? 1 : 0}"${started && group.some(l => l.paused) ? ' disabled title="El partido ya empezó: cambia la hora de inicio para reabrir"' : ''}>${group.some(l => l.paused) ? '▶ Reactivar apuestas' : '⏸ Pausar apuestas'}</button>` : ''}<label class="small">Inicio (hora de tu dispositivo): <input type="datetime-local" data-start-in="${(winner || base).id}" value="${base.starts ? toLocalInput(base.starts) : ''}"></label><button type="button" class="alt" data-start="${(winner || base).id}">Guardar inicio</button>${started ? '<div class="small">El partido ya empezó: solo se reabre si guardas una hora de inicio futura. Puedes liquidar normalmente.</div>' : ''}<label class="small">Deporte: <select data-sport="${(winner || base).id}">${[['','Sin especificar'],['soccer','Fútbol'],['hockey','Hockey'],['baseball','Béisbol'],['basketball','Baloncesto'],['mma','MMA'],['other','Otro']].map(([k,n]) => `<option value="${k}"${(base.sport || '') === k ? ' selected' : ''}>${n}</option>`).join('')}</select></label><div class="small">${group.filter(l => l.bookmaker).map(l => `${Markets.NAMES[l.market]}: ${esc(l.bookmaker)}`).join(' · ')}</div></details>` : ''}</div>`;
   }).join('');
@@ -420,6 +435,15 @@ function bindBets(ls = []) {
     if (options.some(o => !Number.isInteger(o.odds) || Math.abs(o.odds) < 100)) return flash('Cuotas americanas enteras: -110, +150… (mínimo 100 en valor absoluto)');
     if (!confirm('¿Guardar estas cuotas/umbrales? Las apuestas ya hechas conservan su cuota original; solo cambian las nuevas.')) return;
     try { const r = await api(`/admin/lines/${id}/edit`, { options }); if (r.error) throw new Error(r.error); flash(r.changed === false ? 'Sin cambios' : 'Mercado actualizado'); const y = window.scrollY; await render(); window.scroll(0, y); } catch (e) { flash(e.message); }
+  });
+  A.querySelectorAll('[data-edit-open]').forEach(b => b.onclick = () => { const card = b.closest('.line'); openEditor(card); });
+  A.querySelectorAll('[data-show-all]').forEach(b => b.onclick = async () => {
+    const box = A.querySelector(`[data-all-box="${b.dataset.showAll}"]`);
+    try {
+      const rows = await api(`/admin/lines/${b.dataset.showAll}/event-lines`);
+      const st = { open: 'abierta', closed: 'cerrada', settled: 'liquidada', cancelled: 'cancelada', pushed: 'push' };
+      box.innerHTML = rows.map(r => `<div class="edit-mkt">#${r.id} · <b>${esc(Markets.NAMES[r.market] || r.market)}${r.prop_title ? ' · ' + esc(r.prop_title) : ''}</b> · ${st[r.status] || esc(r.status)} · ${r.bets} apuesta${r.bets === 1 ? '' : 's'}<br>${r.options.map(o => `${esc(o.outcome || o.label)}${o.point != null && r.market !== 'h2h' ? ' ' + o.point : ''} (${od(o.odds)})`).join(' · ')}${['open', 'closed'].includes(r.status) ? '' : ' <i>(oculta en la tabla)</i>'}</div>`).join('') || 'Sin mercados.';
+    } catch (e) { flash(e.message); }
   });
   A.querySelectorAll('[data-add-mkt]').forEach(b => b.onclick = async () => {
     const box = b.closest('[data-add-box]'), market = b.dataset.addMkt, v = s => box.querySelector(s).value.trim();
@@ -505,7 +529,7 @@ async function adminView(B) {
   <div class="card"><h2>Invitaciones</h2><button id="inv">Crear invitación</button>${inv.map(i => `<div class="small">${i.used_by ? '✅ usada por ' + who({ ...i, username: i.used_by }) : `<a style="color:#93c5fd" href="/?invitacion=${i.code}">${location.origin}/?invitacion=${i.code}</a>`}</div>`).join('')}</div>`;
   const addOpt = (l = '', o = '') => { const d = document.createElement('div'); d.className = 'row'; d.innerHTML = `<input placeholder="Opción" value="${l}"><input placeholder="Cuota (-250 / +880)" value="${o}">`; $('#opts').append(d); };
   addOpt('Sí', '-250'); addOpt('No', '+880'); $('#add').onclick = () => addOpt();
-  const act = (sel, fn) => B.querySelectorAll(sel).forEach(b => b.onclick = async () => { try { const r = await fn(b); if (r && r.error) throw new Error(r.error); if (sel === '#existingAdd') flash('Mercado agregado. Míralo en Líneas / Reales.'); render(); } catch (e) { flash(e.message); } });
+  const act = (sel, fn) => B.querySelectorAll(sel).forEach(b => b.onclick = async () => { const lineId = sel === '#existingAdd' ? Number($('#existingEvent').value) : null; try { const ex = $('#existingErr'); if (ex) ex.remove(); const r = await fn(b); if (r && r.error) throw new Error(r.error); if (sel === '#existingAdd') flash('Mercado agregado. Míralo en Líneas / Reales.'); render(); } catch (e) { if (sel === '#existingAdd') showExistingErr(e.message, lineId); else flash(e.message); } });
   act('#create', () => api('/admin/lines', { title: $('#t').value, options: [...$('#opts').children].map(r => ({ label: r.children[0].value, odds: Number(r.children[1].value) })) }));
   const fillExistingTeams = () => {
     const l = ls.find(l => l.id === Number($('#existingEvent').value)); if (!l) return;
@@ -528,7 +552,14 @@ async function adminView(B) {
   };
   $('#propAddOpt').onclick = () => addPropOpt();
   $('#existingMarket').onchange = () => { for (const id of ['existingPoint','existingOddsA','existingOddsB','propTitle']) { const el = $('#' + id); if (el) el.value = ''; } $('#propOpts').innerHTML = ''; layoutExisting(); }; layoutExisting();
-  act('#existingAdd', () => {
+  const showExistingErr = (msg, lineId) => {
+    let box = $('#existingErr'); if (!box) { box = document.createElement('div'); box.id = 'existingErr'; box.className = 'slip-warn'; $('#existingAdd').after(box); }
+    box.style.cssText = 'border:2px solid #d33;background:#fde8e8;color:#600;padding:8px;border-radius:8px;font-weight:600;margin-top:8px';
+    box.innerHTML = `⛔ ${esc(msg)}${/ya existe/.test(msg) ? `<div style="margin-top:8px"><button type="button" id="existingJump">Ir a editar este partido en Líneas</button></div>` : ''}`;
+    const j = $('#existingJump'); if (j) j.onclick = () => { jumpTarget = lineId; lineFilter = 'all'; try { localStorage.ltbLineFilter = 'all'; } catch {} tab = 'lineas'; render(); };
+    box.scrollIntoView({ block: 'center' });
+  };
+  const existingAddCall = () => {
     const home = $('#existingHome').value.trim(), away = $('#existingAway').value.trim(), market = $('#existingMarket').value;
     if (market === 'props') {
       const options = [...$('#propOpts').children].map(r => ({ label: r.children[0].value.trim(), odds: Number(r.children[1].value) }));
@@ -538,7 +569,8 @@ async function adminView(B) {
     const point = num('existingPoint'), a = num('existingOddsA'), b = num('existingOddsB');
     const options = market === 'spreads' ? [{ label: home, point, odds: a }, { label: away, point: -point, odds: b }] : [{ label: 'Over', point, odds: a }, { label: 'Under', point, odds: b }];
     return api(`/admin/lines/${Number($('#existingEvent').value)}/markets`, { home, away, unit: $('#existingUnit').value, market, options });
-  });
+  };
+  act('#existingAdd', existingAddCall);
   act('[data-fresh]', async b => { const c = prompt('Nuevo comienzo (solo una vez): el saldo de este jugador quedará en 0 y se borrarán deuda, préstamos, bancarrotas y penalizaciones del banco. Su historial de victorias/derrotas y apuestas pendientes se conservan. Escribe NUEVO COMIENZO para confirmar.');
     if (c === null) return; const r = await api('/admin/bank/reset', { userId: Number(b.dataset.fresh), confirm: c.trim() }); if (r.error) throw new Error(r.error); });
   act('#eventCreate', () => {
