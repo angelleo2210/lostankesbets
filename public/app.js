@@ -416,6 +416,8 @@ function boletoCard() {
   <div class="small">Monto y botón Apostar en la barra de abajo.</div>${betBar(n, toAm(d), q.error)}</div>`;
 }
 const BET_DEFAULT = '5000';
+// Monto input shows thousands separators (5,000); boletoStake keeps plain digits.
+const stakeShow = v => String(v ?? '').replace(/\D/g, '').replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 function rankBarNotice(american) {
   if (!me || me.points == null || me.points < 21) return '';
   return Number(american) >= -150
@@ -425,7 +427,7 @@ function rankBarNotice(american) {
 // Floating bet bar: fixed at the bottom while there are selections. Holds the stake, payout and Apostar.
 function betBar(n, am, err) {
   return `<div class="betbar" id="betbar" role="region" aria-label="Boleto rápido"><div class="bb-top"><span class="bb-kind">${n === 1 ? 'Simple' : 'Parlay'} · ${n} ${n === 1 ? 'selección' : 'selecciones'}</span><span class="bb-odds" id="bbodds">${od(am)}</span><button type="button" class="alt bb-clr" id="pclr" aria-label="Vaciar boleto">Vaciar</button></div>${err ? `<div class="bb-rank no">⛔ ${esc(err)}</div>` : rankBarNotice(am)}
-  <div class="bb-row"><label class="bb-stake"><span>Monto</span><input type="number" min="1" inputmode="numeric" placeholder="5000" id="ps" value="${esc(boletoStake)}"></label><div class="bb-pay"><span>Pagaría</span><b id="pw">—</b></div><button type="button" class="bb-go" id="pgo">Apostar</button></div></div>`;
+  <div class="bb-row"><label class="bb-stake"><span>Monto</span><input type="text" inputmode="numeric" pattern="[0-9,]*" autocomplete="off" enterkeyhint="done" placeholder="5,000" id="ps" value="${esc(stakeShow(boletoStake))}"></label><div class="bb-pay"><span>Pagaría</span><b id="pw">—</b></div><button type="button" class="bb-go" id="pgo">Apostar</button></div></div>`;
 }
 function bindBets(ls = []) {
   A.querySelectorAll('[data-sport]').forEach(sel => sel.onchange = async () => { try { const r = await api(`/admin/lines/${sel.dataset.sport}/sport`, { sport: sel.value }); if (r.error) throw new Error(r.error); render(); } catch (e) { flash(e.message); } });
@@ -465,9 +467,12 @@ function bindBets(ls = []) {
     try { const r = await api(`/admin/lines/${b.dataset.src}/markets`, { home, away, unit: b.dataset.unit, market, options }); if (r.error) throw new Error(r.error); flash(market === 'spreads' ? 'Hándicap agregado' : 'Total agregado'); const y = window.scrollY; await render(); window.scroll(0, y); } catch (e) { flash(e.message); }
   });
   A.querySelectorAll('[data-market-config]').forEach(b => b.onclick = () => { marketTarget = Number(b.dataset.marketConfig); tab = 'admin'; render(); });
+  // Plain number from the Monto box (commas/spaces stripped) — used for payout and Apostar.
+  const stakeDigits = v => String(v ?? '').replace(/\D/g, '').replace(/^0+/, '').slice(0, 9);
+  const groupDigits = d => d.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   const payoutHint = () => {
     const el = $('#pw'); if (!el || !boleto.length) return;
-    const s = Math.floor(Number($('#ps')?.value));
+    const s = Number(stakeDigits($('#ps')?.value));
     const mult = (boleto.length > 1 && slipQuote(boleto).dec) || boleto.reduce((m, b) => m * dec(b.odds), 1);
     el.textContent = s > 0 ? '$' + fmt(Math.floor(s * mult)) : 'Escribe un monto';
   };
@@ -475,7 +480,7 @@ function bindBets(ls = []) {
   // Anchor correction compensates slip height changes (not a stale scrollY).
   const refreshSlip = anchor => {
     const before = anchor && anchor.getBoundingClientRect().top;
-    const stake = $('#ps'); if (stake) boletoStake = stake.value;
+    const stake = $('#ps'); if (stake) boletoStake = stakeDigits(stake.value);
     const slip = A.querySelector('.slip');
     if (slip) slip.outerHTML = boletoCard();
     A.querySelectorAll('[data-add]').forEach(b => {
@@ -494,12 +499,18 @@ function bindBets(ls = []) {
       if (!l || !o) return; const next = boleto.filter(x => x.line !== l.id); if (next.length >= 15) return flash('Máximo 15 selecciones'); next.push({ id, option: id, line: l.id, event: l.event_id ? l.kind + ':' + l.event_id : null, market: l.market, home: l.home, away: l.away, outcome: o.outcome, point: o.point, title: l.title, label: o.label, odds: o.odds, lines: l.event_id ? ls.filter(x => x.event_id === l.event_id && x.kind === l.kind).map(x => ({ market: x.market, home: x.home, away: x.away, sport: x.sport, options: x.options.map(y => ({ label: y.label, odds: y.odds, point: y.point, outcome: y.outcome })) })) : [] }); const q = slipQuote(next); if (q.error) return flash(q.error); boleto = next; } refreshSlip(b); });
   A.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { const anchor = visibleFixture(); boleto = boleto.filter(x => x.id !== Number(b.dataset.rm)); refreshSlip(anchor); });
   if ($('#pclr')) $('#pclr').onclick = () => { const anchor = visibleFixture(); boleto = []; refreshSlip(anchor); };
-  if ($('#ps')) $('#ps').oninput = () => { boletoStake = $('#ps').value; payoutHint(); };
+  if ($('#ps')) $('#ps').oninput = () => { const el = $('#ps'), raw = String(el.value ?? '');
+    // keep the caret in front of the same digit after regrouping
+    const pos = typeof el.selectionStart === 'number' ? el.selectionStart : raw.length, right = raw.slice(pos).replace(/\D/g, '').length;
+    boletoStake = stakeDigits(raw); const shown = groupDigits(boletoStake);
+    if (shown !== raw) { el.value = shown; let i = shown.length, k = 0; while (i > 0 && k < right) { i--; if (/\d/.test(shown[i])) k++; }
+      try { if (el.setSelectionRange) el.setSelectionRange(i, i); } catch {} }
+    payoutHint(); };
   payoutHint();
   if ($('#pgo')) $('#pgo').onclick = async () => {
     const go = $('#pgo'); if (go.disabled) return;
     try {
-      const stake = Number($('#ps').value);
+      const stake = Number(stakeDigits($('#ps').value));
       if (!boleto.length) return flash('Selecciona al menos una cuota');
       if (!(stake > 0)) return flash('Escribe un monto');
       go.disabled = true;

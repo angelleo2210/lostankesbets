@@ -12,13 +12,13 @@ t('default stake is 5000', () => { assert.match(src, /boletoStake = '5000'/); as
 t('no selections: no bar', () => { const c = mk({ points: 0 }); assert.ok(!c.card().includes('betbar')); });
 t('single: bar with odds, stake 5000, Apostar, Vaciar', () => { const c = mk({ points: 0 }); c.boleto = [leg(1, -110)];
   const h = c.card(); assert.match(h, /class="betbar"/); assert.match(h, /Simple · 1 selección/); assert.match(h, /id="bbodds">-110</);
-  assert.match(h, /id="ps" value="5000"/); assert.match(h, /id="pgo">Apostar</); assert.match(h, /id="pclr"/); assert.ok(!h.includes('bb-rank')); });
+  assert.match(h, /type="text" inputmode="numeric"[^>]*id="ps" value="5,000"/); assert.match(h, /id="pgo">Apostar</); assert.match(h, /id="pclr"/); assert.ok(!h.includes('bb-rank')); });
 t('parlay: combined odds = product, count, rank notice from 21 pts', () => { const c = mk({ points: 21 }); c.boleto = [leg(1, 100), leg(2, 100)];
   let h = c.card(); assert.match(h, /Parlay · 2 selecciones/); assert.match(h, /id="bbodds">\+300</); assert.match(h, /bb-rank ok/);
   c.boleto = [leg(1, -400), leg(2, -400)]; h = c.card(); assert.match(h, /id="bbodds">-178</); assert.match(h, /bb-rank no/); });
 t('Apostar from bar posts /bet or /parlay with stake; payout shown for 5000', () => {
   const block = src.slice(src.indexOf('function bindBets('), src.indexOf('async function adminView('));
-  const el = {}; const calls = []; const get = id => el[id] || (el[id] = { value: id === '#ps' ? '5000' : '', textContent: '', disabled: false });
+  const el = {}; const calls = []; const get = id => el[id] || (el[id] = { value: id === '#ps' ? '5,000' : '', textContent: '', disabled: false });
   const ctx = { boleto: [leg(1, 100), leg(2, 100)], boletoStake: '5000', BET_DEFAULT: '5000', tab: 'lineas', A: { querySelector: () => null, querySelectorAll: () => [] }, $: get,
     window: {}, dec: o => o > 0 ? 1 + o / 100 : 1 + 100 / -o, fmt: n => Number(n).toLocaleString('en-US'), flash: m => { throw new Error(m); }, slipQuote: () => ({}), render: () => {},
     api: async (p, b) => { calls.push([p, b]); return {}; } };
@@ -29,4 +29,19 @@ t('Apostar from bar posts /bet or /parlay with stake; payout shown for 5000', ()
 t('css: fixed bottom bar with safe-area, content padding, toast above bar', () => {
   assert.match(css, /\.betbar\{position:fixed;[^}]*bottom:0/); assert.match(css, /\.betbar\{[^}]*env\(safe-area-inset-bottom\)/);
   assert.match(css, /main:has\(\.betbar\)\{padding-bottom/); assert.match(css, /body:has\(\.betbar\) \.toast/); });
+t('Monto groups thousands live; caret kept; plain number sent', () => {
+  const block = src.slice(src.indexOf('function bindBets('), src.indexOf('async function adminView('));
+  const el = {}; const calls = []; const get = id => el[id] || (el[id] = { value: id === '#ps' ? '5,000' : '', textContent: '', disabled: false, selectionStart: null, setSelectionRange(a) { this.selectionStart = a; } });
+  const ctx = { boleto: [leg(1, -110)], boletoStake: '5000', BET_DEFAULT: '5000', tab: 'lineas', A: { querySelector: () => null, querySelectorAll: () => [] }, $: get,
+    window: {}, dec: o => o > 0 ? 1 + o / 100 : 1 + 100 / -o, fmt: n => Number(n).toLocaleString('en-US'), flash: m => { throw new Error(m); }, slipQuote: () => ({}), render: () => {},
+    api: async (p, b) => { calls.push([p, b]); return {}; } };
+  vm.runInNewContext(block + '\nthis.bind=bindBets;', ctx); ctx.bind([]);
+  const ps = get('#ps'), type = (v, caret = v.length) => { ps.value = v; ps.selectionStart = caret; ps.oninput(); };
+  for (const [v, want] of [['1000', '1,000'], ['10000', '10,000'], ['100000', '100,000'], ['1000000', '1,000,000'], ['50,0000', '500,000'], ['5,00', '500'], ['', ''], ['00012', '12']]) { type(v); assert.equal(ps.value, want); }
+  type('1,0000', 4); assert.equal(ps.value, '10,000'); assert.equal(ps.selectionStart, 4); // caret stays after the typed digit
+  type('10,00', 5); assert.equal(ps.value, '1,000'); assert.equal(ps.selectionStart, 5); // deleting the last digit
+  type('50000'); assert.equal(ps.value, '50,000'); assert.equal(ctx.boletoStake, '50000'); assert.equal(get('#pw').textContent, '$95,454');
+  return get('#pgo').onclick().then(() => { assert.equal(JSON.stringify(calls), JSON.stringify([['/bet', { optionId: 1, stake: 50000 }]])); assert.equal(ctx.boletoStake, '5000'); });
+});
+t('stakeShow formats default as 5,000', () => { const c = mk({ points: 0 }); c.boleto = [leg(1, 100)]; c.boletoStake = '1234567'; assert.match(c.card(), /id="ps" value="1,234,567"/); });
 Promise.all(pend).then(() => console.log(n, 'betbar tests passed'), e => { console.error(e); process.exit(1); });
