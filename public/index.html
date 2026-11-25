@@ -415,4 +415,16 @@ button.rl-chip.sel{outline:2px solid #fde68a;outline-offset:2px;box-shadow:0 0 8
 .slip-rank{margin:8px 0;padding:8px 10px;border-radius:8px;font-size:13px;font-weight:600}
 .slip-rank.ok{background:#052e16;border:1px solid #22c55e;color:#86efac}
 .slip-rank.no{background:#3f1d0a;border:1px solid #f59e0b;color:#fde68a}
+.betbar{position:fixed;left:0;right:0;bottom:0;z-index:50;max-width:560px;margin:0 auto;box-sizing:border-box;background:#0b1220f7;border:1px solid #38bdf8aa;border-bottom:0;border-radius:10px 10px 0 0;box-shadow:0 -10px 28px #000c;padding:9px max(12px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.bb-top{display:flex;align-items:center;gap:8px}.bb-kind{flex:1;font-size:13px;font-weight:600;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bb-odds{font-size:20px;font-weight:800;color:#7dd3fc;font-variant-numeric:tabular-nums}
+button.bb-clr{width:auto;flex:none;margin:0;padding:6px 10px;font-size:12px}
+.bb-rank{margin:6px 0 0;padding:4px 8px;border-radius:6px;font-size:11.5px;font-weight:600;line-height:1.3}.bb-rank.ok{background:#052e16;border:1px solid #22c55e;color:#86efac}.bb-rank.no{background:#3f1d0a;border:1px solid #f59e0b;color:#fde68a}
+.bb-row{display:grid;grid-template-columns:96px minmax(0,1fr) 108px;gap:8px;align-items:end;margin-top:7px}
+.bb-stake span,.bb-pay span{display:block;font-size:11px;color:#94a3b8;margin-bottom:2px}
+.bb-stake input{width:100%;box-sizing:border-box;margin:0;padding:9px 8px;font-size:16px;font-weight:700;border-radius:8px}
+.bb-pay b{display:block;font-size:17px;color:#4ade80;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-bottom:8px}
+button.bb-go{width:100%;margin:0;padding:12px 6px;font-size:16px;font-weight:800;border-radius:8px}button.bb-go:disabled{opacity:.6}
+main:has(.betbar){padding-bottom:calc(200px + env(safe-area-inset-bottom))}body:has(.betbar) .toast{bottom:calc(175px + env(safe-area-inset-bottom))}
+.slip{position:static;z-index:auto}
 </style></head><body><main id="app"></main><script src="intro.js"></script><script src="avatar.js"></script><script src="store.js"></script><script src="markets.js"></script><script src="sgp.js"></script><script src="roulette-ui.js"></script><script src="app.js"></script><script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{}));</script></body></html>

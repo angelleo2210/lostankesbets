@@ -1,5 +1,5 @@
 const $ = s => document.querySelector(s); const A = $('#app');
-let token = localStorage.token, me = null, tab = 'lineas', boleto = [], boletoStake = '', oddsSearch = null, oddsPicked = [];
+let token = localStorage.token, me = null, tab = 'lineas', boleto = [], boletoStake = '5000', oddsSearch = null, oddsPicked = [];
 let lineFilter = localStorage.ltbLineFilter || 'all';
 let adminSettleFilter = localStorage.ltbAdminSettleFilter || 'all';
 let settlePending = {};
@@ -408,14 +408,24 @@ function rankSlipNotice(american) {
     : '<div class="slip-rank no">Esta apuesta no suma puntos al ranking: desde 21 puntos la cuota debe ser -150 o mejor</div>';
 }
 function boletoCard() {
-  if (!boleto.length) return '<div class="card slip empty"><div class="small">Toca una cuota para marcarla en azul. Luego escribe el monto aquí abajo.</div></div>';
+  if (!boleto.length) return '<div class="card slip empty"><div class="small">Toca una cuota para marcarla en azul. Abajo verás la cuota y cuánto pagaría.</div></div>';
   const n = boleto.length, q = n > 1 ? slipQuote(boleto) : {}, d = q.dec || boleto.reduce((m, b) => m * dec(b.odds), 1);
   const kind = n === 1 ? 'Simple' : 'Parlay';
   return `<div class="card slip"><h2>🎟️ Boleto · ${kind} (${n}/15)</h2><div class="slip-list">${boleto.map(b => `<div class="slip-row"><span class="small">${esc(vsTitle(b.title, b.home, b.away))}: <b>${esc(b.label)} ${od(b.odds)}</b></span><button type="button" class="alt slip-x" data-rm="${b.id}" aria-label="Quitar">✕</button></div>`).join('')}</div>
   <div class="slip-meta">${n === 1 ? 'Cuota' : 'Cuota combinada'} <b>${od(toAm(d))}</b></div>${rankSlipNotice(toAm(d))}${q.error ? `<div class="slip-warn" style="border:2px solid #d33;background:#fde8e8;color:#600;padding:8px;border-radius:8px;font-weight:600">⛔ ${esc(q.error)}</div>` : ''}
-  <input type="number" min="1" inputmode="numeric" placeholder="Monto a apostar" id="ps" value="${esc(boletoStake)}">
-  <div class="small" id="pw">Escribe un monto</div>
-  <div class="row"><button type="button" id="pgo">Apostar</button><button type="button" class="alt" id="pclr">Vaciar</button></div></div>`;
+  <div class="small">Monto y botón Apostar en la barra de abajo.</div>${betBar(n, toAm(d), q.error)}</div>`;
+}
+const BET_DEFAULT = '5000';
+function rankBarNotice(american) {
+  if (!me || me.points == null || me.points < 21) return '';
+  return Number(american) >= -150
+    ? '<div class="bb-rank ok">✓ Califica para el ranking (+3 pts)</div>'
+    : '<div class="bb-rank no">⚠ No suma al ranking: desde 21 pts la cuota debe ser -150 o mejor</div>';
+}
+// Floating bet bar: fixed at the bottom while there are selections. Holds the stake, payout and Apostar.
+function betBar(n, am, err) {
+  return `<div class="betbar" id="betbar" role="region" aria-label="Boleto rápido"><div class="bb-top"><span class="bb-kind">${n === 1 ? 'Simple' : 'Parlay'} · ${n} ${n === 1 ? 'selección' : 'selecciones'}</span><span class="bb-odds" id="bbodds">${od(am)}</span><button type="button" class="alt bb-clr" id="pclr" aria-label="Vaciar boleto">Vaciar</button></div>${err ? `<div class="bb-rank no">⛔ ${esc(err)}</div>` : rankBarNotice(am)}
+  <div class="bb-row"><label class="bb-stake"><span>Monto</span><input type="number" min="1" inputmode="numeric" placeholder="5000" id="ps" value="${esc(boletoStake)}"></label><div class="bb-pay"><span>Pagaría</span><b id="pw">—</b></div><button type="button" class="bb-go" id="pgo">Apostar</button></div></div>`;
 }
 function bindBets(ls = []) {
   A.querySelectorAll('[data-sport]').forEach(sel => sel.onchange = async () => { try { const r = await api(`/admin/lines/${sel.dataset.sport}/sport`, { sport: sel.value }); if (r.error) throw new Error(r.error); render(); } catch (e) { flash(e.message); } });
@@ -459,7 +469,7 @@ function bindBets(ls = []) {
     const el = $('#pw'); if (!el || !boleto.length) return;
     const s = Math.floor(Number($('#ps')?.value));
     const mult = (boleto.length > 1 && slipQuote(boleto).dec) || boleto.reduce((m, b) => m * dec(b.odds), 1);
-    el.textContent = s > 0 ? 'Ganarías ' + fmt(Math.floor(s * mult)) : 'Escribe un monto';
+    el.textContent = s > 0 ? '$' + fmt(Math.floor(s * mult)) : 'Escribe un monto';
   };
   // Keep fixture DOM intact. Only the slip and blue selection classes change.
   // Anchor correction compensates slip height changes (not a stale scrollY).
@@ -487,13 +497,16 @@ function bindBets(ls = []) {
   if ($('#ps')) $('#ps').oninput = () => { boletoStake = $('#ps').value; payoutHint(); };
   payoutHint();
   if ($('#pgo')) $('#pgo').onclick = async () => {
+    const go = $('#pgo'); if (go.disabled) return;
     try {
       const stake = Number($('#ps').value);
       if (!boleto.length) return flash('Selecciona al menos una cuota');
+      if (!(stake > 0)) return flash('Escribe un monto');
+      go.disabled = true;
       if (boleto.length === 1) await api('/bet', { optionId: boleto[0].id, stake });
       else await api('/parlay', { optionIds: boleto.map(b => b.id), stake });
-      boleto = []; boletoStake = ''; tab = 'mias'; render();
-    } catch (e) { flash(e.message); }
+      boleto = []; boletoStake = BET_DEFAULT; tab = 'mias'; render();
+    } catch (e) { go.disabled = false; flash(e.message); }
   };
 }
 async function adminView(B) {
