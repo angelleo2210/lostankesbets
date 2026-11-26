@@ -427,4 +427,9 @@ button.bb-clr{width:auto;flex:none;margin:0;padding:6px 10px;font-size:12px}
 button.bb-go{width:100%;margin:0;padding:12px 6px;font-size:16px;font-weight:800;border-radius:8px}button.bb-go:disabled{opacity:.6}
 main:has(.betbar){padding-bottom:calc(200px + env(safe-area-inset-bottom))}body:has(.betbar) .toast{bottom:calc(175px + env(safe-area-inset-bottom))}
 .slip{position:static;z-index:auto}
-</style></head><body><main id="app"></main><script src="intro.js"></script><script src="avatar.js"></script><script src="store.js"></script><script src="markets.js"></script><script src="sgp.js"></script><script src="roulette-ui.js"></script><script src="app.js"></script><script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{}));</script></body></html>
+.avp-tabs{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:2px 0 6px;margin:6px 0 2px;scroll-snap-type:x proximity}.avp-tabs::-webkit-scrollbar{display:none}
+.avp-tabs .chip{flex:none;white-space:nowrap;padding:7px 12px;font-size:13px;border-radius:8px;scroll-snap-align:start}
+.avp-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.avp-grid .av-opt{padding:5px 3px;border-radius:10px;min-width:0}
+.avp-grid .av-opt img,.avp-grid .av-opt .av-img{width:100%;height:auto;aspect-ratio:3/4}.avp-grid .av-opt span{font-size:10.5px;line-height:1.15;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+img.av-gen{border-radius:10px;object-fit:contain}
+</style></head><body><main id="app"></main><script src="intro.js"></script><script src="avatar-catalog.js"></script><script src="avatar.js"></script><script src="store.js"></script><script src="markets.js"></script><script src="sgp.js"></script><script src="roulette-ui.js"></script><script src="app.js"></script><script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{}));</script></body></html>

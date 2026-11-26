@@ -36,11 +36,11 @@ async function start() {
   <h2>${mode === 'setup' ? 'Crear administrador' : mode === 'register' ? 'Unirte con invitación' : 'Entrar'}</h2>
   ${mode === 'register' ? `<input id="code" placeholder="Código de invitación" value="${esc(code)}">` : ''}
   <input id="u" placeholder="Usuario" autocapitalize="none"><input id="p" type="password" placeholder="PIN (mín. 4)" inputmode="numeric">
-  ${mode === 'register' ? `<details open><summary class="small">🎨 Elige tu avatar (opcional)</summary><div class="av-pick" id="rpick">${Avatar.PICKS.map(n => `<button type="button" class="av-opt" data-rp="${n}">${Avatar.imgTag(n,{w:72,h:96,cls:'av3dc'})}<span>${n}</span></button>`).join('')}</div></details>` : ''}
+  ${mode === 'register' ? `<details open><summary class="small">🎨 Elige tu avatar (opcional)</summary><div id="rpick">${avatarPicker(null, '')}</div></details>` : ''}
   <button id="go">${mode === 'login' ? 'Entrar' : 'Crear cuenta'}</button>
   ${mode === 'login' ? '<p class="small">¿Tienes invitación? Abre el link que te mandaron.</p>' : ''}<p id="msg" class="err"></p></div>`;
   const rcfg = { ...Avatar.DEFAULT }; let touched = false;
-  document.querySelectorAll('[data-rp]').forEach(b => b.onclick = () => { rcfg.pick = +b.dataset.rp; touched = true; document.querySelectorAll('[data-rp]').forEach(x => x.classList.toggle('on', +x.dataset.rp === rcfg.pick)); });
+  if ($('#rpick')) { const rp = bindAvatarPicker($('#rpick'), { selected: null, name: () => $('#u').value, onPick: id => { rcfg.pick = id; touched = true; } }); $('#u').addEventListener('input', rp.refresh); }
   $('#go').onclick = async () => { try { const b = { username: $('#u').value, pin: $('#p').value, code: $('#code')?.value, ...(touched ? { avatarCfg: rcfg } : {}) };
     const d = await api(mode === 'setup' ? '/setup' : mode === 'register' ? '/register' : '/login', b);
     token = localStorage.token = d.token; history.replaceState(null, '', '/'); start(); } catch (e) { flash(e.message); } };
@@ -220,8 +220,8 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
   if (tab === 'perfil') { let av = me.avatar || '', cos = { ...(me.cosmetics || {}) }, acfg = Avatar.norm(me.avatarCfg); const mine = new Set((me.unlocks || []).map(u => u.item_id));
     B.innerHTML = `<div class="card"><h2>Mi perfil</h2><div class="small">Usuario: @${esc(me.username)}</div>${streakTag(me.streak, true)}
     <div style="display:flex;flex-wrap:wrap;gap:4px;margin:8px 0">${EMOJIS.map(e => `<button class="${e === av ? '' : 'alt'}" style="width:44px;padding:6px" data-em="${e}">${e}</button>`).join('')}<button class="alt" style="width:auto;padding:6px" data-em="">Sin emoji</button></div>
-    <h2>Tu avatar</h2><div class="small">Elige uno de los 13. Sin colores ni accesorios.</div>
-    <div class="av-pick" id="avpick">${Avatar.PICKS.map(n => `<button type="button" class="av-opt ${acfg.pick === n ? 'on' : ''}" data-pick="${n}">${Avatar.imgTag(n, { w: 90, h: 120, cls: 'av3dc' })}<span>${n}</span></button>`).join('')}</div>
+    <h2>Tu avatar</h2><div class="small">Elige una categoría y toca un avatar. Se guarda al tocar Guardar.</div>
+    <div id="avpick">${avatarPicker(acfg.pick, me.display_name || me.username, typeof Avatar.norm(me.avatarCfg).pick === 'number')}</div>
     <div class="card avpv" id="bigpv" aria-label="Vista previa">${_avBody({ avatarCfg: acfg }, 220)}</div>
     <h2>Mi imagen de perfil</h2><div id="combo">${composite({ ...me, avatarCfg: acfg }, stP.owned)}</div>
     <h2>Recompensas top 3 ${me.badge || ''}</h2><div class="small">Quedar en el top 3 (con más de 50.000) desbloquea ítems junto al nombre. La medalla solo mientras sigues arriba.</div>
@@ -232,8 +232,8 @@ async function render() { clearInterval(chatT); clearInterval(tcTimer); clearInt
     const pv = () => { const dn = $('#dn'), pve = $('#pv'), big = $('#bigpv'), combo = $('#combo'); if (!dn || !pve || !big || !combo) return;
       const u = { username: me.username, badge: me.badge, cosmetics: cos, avatar: av, avatarCfg: acfg, display_name: dn.value.trim() };
       pve.innerHTML = who(u); big.innerHTML = _avBody(u, 220); combo.innerHTML = composite(u, stP.owned); }; pv();
-    B.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { acfg = { pick: +b.dataset.pick }; B.querySelectorAll('[data-pick]').forEach(x => x.classList.toggle('on', +x.dataset.pick === acfg.pick)); pv(); });
-    const dne = $('#dn'); if (dne) dne.oninput = dne.onchange = pv;
+    const avp = bindAvatarPicker($('#avpick'), { selected: acfg.pick, name: () => ($('#dn')?.value || '').trim() || me.username, originals: typeof Avatar.norm(me.avatarCfg).pick === 'number', onPick: id => { acfg = { pick: id }; pv(); } });
+    const dne = $('#dn'); if (dne) dne.oninput = dne.onchange = () => { pv(); avp.refresh(); };
     B.querySelectorAll('[data-cos]').forEach(b => b.onclick = () => { const [k, v] = b.dataset.cos.split(':'); if (v) cos[k] = v; else delete cos[k]; B.querySelectorAll(`[data-cos^="${k}:"]`).forEach(x => x.className = x.dataset.cos === `${k}:${v}` && v ? '' : 'alt'); pv(); });
     B.querySelectorAll('[data-em]').forEach(b => b.onclick = () => { av = b.dataset.em; B.querySelectorAll('[data-em]').forEach(x => x.className = x.dataset.em === av && av ? '' : 'alt'); pv(); });
     const sv = $('#sv'); if (sv) sv.onclick = async () => { try { const dn = $('#dn'); await api('/profile', { avatar: av, display_name: dn ? dn.value : '', facialHair: 'ninguno', cosmetics: cos, avatarCfg: acfg }); render(); } catch (e) { flash(e.message); } }; }
@@ -837,8 +837,28 @@ let sq = 0;
 const SLOTN = { arriba: 'Arriba', abajo: 'Abajo', zapatos: 'Zapatos', medias: 'Medias', cadenas: 'Cadenas', pulseras: 'Pulseras', mochila: 'Mochila', cabeza: 'Gorras y sombreros' };
 // Imagen compuesta: avatar con brazos cruzados, el mejor yate detrás (en puerto) y la moto al lado. Se arma con las compras.
 const pickOf = u => Avatar.norm(u && u.avatarCfg).pick;
-const _avHead = (u, size = 28) => `<span class="av3dw head">${Avatar.imgTag(pickOf(u), { head: true, w: Math.max(48, size * 2), h: Math.max(48, size * 2), cls: 'av3dc' })}</span>`;
-const _avBody = (u, size = 160) => `<div class="av3dw body">${Avatar.imgTag(pickOf(u), { w: Math.round(size * 3 / 4), h: size, cls: 'av3dc' })}</div>`;
+const avName = u => (u && (u.display_name || u.username)) || '';
+const _avHead = (u, size = 28) => `<span class="av3dw head">${Avatar.imgTag(pickOf(u), { head: true, name: avName(u), w: Math.max(48, size * 2), h: Math.max(48, size * 2), cls: 'av3dc' })}</span>`;
+const _avBody = (u, size = 160) => `<div class="av3dw body">${Avatar.imgTag(pickOf(u), { name: avName(u), w: Math.round(size * 3 / 4), h: size, cls: 'av3dc' })}</div>`;
+// Avatar picker: category chips (scroll horizontally) + grid with only that category. Originales (the 13 bobbleheads) only for users who already have one.
+function avatarPicker(selected, name, originals = false, tab) {
+  const groups = Avatar.GROUPS.concat(originals ? [['originales', 'Originales']] : []);
+  const cur = tab || (selected != null && groups.some(g => g[0] === Avatar.groupOf(selected)) ? Avatar.groupOf(selected) : 'caricaturas');
+  const ids = cur === 'originales' ? Avatar.PICKS : Object.values(Avatar.GEN).filter(x => x.group === cur).map(x => x.id);
+  return `<div class="avp"><div class="avp-tabs" role="tablist">${groups.map(([k, l]) => `<button type="button" role="tab" class="chip ${k === cur ? 'on' : 'alt'}" aria-selected="${k === cur}" data-avtab="${k}">${l}</button>`).join('')}</div>
+  <div class="av-pick avp-grid" data-avgroup="${cur}">${ids.map(id => `<button type="button" class="av-opt ${String(id) === String(selected) ? 'on' : ''}" data-avsel="${esc(String(id))}" aria-pressed="${String(id) === String(selected)}">${Avatar.imgTag(id, { w: 90, h: 120, cls: 'av3dc', name })}<span>${esc(Avatar.labelOf(id))}</span></button>`).join('')}</div></div>`;
+}
+function bindAvatarPicker(box, { selected, name, originals = false, onPick }) {
+  let sel = selected, tab = null;
+  const draw = () => { const x = box.querySelector('.avp-tabs'), sl = x ? x.scrollLeft : 0; box.innerHTML = avatarPicker(sel, name(), originals, tab); const t = box.querySelector('.avp-tabs'); if (t) t.scrollLeft = sl; wire(); };
+  const wire = () => {
+    box.querySelectorAll('[data-avtab]').forEach(b => b.onclick = () => { tab = b.dataset.avtab; draw(); });
+    box.querySelectorAll('[data-avsel]').forEach(b => b.onclick = () => { const v = b.dataset.avsel; sel = /^\d+$/.test(v) ? Number(v) : v;
+      box.querySelectorAll('[data-avsel]').forEach(x => { const on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); }); onPick(sel); });
+  };
+  wire(); const on = box.querySelector('.avp-tabs .chip.on'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', inline: 'center' });
+  return { refresh: () => { if ((box.querySelector('[data-avgroup]') || {}).dataset?.avgroup === 'iniciales') draw(); } };
+}
 const SHOW_CATS = new Set(['carros', 'motos', 'barcos', 'aviones', 'casas', 'relojes']);
 const SCENE3D = new Set(['moto_scooter','moto_naked','moto_pista','jet_basico','jet_turbo','jet_pro','yate_lancha','yate_velero','yate_catamaran','yate_blanco','yate_mega']);
 const propThumb = (id, color) => SCENE3D.has(id) ? `img/av3d/scenes/${id}.webp` : Store.img(id, color);
@@ -848,7 +868,7 @@ const coverBanner = (u) => {
     <img class="cover-bg" src="img/av3d/scenes/cover_bg.webp" alt="">
     <div class="cover-shade"></div>
     <div class="cover-row">
-      <div class="cover-av">${Avatar.imgTag(pickOf(u), { w: 180, h: 240, cls: 'av3dc oncover' })}</div>
+      <div class="cover-av">${Avatar.imgTag(pickOf(u), { name: avName(u), w: 180, h: 240, cls: 'av3dc oncover' })}</div>
       <div class="cover-meta">
         <div class="cover-hello">Hola,</div>
         <div class="cover-name">${u.badge ? u.badge + ' ' : ''}${nm}</div>
@@ -862,7 +882,7 @@ const composite = (u, owned) => {
   const props = owned.map(o => ({ ...o, it: Store.byId(o.item_id) })).filter(o => o.it && SHOW_CATS.has(o.it.cat))
     .sort((a, b) => b.it.price - a.it.price).slice(0, 4);
   const thumbs = props.map(o => `<img class="combo-prop" src="${propThumb(o.item_id, o.color)}" alt="${esc(o.it.name)}" title="${esc(o.it.name)}">`).join('');
-  return `<div class="combo3d static"><div class="combo-av">${Avatar.imgTag(pickOf(u), { w: 220, h: 293, cls: 'av3dc' })}</div><div class="combo-props">${thumbs || '<span class="small">Sin vehículos aún</span>'}</div></div>`;
+  return `<div class="combo3d static"><div class="combo-av">${Avatar.imgTag(pickOf(u), { name: avName(u), w: 220, h: 293, cls: 'av3dc' })}</div><div class="combo-props">${thumbs || '<span class="small">Sin vehículos aún</span>'}</div></div>`;
 };
 const FIRE = (z, u = 'fx' + (++sq)) => `<svg width="${z}" height="${z}" viewBox="0 0 24 24" style="vertical-align:middle" aria-hidden="true"><defs><radialGradient id="${u}a" cx=".5" cy=".75" r=".7"><stop offset="0" stop-color="#fde047"/><stop offset=".45" stop-color="#fb923c"/><stop offset="1" stop-color="#dc2626"/></radialGradient><radialGradient id="${u}b" cx=".5" cy=".7" r=".6"><stop offset="0" stop-color="#fff"/><stop offset=".5" stop-color="#fef08a"/><stop offset="1" stop-color="#f59e0b"/></radialGradient></defs><path d="M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-5 3-7 0 2 1 3 2 3 0-3-1-5 1-8z" fill="url(#${u}a)"/><path d="M12 11c.5 2 3 3 3 5.5a3 3 0 0 1-6 0c0-1.5 1-2.5 1.5-3.5.3 1 .8 1.4 1.3 1.4 0-1.3-.4-2.2.2-3.4z" fill="url(#${u}b)"/><ellipse cx="9.5" cy="12" rx="1" ry="2" fill="#fff" opacity=".45"/></svg>`;
 const ICE = z => `<svg width="${z}" height="${z}" viewBox="0 0 24 24" style="vertical-align:middle" aria-hidden="true"><g stroke="#bae6fd" stroke-width="2" stroke-linecap="round" fill="none">${[0, 60, 120].map(a => `<g transform="rotate(${a} 12 12)"><path d="M12 2v20"/><path d="M9 4.5l3 2.5 3-2.5M9 19.5l3-2.5 3 2.5"/></g>`).join('')}</g><circle cx="12" cy="12" r="2.2" fill="#e0f2fe"/><circle cx="11.3" cy="11.3" r=".7" fill="#fff"/></svg>`;
@@ -885,7 +905,7 @@ const tablaAvatar = (u, { w, h, boxCls, sm } = {}) => {
   const pick = Avatar.norm(u && u.avatarCfg).pick;
   const st = u && u.streak;
   const photo = Avatar.streakSrc && Avatar.streakSrc(pick, st, false);
-  const img = `<div class="${boxCls || 'tb-av'}"><img class="av3dc" src="${photo || Avatar.src(pick, false)}" width="${w}" height="${h}" alt="" draggable="false" loading="lazy"></div>`;
+  const img = `<div class="${boxCls || 'tb-av'}"><img class="av3dc" src="${photo || Avatar.src(pick, false, avName(u))}" width="${w}" height="${h}" alt="" draggable="false" loading="lazy"></div>`;
   if (photo) return `<div class="tb-aura tb-aura-photo${sm ? ' tb-aura-sm' : ''}">${img}</div>`;
   return auraWrap(img, st, { sm });
 };
